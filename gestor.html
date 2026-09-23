@@ -455,7 +455,12 @@
                 if (dataFim) parametros.append('fim', dataFim);
             }
 
-            const urlBase = window.location.origin;
+            // Garante que o link gerado use o domínio público oficial da vitrine na nuvem
+            // para que qualquer cliente consiga abrir no celular ou em outro computador
+            let urlBase = window.location.origin;
+            if (!urlBase || urlBase === 'null' || urlBase.startsWith('file:') || urlBase.includes('localhost') || urlBase.includes('127.0.0.1')) {
+                urlBase = 'https://vitrine-openfinance.onrender.com';
+            }
             const urlFinal = `${urlBase}/cliente.html?${parametros.toString()}`;
             
             document.getElementById("linkGerado").textContent = urlFinal;
