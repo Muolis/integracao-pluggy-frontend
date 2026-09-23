@@ -175,9 +175,106 @@ def api_login():
 
     return jsonify({"erro": "Usuário ou senha incorretos"}), 401
 
+# ====================================================================
+# MAPEAMENTO OFICIAL DE CÓDIGOS BANCÁRIOS (COMPE - BANCO CENTRAL DO BRASIL)
+# ====================================================================
+CONNECTOR_COMPE = {
+    611: "001", 662: "001",  # Banco do Brasil
+    608: "033", 621: "033",  # Santander
+    619: "104", 616: "104",  # Caixa Econômica Federal
+    603: "237", 609: "237",  # Bradesco
+    601: "341", 618: "341", 786: "341",  # Itaú Unibanco
+    612: "260", 664: "260",  # Nu Pagamentos (Nubank)
+    626: "336", 726: "336",  # C6 Bank
+    651: "380", 713: "380",  # PicPay
+    692: "290", 816: "290",  # PagBank (PagSeguro)
+    652: "318", 666: "318",  # Banco Bmg
+    817: "070", 818: "070",  # Banco BRB
+    653: "335", 674: "335",  # Banco Digio
+    671: "004", 672: "004",  # Banco do Nordeste do Brasil
+    680: "243",              # Banco Master
+    742: "389", 819: "389",  # Banco Mercantil
+    657: "623",              # Banco PAN
+    714: "637", 715: "637",  # Banco Sofisa
+    659: "041", 660: "041",  # Banrisul
+    675: "208", 655: "208",  # BTG Pactual
+    718: "655", 716: "655", 719: "655",  # Banco BV
+    606: "323", 665: "323",  # Mercado Pago
+    656: "237", 801: "237",  # Next (Bradesco)
+    689: "536",              # Neon
+    750: "069", 860: "069",  # Crefisa
+    629: "422", 697: "422",  # Banco Safra
+    658: "756", 628: "756",  # Sicoob
+    661: "748", 627: "748",  # Sicredi
+    787: "197", 788: "197",  # Stone Pagamentos
+    663: "136", 670: "136",  # Unicred
+    602: "102", 702: "102",  # XP Banking
+    880: "383",              # Conta Bemol
+    777: "777", 778: "777",  # InfinitePay
+    804: "099",              # 99Pay
+    767: "767", 768: "767",  # RecargaPay
+    676: "748",              # Woop Sicredi
+}
+
+NOME_COMPE_FALLBACK = {
+    "banco do brasil": "001",
+    "santander": "033",
+    "caixa": "104",
+    "bradesco": "237",
+    "itaú": "341",
+    "itau": "341",
+    "nubank": "260",
+    "inter": "077",
+    "c6": "336",
+    "picpay": "380",
+    "pagbank": "290",
+    "pagseguro": "290",
+    "original": "212",
+    "safra": "422",
+    "sicredi": "748",
+    "sicoob": "756",
+    "banrisul": "041",
+    "bmg": "318",
+    "brb": "070",
+    "digio": "335",
+    "nordeste": "004",
+    "master": "243",
+    "mercantil": "389",
+    "pan": "623",
+    "sofisa": "637",
+    "btg": "208",
+    "bv": "655",
+    "votorantim": "655",
+    "mercado pago": "323",
+    "next": "237",
+    "neon": "536",
+    "crefisa": "069",
+    "infinitepay": "777",
+    "stone": "197",
+    "unicred": "136",
+    "xp": "102",
+    "bemol": "383",
+    "cora": "403",
+    "ailos": "085",
+    "banestes": "021",
+    "rendimento": "633",
+    "daycoval": "707",
+    "agibank": "121",
+}
+
+def obter_codigo_banco(connector_id: int, nome: str) -> str:
+    """Retorna o código COMPE oficial de um conector bancário"""
+    if connector_id in CONNECTOR_COMPE:
+        return CONNECTOR_COMPE[connector_id]
+    nome_norm = (nome or "").lower()
+    for chave, codigo in NOME_COMPE_FALLBACK.items():
+        if chave in nome_norm:
+            return codigo
+    return ""
+
 @app.route('/listar-bancos', methods=['GET'])
 def listar_bancos():
-    """Lista bancos com suporte a iniciação de pagamentos Pix via Pluggy"""
+    """Lista bancos com suporte a Pix acompanhados do código bancário COMPE oficial"""
     api_key = obter_api_key()
     if not api_key:
         return jsonify({"erro": "Erro na autenticação com a Pluggy"}), 500
@@ -195,9 +292,21 @@ def listar_bancos():
         bancos_validos = []
         for c in conectores:
             if c.get("type") in ["PERSONAL_BANK", "BUSINESS_BANK"] and c.get("supportsPaymentInitiation") is True:
-                bancos_validos.append({"id": c.get("id"), "name": c.get("name")})
+                cid = c.get("id")
+                raw_name = c.get("name", "").strip()
+                code = obter_codigo_banco(cid, raw_name)
+                # Formata com o número: ex: "001 - Banco do Brasil" ou "237 - Bradesco"
+                display_name = f"{code} - {raw_name}" if code else raw_name
+                bancos_validos.append({
+                    "id": cid,
+                    "name": display_name,
+                    "code": code,
+                    "raw_name": raw_name,
+                    "imageUrl": c.get("imageUrl")
+                })
 
-        bancos_validos = sorted(bancos_validos, key=lambda x: x["name"])
+        # Ordena: bancos com código numérico primeiro pelo código, depois os demais pelo nome
+        bancos_validos.sort(key=lambda x: (0 if x["code"] else 1, x["code"] or "", x["raw_name"]))
         return jsonify(bancos_validos)
     except Exception as e:
         return jsonify({"erro": f"Erro interno ao listar bancos: {str(e)}"}), 500
@@ -327,6 +436,115 @@ def gerar_token_pix():
     except Exception as e:
         return jsonify({"erro": f"Erro interno ao processar Pix: {str(e)}"}), 500
 
+def calcular_extrato_pix(intent_data: dict) -> dict:
+    """Calcula o extrato analítico do contrato de Pix Automático: parcelas pagas, restantes e cronograma"""
+    from datetime import date
+    import calendar
+
+    req = intent_data.get("paymentRequest") or {}
+    schedule = req.get("schedule") or {}
+    status = intent_data.get("status", "PENDING")
+    connector = intent_data.get("connector") or {}
+    valor = float(req.get("amount") or 0.0)
+    occurrences = int(schedule.get("occurrences") or 12)
+    start_date_str = schedule.get("startDate") or time.strftime("%Y-%m-%d")
+
+    try:
+        ano, mes, dia = [int(x) for x in str(start_date_str).split("-")[:3]]
+        data_base = date(ano, mes, dia)
+    except Exception:
+        data_base = date.today()
+
+    agora = date.today()
+    cronograma = []
+    parcelas_pagas = 0
+    cliente_pagando = (status == "PAYMENT_COMPLETED")
+
+    for i in range(1, occurrences + 1):
+        m_total = (data_base.month - 1) + (i - 1)
+        novo_ano = data_base.year + (m_total // 12)
+        novo_mes = (m_total % 12) + 1
+        max_dias = calendar.monthrange(novo_ano, novo_mes)[1]
+        dia_venc = min(data_base.day, max_dias)
+        vencimento_parcela = date(novo_ano, novo_mes, dia_venc)
+        venc_str = vencimento_parcela.strftime("%d/%m/%Y")
+
+        if status in ["CONSENT_REJECTED", "REJECTED", "ERROR"]:
+            status_parcela = "rejeitada"
+            badge_texto = "Cancelada / Não Autorizada"
+            cor_badge = "rose"
+        elif status in ["WAITING_PAYER_AUTHORIZATION", "PENDING"]:
+            if i == 1:
+                status_parcela = "pendente"
+                badge_texto = "Aguardando Banco"
+                cor_badge = "amber"
+            else:
+                status_parcela = "a_vencer"
+                badge_texto = "A Vencer"
+                cor_badge = "slate"
+        elif status == "PAYMENT_COMPLETED":
+            if vencimento_parcela <= agora:
+                status_parcela = "paga"
+                badge_texto = "Paga"
+                cor_badge = "emerald"
+                parcelas_pagas += 1
+            elif parcelas_pagas == i - 1 and vencimento_parcela > agora:
+                status_parcela = "proximo_debito"
+                badge_texto = "Próximo Débito"
+                cor_badge = "sky"
+            else:
+                status_parcela = "a_vencer"
+                badge_texto = "A Vencer"
+                cor_badge = "slate"
+        else:
+            status_parcela = "a_vencer"
+            badge_texto = "A Vencer"
+            cor_badge = "slate"
+
+        cronograma.append({
+            "numero": i,
+            "vencimento": venc_str,
+            "vencimento_iso": vencimento_parcela.isoformat(),
+            "valor": valor,
+            "status": status_parcela,
+            "badge": badge_texto,
+            "cor": cor_badge
+        })
+
+    parcelas_restantes = max(0, occurrences - parcelas_pagas)
+    if status in ["CONSENT_REJECTED", "REJECTED", "ERROR"]:
+        status_rotulo = "Cancelado / Rejeitado"
+        status_classe = "rejeitado"
+    elif status == "PAYMENT_COMPLETED":
+        status_rotulo = "Em Dia (Ativo)"
+        status_classe = "ativo"
+    else:
+        status_rotulo = "Aguardando Autorização"
+        status_classe = "pendente"
+
+    proxima = next((p for p in cronograma if p["status"] in ["proximo_debito", "pendente", "a_vencer"]), None)
+    proximo_vencimento = proxima["vencimento"] if proxima else "Concluído"
+
+    return {
+        "id": intent_data.get("id"),
+        "status": status,
+        "status_rotulo": status_rotulo,
+        "status_classe": status_classe,
+        "cliente_pagando": cliente_pagando,
+        "banco_nome": connector.get("name", "Banco"),
+        "banco_imagem": connector.get("imageUrl"),
+        "parcelas_total": occurrences,
+        "parcelas_pagas": parcelas_pagas,
+        "parcelas_restantes": parcelas_restantes,
+        "valor_parcela": valor,
+        "total_pago": round(parcelas_pagas * valor, 2),
+        "total_restante": round(parcelas_restantes * valor, 2),
+        "proximo_vencimento": proximo_vencimento,
+        "data_inicio": start_date_str,
+        "cronograma": cronograma,
+        "raw": intent_data
+    }
+
 @app.route('/salvar-conexao', methods=['POST'])
 def salvar_conexao():
     """Salva o vínculo entre o cliente e o itemId / paymentIntentId no banco de dados"""
@@ -351,10 +569,12 @@ def salvar_conexao():
     try:
         registro = {"cliente": cliente}
         if payment_intent_id:
+            registro["item_id"] = str(payment_intent_id)
             registro["payment_intent_id"] = str(payment_intent_id)
             registro["tipo"] = "pix_automatico"
         elif item_id:
             registro["item_id"] = str(item_id)
+            registro["payment_intent_id"] = None
             registro["tipo"] = "open_finance"
 
         supabase.table("conexoes").insert(registro).execute()
@@ -370,7 +590,7 @@ def salvar_conexao():
 @app.route('/listar-conexoes', methods=['GET'])
 @requer_autenticacao
 def listar_conexoes():
-    """Lista as conexões salvas de clientes no Supabase de forma segura e paginada"""
+    """Lista as conexões salvas de clientes no Supabase com separação estrita de tipo"""
     if not supabase:
         return jsonify([
             {
@@ -385,7 +605,14 @@ def listar_conexoes():
 
     try:
         resposta = supabase.table("conexoes").select("*").order("data_conexao", desc=True).limit(100).execute()
-        return jsonify(resposta.data or []), 200
+        conexoes = resposta.data or []
+        for c in conexoes:
+            # Separação rigorosa: se tem payment_intent_id, é PIX AUTOMÁTICO; senão, OPEN FINANCE
+            if c.get("payment_intent_id"):
+                c["tipo"] = "pix_automatico"
+            else:
+                c["tipo"] = "open_finance"
+        return jsonify(conexoes), 200
     except Exception as e:
         print(f"[ERRO SUPABASE SELECT]: {e}")
         return jsonify({"erro": f"Falha ao consultar banco: {str(e)}"}), 500
@@ -393,20 +620,46 @@ def listar_conexoes():
 @app.route('/consultar-dados/<item_id>', methods=['GET'])
 @requer_autenticacao
 def consultar_dados(item_id):
-    """Consulta as contas bancárias associadas a um Item ID do Open Finance na Pluggy"""
+    """Consulta as informações do Item (banco/status) e as contas associadas ao Item ID na Pluggy"""
     api_key = obter_api_key()
     if not api_key:
         return jsonify({"erro": "Erro na autenticação com a Pluggy"}), 500
 
     try:
+        # 1. Consulta o item para obter status da conexão e conector
+        item_info = {}
+        try:
+            it_res = requests.get(
+                f"https://api.pluggy.ai/items/{item_id}",
+                headers={"X-API-KEY": api_key},
+                timeout=12
+            )
+            if it_res.status_code == 200:
+                item_info = it_res.json()
+        except Exception as e_it:
+            print(f"[AVISO] Falha ao consultar item {item_id}: {e_it}")
+
+        # 2. Consulta as contas do Item
         contas_response = requests.get(
             f"https://api.pluggy.ai/accounts?itemId={item_id}",
             headers={"X-API-KEY": api_key},
             timeout=15
         )
-        if contas_response.status_code != 200:
-            return jsonify({"erro": "Falha ao buscar contas", "detalhes": contas_response.text}), contas_response.status_code
-        return jsonify(contas_response.json())
+        contas = []
+        if contas_response.status_code == 200:
+            contas = contas_response.json().get("results", [])
+
+        return jsonify({
+            "item": {
+                "id": item_id,
+                "status": item_info.get("status", "UPDATED"),
+                "connector": item_info.get("connector", {}),
+                "error": item_info.get("error"),
+                "lastUpdatedAt": item_info.get("lastUpdatedAt")
+            },
+            "results": contas,
+            "total": len(contas)
+        }), 200
     except Exception as e:
         return jsonify({"erro": f"Erro interno ao buscar contas: {str(e)}"}), 500
 
@@ -433,7 +686,7 @@ def consultar_transacoes(account_id):
 @app.route('/consultar-pix/<intent_id>', methods=['GET'])
 @requer_autenticacao
 def consultar_pix(intent_id):
-    """Consulta o status de um contrato / intenção de Pix Automático"""
+    """Consulta o extrato detalhado do Pix Automático com cálculo analítico de parcelas"""
     api_key = obter_api_key()
     if not api_key:
         return jsonify({"erro": "Erro na autenticação com a Pluggy"}), 500
@@ -446,7 +699,10 @@ def consultar_pix(intent_id):
         )
         if response.status_code != 200:
             return jsonify({"erro": "Falha ao buscar intent", "detalhes": response.text}), response.status_code
-        return jsonify(response.json())
+
+        intent_data = response.json()
+        extrato_analitico = calcular_extrato_pix(intent_data)
+        return jsonify(extrato_analitico), 200
     except Exception as e:
         return jsonify({"erro": f"Erro interno ao buscar Pix: {str(e)}"}), 500
 

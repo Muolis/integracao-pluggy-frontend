@@ -149,15 +149,29 @@
             <label for="banco-escolhido" class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">
                 Selecione o seu banco para autorizar:
             </label>
-            <div class="relative">
-                <select 
-                    id="banco-escolhido" 
-                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] appearance-none transition cursor-pointer"
-                >
-                    <option value="" disabled selected>Carregando bancos autorizados...</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                    <i class="fa-solid fa-chevron-down text-xs"></i>
+            <div class="space-y-1.5">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="busca-banco-cliente" 
+                        oninput="filtrarBancosCliente()" 
+                        placeholder="Buscar por número (001, 237, 341) ou nome..." 
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
+                    >
+                </div>
+                <div class="relative">
+                    <select 
+                        id="banco-escolhido" 
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] appearance-none transition cursor-pointer"
+                    >
+                        <option value="" disabled selected>Carregando bancos autorizados...</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                        <i class="fa-solid fa-chevron-down text-xs"></i>
+                    </div>
                 </div>
             </div>
         </div>
@@ -232,23 +246,39 @@
             valor = localStorage.getItem('memoriaValor');
         }
 
+        let listaBancosCliente = [];
+
         async function carregarBancos() {
             const selectBanco = document.getElementById('banco-escolhido');
             try {
                 const resposta = await fetch(`${MC_CONFIG.API_BASE_URL}/listar-bancos`);
                 if (!resposta.ok) throw new Error("Erro ao buscar lista de instituições");
                 
-                const bancos = await resposta.json();
-                selectBanco.innerHTML = '<option value="" disabled selected>Selecione a sua instituição bancária...</option>';
-                
-                const bancoSalvo = localStorage.getItem('memoriaBanco');
-                bancos.forEach(banco => {
-                    const selected = bancoSalvo && String(banco.id) === String(bancoSalvo) ? 'selected' : '';
-                    selectBanco.innerHTML += `<option value="${banco.id}" ${selected}>${MC_CONFIG.escapeHtml(banco.name)}</option>`;
-                });
+                listaBancosCliente = await resposta.json();
+                renderizarBancosCliente(listaBancosCliente);
             } catch (erro) {
                 selectBanco.innerHTML = '<option value="" disabled selected>Erro ao carregar lista de bancos. Tente recarregar.</option>';
             }
+        }
+
+        function renderizarBancosCliente(bancos) {
+            const selectBanco = document.getElementById('banco-escolhido');
+            selectBanco.innerHTML = '<option value="" disabled selected>Selecione a sua instituição bancária...</option>';
+            const bancoSalvo = localStorage.getItem('memoriaBanco');
+            bancos.forEach(banco => {
+                const selected = bancoSalvo && String(banco.id) === String(bancoSalvo) ? 'selected' : '';
+                selectBanco.innerHTML += `<option value="${banco.id}" ${selected}>${MC_CONFIG.escapeHtml(banco.name)}</option>`;
+            });
+        }
+
+        function filtrarBancosCliente() {
+            const termo = (document.getElementById('busca-banco-cliente')?.value || '').toLowerCase().trim();
+            const filtrados = listaBancosCliente.filter(b => {
+                const nomeMatch = (b.name || '').toLowerCase().includes(termo);
+                const codeMatch = (b.code || '').includes(termo);
+                return nomeMatch || codeMatch;
+            });
+            renderizarBancosCliente(filtrados);
         }
 
         // Customização da interface com base no tipo de operação

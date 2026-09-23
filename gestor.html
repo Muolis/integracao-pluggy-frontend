@@ -213,9 +213,23 @@
                     <div id="campos-pix" class="hidden space-y-4 pt-2 border-t border-slate-100">
                         <div>
                             <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">Instituição Financeira</label>
-                            <select id="bancoPix" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition cursor-pointer">
-                                <option value="">Carregando bancos autorizados...</option>
-                            </select>
+                            <div class="space-y-1.5">
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        id="buscaBancoPix" 
+                                        oninput="filtrarOpcoesBancos()" 
+                                        placeholder="Buscar por número (ex: 001, 237, 341) ou nome..." 
+                                        class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
+                                    >
+                                </div>
+                                <select id="bancoPix" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition cursor-pointer font-medium">
+                                    <option value="">Carregando bancos autorizados...</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>
@@ -329,11 +343,14 @@
                     </div>
                 </div>
 
-                <!-- ABAS DE FILTRO -->
-                <div class="flex bg-slate-100 p-1 rounded-xl w-fit mb-6">
-                    <button type="button" onclick="mudarAbaLista('todos')" id="aba-lista-todos" class="px-4 py-1.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer">Todos</button>
-                    <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer">Open Finance</button>
-                    <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer">Pix Automático</button>
+                <!-- ABAS DE FILTRO EXCLUSIVAS: APENAS OPEN FINANCE E PIX AUTOMÁTICO (SEM ABA TODOS) -->
+                <div class="flex bg-slate-100 p-1.5 rounded-2xl w-fit mb-6 border border-slate-200/80 gap-1.5">
+                    <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-building-columns text-[#0985ff]"></i> Open Finance
+                    </button>
+                    <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-repeat text-emerald-500"></i> Pix Automático
+                    </button>
                 </div>
                 
                 <!-- LISTA DE CLIENTES -->
@@ -350,6 +367,7 @@
     <script>
         let todosOsClientes = []; 
         let tipoLinkAtivo = 'extrato';
+        let listaTodosBancos = [];
 
         function fazerLogout() {
             if (confirm("Deseja realmente sair do Portal do Gestor?")) {
@@ -363,15 +381,29 @@
             try {
                 const resposta = await fetch(`${MC_CONFIG.API_BASE_URL}/listar-bancos`);
                 if (!resposta.ok) throw new Error('Falha ao buscar instituições');
-                const bancos = await resposta.json();
-                
-                selectBanco.innerHTML = '<option value="">Selecione o banco...</option>';
-                bancos.forEach(banco => {
-                    selectBanco.innerHTML += `<option value="${banco.id}">${MC_CONFIG.escapeHtml(banco.name)}</option>`;
-                });
+                listaTodosBancos = await resposta.json();
+                renderizarOpcoesBancos(listaTodosBancos);
             } catch (erro) {
                 selectBanco.innerHTML = '<option value="">Erro ao carregar lista de bancos</option>';
             }
+        }
+
+        function renderizarOpcoesBancos(bancos) {
+            const selectBanco = document.getElementById('bancoPix');
+            selectBanco.innerHTML = '<option value="">Selecione o banco (com número COMPE)...</option>';
+            bancos.forEach(banco => {
+                selectBanco.innerHTML += `<option value="${banco.id}">${MC_CONFIG.escapeHtml(banco.name)}</option>`;
+            });
+        }
+
+        function filtrarOpcoesBancos() {
+            const termo = (document.getElementById('buscaBancoPix')?.value || '').toLowerCase().trim();
+            const bancosFiltrados = listaTodosBancos.filter(b => {
+                const nomeMatch = (b.name || '').toLowerCase().includes(termo);
+                const codeMatch = (b.code || '').includes(termo);
+                return nomeMatch || codeMatch;
+            });
+            renderizarOpcoesBancos(bancosFiltrados);
         }
 
         function mudarAbaGerador(aba) {
@@ -470,7 +502,11 @@
                 if (!resposta.ok) throw new Error('Falha ao consultar as conexões');
                 
                 todosOsClientes = await resposta.json();
-                renderizarLista('todos');
+                
+                // Determina aba ativa (padrão é extrato / Open Finance)
+                const btnPix = document.getElementById('aba-lista-pix');
+                const abaAtual = (btnPix && btnPix.classList.contains('bg-[#010157]')) ? 'pix' : 'extrato';
+                renderizarLista(abaAtual);
             } catch (erro) {
                 divLista.innerHTML = `
                     <div class="text-center py-12 text-rose-500 text-xs">
@@ -484,21 +520,24 @@
         }
 
         function mudarAbaLista(abaSelecionada) {
-            document.getElementById('aba-lista-todos').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
-            document.getElementById('aba-lista-extrato').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
-            document.getElementById('aba-lista-pix').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
+            const btnExtrato = document.getElementById('aba-lista-extrato');
+            const btnPix = document.getElementById('aba-lista-pix');
             
-            document.getElementById(`aba-lista-${abaSelecionada}`).className = "px-4 py-1.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
+            btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
+            btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
+            
+            if (abaSelecionada === 'extrato') {
+                btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
+            } else {
+                btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
+            }
             
             renderizarLista(abaSelecionada);
         }
 
         function filtrarClientes() {
-            let abaAtiva = 'todos';
-            const btnExtrato = document.getElementById('aba-lista-extrato');
             const btnPix = document.getElementById('aba-lista-pix');
-            if (btnExtrato && btnExtrato.classList.contains('bg-[#010157]')) abaAtiva = 'extrato';
-            if (btnPix && btnPix.classList.contains('bg-[#010157]')) abaAtiva = 'pix';
+            const abaAtiva = (btnPix && btnPix.classList.contains('bg-[#010157]')) ? 'pix' : 'extrato';
             renderizarLista(abaAtiva);
         }
 
@@ -508,17 +547,23 @@
             
             let clientesFiltrados = todosOsClientes.filter(cliente => {
                 const nomeMatch = (cliente.cliente || '').toLowerCase().includes(termoBusca);
-                let abaMatch = true;
-                if (filtroAba === 'extrato') abaMatch = Boolean(cliente.item_id);
-                if (filtroAba === 'pix') abaMatch = Boolean(cliente.payment_intent_id);
+                let abaMatch = false;
+                if (filtroAba === 'extrato') {
+                    // Open Finance ESTRITO: NÃO pode ter payment_intent_id
+                    abaMatch = (cliente.tipo === 'open_finance') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
+                } else if (filtroAba === 'pix') {
+                    // Pix Automático ESTRITO: DEVE ter payment_intent_id
+                    abaMatch = (cliente.tipo === 'pix_automatico') || Boolean(cliente.payment_intent_id);
+                }
                 return nomeMatch && abaMatch;
             });
 
             if (clientesFiltrados.length === 0) {
+                const tipoTexto = filtroAba === 'extrato' ? 'Open Finance' : 'Pix Automático';
                 divLista.innerHTML = `
                     <div class="text-center py-16 text-slate-400">
                         <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs">Nenhum registro encontrado para este filtro.</p>
+                        <p class="text-xs">Nenhum registro de <strong>${tipoTexto}</strong> encontrado.</p>
                     </div>
                 `;
                 return;
@@ -533,17 +578,18 @@
                 let btnAcao = '';
                 let badgeTipo = '';
                 
-                if (cliente.payment_intent_id) {
+                if (cliente.payment_intent_id || cliente.tipo === 'pix_automatico') {
                     badgeTipo = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase font-bold rounded-md border border-emerald-200">Pix Automático</span>`;
+                    const pixId = cliente.payment_intent_id || cliente.item_id;
                     btnAcao = `
-                        <button onclick="consultarPix('${MC_CONFIG.escapeHtml(cliente.payment_intent_id)}', 'detalhe-${clienteId}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto shadow-sm cursor-pointer">
-                            <i class="fa-solid fa-file-signature text-[#0985ff]"></i> Ver Contrato Pix
+                        <button onclick="consultarPix('${MC_CONFIG.escapeHtml(pixId)}', 'detalhe-${clienteId}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto shadow-sm cursor-pointer">
+                            <i class="fa-solid fa-file-invoice-dollar text-[#0985ff]"></i> Extrato de Cobrança Pix
                         </button>
                     `;
-                } else if (cliente.item_id) {
+                } else {
                     badgeTipo = `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
                     btnAcao = `
-                        <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-${clienteId}')" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer">
+                        <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer">
                             <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
                         </button>
                     `;
@@ -569,7 +615,7 @@
             });
         }
 
-        async function buscarExtratos(itemId, divId) {
+        async function buscarExtratos(itemId, divId, nomeCliente) {
             const areaDetalhe = document.getElementById(divId);
             if (!areaDetalhe.classList.contains('hidden')) {
                 areaDetalhe.classList.add('hidden');
@@ -578,9 +624,9 @@
 
             areaDetalhe.classList.remove('hidden');
             areaDetalhe.innerHTML = `
-                <div class="flex items-center justify-center py-6 text-[#0985ff] text-xs gap-2">
+                <div class="flex items-center justify-center py-8 text-[#0985ff] text-xs gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
-                    Buscando contas bancárias e saldos atualizados...
+                    Buscando contas bancárias e saldos atualizados na Pluggy...
                 </div>
             `;
 
@@ -589,14 +635,58 @@
                 if (!resposta.ok) throw new Error('Falha ao comunicar com a Pluggy');
                 
                 const dados = await resposta.json();
+                const item = dados.item || {};
                 const contas = dados.results || [];
+                const bancoNome = MC_CONFIG.escapeHtml(item.connector?.name || 'Instituição Bancária');
 
-                if (contas.length === 0) {
-                    areaDetalhe.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhuma conta bancária ativa encontrada para esta conexão.</p>';
+                // CASO 1: Item com erro de login ou permissão revogada (ex: Bradesco LOGIN_ERROR)
+                if (item.status === 'LOGIN_ERROR' || (contas.length === 0 && item.error)) {
+                    const motivo = item.error?.providerMessage || item.error?.message || 'A autorização expirou ou foi revogada no aplicativo do banco.';
+                    areaDetalhe.innerHTML = `
+                        <div class="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 text-amber-900">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg flex-shrink-0">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-sm text-[#010157]">Autorização Expirada ou Revogada no Banco</h4>
+                                    <p class="text-xs text-slate-600 mt-1">
+                                        Banco: <strong>${bancoNome}</strong>. Motivo: ${MC_CONFIG.escapeHtml(motivo)}
+                                    </p>
+                                    <p class="text-[11px] text-slate-500 mt-2">
+                                        O cliente precisa realizar uma nova autorização rápida para que os extratos voltem a sincronizar.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
                     return;
                 }
 
-                let htmlContas = '';
+                // CASO 2: Nenhuma conta encontrada
+                if (contas.length === 0) {
+                    areaDetalhe.innerHTML = `
+                        <div class="text-center py-6 text-slate-500 text-xs">
+                            <i class="fa-solid fa-building-columns text-2xl text-slate-300 mb-2"></i>
+                            <p>Nenhuma conta corrente ou poupança ativa encontrada para este cliente no banco <strong>${bancoNome}</strong>.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // CASO 3: Contas encontradas (ex: Gabriel Santander, Maria José Bradesco, Juliane InfinitePay)
+                let htmlContas = `
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-building-columns text-[#0985ff]"></i>
+                            <h4 class="font-bold text-[#010157] text-sm">${bancoNome}</h4>
+                        </div>
+                        <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <i class="fa-solid fa-circle text-[6px]"></i> Conexão Ativa
+                        </span>
+                    </div>
+                `;
+
                 contas.forEach(conta => {
                     const saldoFormatado = MC_CONFIG.formatMoney(conta.balance);
                     const nomeConta = MC_CONFIG.escapeHtml(conta.name || 'Conta Bancária');
@@ -698,7 +788,7 @@
             }
         }
 
-        async function consultarPix(intentId, divId) {
+        async function consultarPix(intentId, divId, nomeCliente) {
             const areaDetalhe = document.getElementById(divId);
             if (!areaDetalhe.classList.contains('hidden')) {
                 areaDetalhe.classList.add('hidden');
@@ -707,9 +797,9 @@
 
             areaDetalhe.classList.remove('hidden');
             areaDetalhe.innerHTML = `
-                <div class="flex items-center justify-center py-6 text-emerald-600 text-xs gap-2">
+                <div class="flex items-center justify-center py-8 text-emerald-600 text-xs gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
-                    Consultando status do contrato Pix Automático...
+                    Buscando extrato analítico do Pix Automático na Pluggy...
                 </div>
             `;
 
@@ -719,47 +809,140 @@
                 
                 const pix = await resposta.json();
                 
-                let statusCor = 'text-slate-700 bg-slate-100 border-slate-200';
-                let statusTexto = pix.status || 'Pendente';
-                
-                if (pix.status === 'COMPLETED' || pix.status === 'CONSENT_GRANTED') {
-                    statusCor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-                    statusTexto = 'Autorizado / Ativo';
-                } else if (pix.status === 'REJECTED' || pix.status === 'FAILED') {
-                    statusCor = 'text-rose-700 bg-rose-50 border-rose-200';
-                    statusTexto = 'Rejeitado / Falha';
+                let badgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                let iconStatus = '<i class="fa-solid fa-clock text-slate-400"></i>';
+                if (pix.status_classe === 'ativo') {
+                    badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                    iconStatus = '<i class="fa-solid fa-circle-check text-emerald-600"></i>';
+                } else if (pix.status_classe === 'rejeitado') {
+                    badgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+                    iconStatus = '<i class="fa-solid fa-circle-xmark text-rose-600"></i>';
+                } else if (pix.status_classe === 'pendente') {
+                    badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+                    iconStatus = '<i class="fa-solid fa-hourglass-half text-amber-600"></i>';
                 }
 
-                const valorFormatado = MC_CONFIG.formatMoney(pix.amount);
+                const valorFormatado = MC_CONFIG.formatMoney(pix.valor_parcela);
+                const totalPagoForm = MC_CONFIG.formatMoney(pix.total_pago);
+                const totalRestanteForm = MC_CONFIG.formatMoney(pix.total_restante);
+                const percentualQuitado = pix.parcelas_total > 0 ? Math.round((pix.parcelas_pagas / pix.parcelas_total) * 100) : 0;
+                const bancoNome = MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco');
+
+                // Linhas da tabela de parcelas
+                let linhasCronograma = '';
+                (pix.cronograma || []).forEach(p => {
+                    let badgeParc = '';
+                    if (p.status === 'paga') {
+                        badgeParc = '<span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-check"></i> Paga</span>';
+                    } else if (p.status === 'proximo_debito') {
+                        badgeParc = '<span class="bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded text-[11px] border border-sky-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-calendar-day"></i> Próximo Débito</span>';
+                    } else if (p.status === 'rejeitada') {
+                        badgeParc = '<span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[11px] border border-rose-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-xmark"></i> Não Autorizada</span>';
+                    } else {
+                        badgeParc = '<span class="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-[11px] border border-slate-200 flex items-center gap-1 w-fit"><i class="fa-regular fa-clock"></i> A Vencer</span>';
+                    }
+
+                    linhasCronograma += `
+                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition text-xs">
+                            <td class="py-2.5 px-3 font-semibold text-[#010157]">Parcela ${p.numero} / ${pix.parcelas_total}</td>
+                            <td class="py-2.5 px-3 text-slate-600 font-mono">${p.vencimento}</td>
+                            <td class="py-2.5 px-3 font-bold text-slate-800 font-mono">${MC_CONFIG.formatMoney(p.valor)}</td>
+                            <td class="py-2.5 px-3">${badgeParc}</td>
+                        </tr>
+                    `;
+                });
 
                 areaDetalhe.innerHTML = `
-                    <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
-                            <h4 class="text-[#010157] font-bold text-sm flex items-center gap-2">
-                                <i class="fa-solid fa-file-contract text-[#0985ff]"></i> Detalhes do Contrato Pix
-                            </h4>
-                            <span class="font-bold text-xs px-3 py-1 rounded-full border ${statusCor}">${statusTexto}</span>
+                    <div class="bg-white rounded-2xl p-5 md:p-6 border border-slate-200 shadow-sm space-y-6">
+                        <!-- HEADER DO EXTRATO PIX -->
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-4 border-b border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-[#010157] font-bold text-sm">Extrato de Pagamentos - Pix Automático</h4>
+                                    <p class="text-xs text-slate-500">Banco: <strong>${bancoNome}</strong> | Início: ${pix.data_inicio || '---'}</p>
+                                </div>
+                            </div>
+                            <span class="font-bold text-xs px-3 py-1 rounded-full border ${badgeClass} flex items-center gap-1.5 shadow-sm">
+                                ${iconStatus} ${pix.status_rotulo}
+                            </span>
                         </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+
+                        <!-- 4 CARDS DE RESUMO ANALÍTICO -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <p class="text-slate-500 uppercase tracking-wider font-semibold text-[10px] mb-1">Valor Recorrente</p>
-                                <p class="text-[#010157] font-extrabold text-base">${valorFormatado}</p>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Parcelas Pagas</span>
+                                <div class="text-base font-extrabold text-emerald-600 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-xs"></i> ${pix.parcelas_pagas} de ${pix.parcelas_total}
+                                </div>
+                                <span class="text-[11px] text-slate-500 font-mono block mt-0.5">${totalPagoForm} pago</span>
                             </div>
+
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <p class="text-slate-500 uppercase tracking-wider font-semibold text-[10px] mb-1">Frequência</p>
-                                <p class="text-[#010157] font-bold text-sm">Mensal (12 meses)</p>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Parcelas Restantes</span>
+                                <div class="text-base font-extrabold text-[#010157] flex items-center gap-1.5">
+                                    <i class="fa-solid fa-hourglass text-xs text-[#0985ff]"></i> ${pix.parcelas_restantes} de ${pix.parcelas_total}
+                                </div>
+                                <span class="text-[11px] text-slate-500 font-mono block mt-0.5">${totalRestanteForm} a vencer</span>
                             </div>
-                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 md:col-span-1">
-                                <p class="text-slate-500 uppercase tracking-wider font-semibold text-[10px] mb-1">Código da Intenção</p>
-                                <p class="text-slate-700 font-mono text-[11px] truncate" title="${MC_CONFIG.escapeHtml(pix.id)}">${MC_CONFIG.escapeHtml(pix.id)}</p>
+
+                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Valor da Parcela</span>
+                                <div class="text-base font-extrabold text-[#0985ff] font-mono">
+                                    ${valorFormatado}
+                                </div>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Mensal recorrente</span>
+                            </div>
+
+                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Próximo Vencimento</span>
+                                <div class="text-base font-extrabold text-slate-800 font-mono flex items-center gap-1.5">
+                                    <i class="fa-regular fa-calendar text-xs text-[#0985ff]"></i> ${pix.proximo_vencimento}
+                                </div>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Débito em conta</span>
+                            </div>
+                        </div>
+
+                        <!-- BARRA DE PROGRESSO DE QUITAÇÃO -->
+                        <div class="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <div class="flex justify-between text-xs">
+                                <span class="font-bold text-[#010157]">Progresso de Pagamento do Contrato</span>
+                                <span class="font-extrabold text-emerald-600">${percentualQuitado}% concluído</span>
+                            </div>
+                            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                                <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full transition-all duration-500" style="width: ${percentualQuitado}%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- TABELA DE CRONOGRAMA DE 1 A 12 PARCELAS -->
+                        <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <div class="bg-slate-100/80 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center">
+                                <span class="text-xs font-bold text-[#010157] uppercase tracking-wider">Cronograma de Parcelas do Contrato</span>
+                                <span class="text-[11px] text-slate-500 font-semibold">${pix.parcelas_total} parcelas programadas</span>
+                            </div>
+                            <div class="overflow-x-auto max-h-64 overflow-y-auto custom-scrollbar">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                            <th class="py-2.5 px-3">Parcela</th>
+                                            <th class="py-2.5 px-3">Vencimento</th>
+                                            <th class="py-2.5 px-3">Valor</th>
+                                            <th class="py-2.5 px-3">Status do Pagamento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${linhasCronograma}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 `;
 
             } catch (erro) {
-                areaDetalhe.innerHTML = `<p class="text-xs text-rose-500 text-center py-4">Erro ao buscar status do Pix Automático: ${MC_CONFIG.escapeHtml(erro.message)}</p>`;
+                areaDetalhe.innerHTML = `<p class="text-xs text-rose-500 text-center py-4">Erro ao buscar extrato do Pix Automático: ${MC_CONFIG.escapeHtml(erro.message)}</p>`;
             }
         }
 

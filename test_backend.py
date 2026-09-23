@@ -43,7 +43,23 @@ def run_tests():
     assert res_config.status_code == 200, "Falha ao servir config.js"
     print(" Teste 6 [Servidor de arquivos estáticos]: Sucesso! HTMLs e config.js servidos corretamente.")
 
-    print("\n TODOS OS 6 TESTES DO BACKEND PASSARAM COM SUCESSO!")
+    # 7. Teste /listar-bancos com códigos COMPE
+    res_bancos = client.get('/listar-bancos')
+    assert res_bancos.status_code == 200, f"Listar bancos falhou: {res_bancos.status_code}"
+    bancos = res_bancos.get_json()
+    assert len(bancos) > 0, "Nenhum banco retornado"
+    assert "code" in bancos[0], "Campo 'code' ausente nos bancos"
+    print(f" Teste 7 [/listar-bancos]: Sucesso! {len(bancos)} bancos retornados com códigos COMPE.")
+
+    # 8. Teste /listar-conexoes com separação de tipos
+    conexoes = res_auth.get_json()
+    for c in conexoes:
+        assert c.get("tipo") in ["open_finance", "pix_automatico"], f"Tipo inválido: {c.get('tipo')}"
+        if c.get("payment_intent_id"):
+            assert c["tipo"] == "pix_automatico", "Cliente com intent ID não categorizado como pix_automatico"
+    print(f" Teste 8 [/listar-conexoes separação]: Sucesso! {len(conexoes)} conexões estritamente separadas por tipo.")
+
+    print("\n TODOS OS 8 TESTES DO BACKEND PASSARAM COM SUCESSO!")
 
 if __name__ == "__main__":
     run_tests()
