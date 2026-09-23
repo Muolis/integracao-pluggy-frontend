@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Securitizadora - Open Finance & Pix Automático</title>
+    <title>MC Minha Conta - Portal Oficial</title>
     
     <script src="config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,47 +12,55 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .bg-pattern {
-            background-color: #0b1120;
+        .bg-brand {
+            background-color: #010157;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 40%),
-                linear-gradient(to bottom, #0b1120, #0f172a);
+                radial-gradient(circle at 10% 20%, rgba(9, 133, 255, 0.28) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(9, 133, 255, 0.18) 0%, transparent 45%),
+                linear-gradient(to bottom, #010157, #050538);
+        }
+        .btn-brand {
+            background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
+            box-shadow: 0 10px 25px -5px rgba(9, 133, 255, 0.4);
+        }
+        .btn-brand:hover {
+            background: linear-gradient(135deg, #1aa0ff 0%, #0985ff 100%);
+            box-shadow: 0 12px 28px -5px rgba(9, 133, 255, 0.5);
         }
     </style>
 </head>
-<body class="bg-pattern min-h-screen flex items-center justify-center p-4 antialiased text-slate-100">
+<body class="bg-brand min-h-screen flex items-center justify-center p-4 antialiased text-slate-100">
 
-    <div class="max-w-md w-full bg-slate-900/90 border border-slate-700/60 rounded-3xl shadow-2xl p-8 md:p-10 text-center relative overflow-hidden backdrop-blur-xl">
-        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500"></div>
+    <div class="max-w-md w-full bg-[#010157]/80 border border-blue-500/25 rounded-3xl shadow-2xl p-8 md:p-10 text-center relative overflow-hidden backdrop-blur-xl">
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0985ff] via-[#0985ff] to-[#010157]"></div>
 
-        <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-900 rounded-2xl mx-auto mb-6 flex items-center justify-center text-white font-extrabold text-3xl shadow-lg shadow-blue-600/30 border border-blue-400/20">
-            MC
+        <div class="bg-white/95 rounded-2xl p-3 inline-block shadow-lg shadow-black/25 mb-5 border border-white/20">
+            <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-20 w-auto object-contain">
         </div>
 
         <h1 class="text-2xl font-bold text-white tracking-tight mb-2">MC Securitizadora</h1>
-        <p class="text-slate-400 text-xs mb-8 leading-relaxed">
+        <p class="text-blue-200/80 text-xs mb-8 leading-relaxed">
             Plataforma Corporativa de Integração com Open Finance e Cobrança Recorrente Pix Automático.
         </p>
 
         <div class="space-y-3.5">
             <a 
                 href="gestor-login.html" 
-                class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-900/40 transition duration-200 flex items-center justify-center gap-2.5 text-xs tracking-wide cursor-pointer"
+                class="btn-brand w-full text-white font-bold py-3.5 px-6 rounded-xl transition duration-200 flex items-center justify-center gap-2.5 text-xs tracking-wide cursor-pointer"
             >
                 <i class="fa-solid fa-lock text-sm"></i> Acessar Portal do Gestor
             </a>
 
             <a 
                 href="cliente.html?cliente=Demonstracao" 
-                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3.5 px-6 rounded-xl border border-slate-700 transition duration-200 flex items-center justify-center gap-2.5 text-xs tracking-wide cursor-pointer"
+                class="w-full bg-[#050538] hover:bg-[#0a0a52] text-white font-semibold py-3.5 px-6 rounded-xl border border-blue-500/30 transition duration-200 flex items-center justify-center gap-2.5 text-xs tracking-wide cursor-pointer"
             >
-                <i class="fa-solid fa-user-check text-sm text-emerald-400"></i> Simular Conexão do Cliente
+                <i class="fa-solid fa-user-check text-sm text-[#0985ff]"></i> Simular Conexão do Cliente
             </a>
         </div>
 
-        <div class="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
-            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Infraestrutura Bancária Certificada
+        <div class="mt-8 pt-6 border-t border-blue-500/20 flex items-center justify-center gap-2 text-[10px] text-blue-300/70 uppercase tracking-widest font-semibold">
+            <i class="fa-solid fa-shield-halved text-[#0985ff]"></i> Infraestrutura Bancária Certificada
         </div>
     </div>
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Securitizadora - Conexão Segura</title>
+    <title>MC Minha Conta - Conexão Segura</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -17,41 +17,53 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .bg-pattern {
-            background-color: #0b1120;
+        .bg-brand {
+            background-color: #010157;
             background-image: 
-                radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 80% 90%, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
-                linear-gradient(to bottom, #0b1120, #0f172a);
+                radial-gradient(circle at 50% 5%, rgba(9, 133, 255, 0.28) 0%, transparent 55%),
+                radial-gradient(circle at 90% 90%, rgba(9, 133, 255, 0.18) 0%, transparent 45%),
+                linear-gradient(to bottom, #010157, #07073b);
+        }
+        .btn-brand {
+            background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
+            box-shadow: 0 10px 25px -5px rgba(9, 133, 255, 0.35);
+        }
+        .btn-brand:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1aa0ff 0%, #0985ff 100%);
+            box-shadow: 0 12px 28px -5px rgba(9, 133, 255, 0.45);
         }
     </style>
 </head>
-<body class="bg-pattern min-h-screen flex items-center justify-center p-4 antialiased text-slate-800">
+<body class="bg-brand min-h-screen flex items-center justify-center p-4 antialiased text-slate-800">
 
     <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-7 md:p-9 text-center relative overflow-hidden">
         
-        <!-- Linha de gradiente superior -->
-        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500"></div>
+        <!-- Linha de gradiente superior oficial (#0985ff para #010157) -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0985ff] via-[#0985ff] to-[#010157]"></div>
 
-        <!-- Logo e Cabeçalho -->
-        <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl mx-auto mb-5 flex items-center justify-center text-white font-extrabold text-2xl shadow-lg shadow-blue-500/25">
-            MC
+        <!-- Logomarca Oficial MC Minha Conta (APENAS A LOGOMARCA) -->
+        <div class="flex justify-center mb-6 pt-2">
+            <img 
+                src="logo-mc-minhaconta.png" 
+                alt="MC Minha Conta" 
+                class="h-28 w-auto object-contain transition transform hover:scale-105 duration-200 drop-shadow-sm"
+            >
         </div>
 
-        <h2 id="titulo-pagina" class="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight">Conecte seu Banco</h2>
+        <h2 id="titulo-pagina" class="text-2xl font-extrabold text-[#010157] mb-2 tracking-tight">Conecte seu Banco</h2>
         <p id="texto-cliente" class="text-xs text-slate-500 mb-6 leading-relaxed">
             Autorize a consulta segura através do Open Finance regulado pelo Banco Central do Brasil.
         </p>
 
         <!-- SELETOR DE BANCO (Ativo para Pix Automático) -->
         <div id="area-seletor-banco" class="hidden mb-6 text-left">
-            <label for="banco-escolhido" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+            <label for="banco-escolhido" class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">
                 Selecione o seu banco para autorizar:
             </label>
             <div class="relative">
                 <select 
                     id="banco-escolhido" 
-                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 appearance-none transition cursor-pointer"
+                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] appearance-none transition cursor-pointer"
                 >
                     <option value="" disabled selected>Carregando bancos autorizados...</option>
                 </select>
@@ -66,7 +78,7 @@
             type="button"
             id="btn-conectar" 
             onclick="iniciarConexao()" 
-            class="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-600/25 transition duration-200 flex items-center justify-center gap-2 text-sm tracking-wide cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn-brand w-full text-white font-bold py-4 px-6 rounded-2xl transition duration-200 flex items-center justify-center gap-2 text-sm tracking-wide cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
             <i class="fa-solid fa-shield-halved text-base"></i> 
             <span id="texto-btn-conectar">Autorizar Conexão Segura</span>
@@ -74,10 +86,10 @@
 
         <!-- MENSAGEM DE SUCESSO -->
         <div id="mensagem-sucesso" class="hidden space-y-4 py-6">
-            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full mx-auto flex items-center justify-center text-3xl border border-emerald-200">
+            <div class="w-16 h-16 bg-blue-50 text-[#0985ff] rounded-full mx-auto flex items-center justify-center text-3xl border border-blue-200 shadow-sm">
                 <i class="fa-solid fa-check"></i>
             </div>
-            <h3 class="text-xl font-bold text-slate-900">Autorização Concluída!</h3>
+            <h3 class="text-xl font-bold text-[#010157]">Autorização Concluída!</h3>
             <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
                 Sua autorização bancária foi validada com sucesso pelo Open Finance. Você já pode fechar esta página e retornar ao atendimento pelo WhatsApp.
             </p>
@@ -96,8 +108,8 @@
 
         <!-- RODAPÉ DE SEGURANÇA -->
         <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center justify-center gap-1.5 text-[11px] text-slate-400">
-            <div class="flex items-center gap-1.5 font-semibold text-slate-500">
-                <i class="fa-solid fa-lock text-emerald-600"></i> Criptografia Bancária de Ponta a Ponta
+            <div class="flex items-center gap-1.5 font-semibold text-[#010157]">
+                <i class="fa-solid fa-lock text-[#0985ff]"></i> Criptografia Bancária de Ponta a Ponta
             </div>
             <span>Regulado e Supervisionado pelo Banco Central do Brasil</span>
         </div>
@@ -157,14 +169,14 @@
             if (valor && valor !== "null" && valor !== "") {
                 const valorFormatado = MC_CONFIG.formatMoney(valor);
                 document.getElementById('texto-cliente').innerHTML = `
-                    Autorize o contrato de Pix Automático no valor de <strong class="text-slate-900 font-bold">${valorFormatado} mensais</strong> para o atendimento <strong class="text-blue-600 font-bold">#${clienteSeguro}</strong>.
+                    Autorize o contrato de Pix Automático no valor de <strong class="text-[#010157] font-bold">${valorFormatado} mensais</strong> para o atendimento <strong class="text-[#0985ff] font-bold">#${clienteSeguro}</strong>.
                 `;
                 document.getElementById('texto-btn-conectar').innerText = "Autorizar Pix Automático";
                 document.getElementById('area-seletor-banco').classList.remove('hidden');
                 carregarBancos();
             } else {
                 document.getElementById('texto-cliente').innerHTML = `
-                    Autorize a consulta segura de extratos pelo Open Finance para o atendimento <strong class="text-blue-600 font-bold">#${clienteSeguro}</strong>.
+                    Autorize a consulta segura de extratos pelo Open Finance para o atendimento <strong class="text-[#0985ff] font-bold">#${clienteSeguro}</strong>.
                 `;
                 document.getElementById('texto-btn-conectar').innerText = "Autorizar Leitura Segura";
             }
@@ -193,7 +205,6 @@
 
                         exibirTelaSucesso();
                     } catch (erroSalvar) {
-                        // Mesmo que o salvamento falhe, a autorização ocorreu com sucesso na Pluggy
                         exibirTelaSucesso();
                     }
                 },
@@ -259,7 +270,6 @@
                 // =======================================================
                 const consentUrl = dados.consentUrl || dados.consent_url;
                 if (consentUrl) {
-                    // Salva a intenção no banco com a coluna correta (payment_intent_id)
                     try {
                         await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
                             method: 'POST',
@@ -273,7 +283,6 @@
                         console.warn("Aviso ao salvar pré-conexão:", e);
                     }
                     
-                    // Redireciona o usuário diretamente para o app/internet banking
                     window.location.href = consentUrl;
                     return; 
                 }

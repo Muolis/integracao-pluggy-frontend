@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Securitizadora - Login do Gestor</title>
+    <title>MC Minha Conta - Login do Gestor</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -14,40 +14,49 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .bg-pattern {
-            background-color: #0b1120;
+        .bg-brand {
+            background-color: #010157;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.18) 0%, transparent 45%),
-                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 45%),
-                linear-gradient(to bottom, #0b1120, #0f172a);
+                radial-gradient(circle at 10% 20%, rgba(9, 133, 255, 0.28) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(9, 133, 255, 0.18) 0%, transparent 45%),
+                linear-gradient(to bottom, #010157, #050538);
         }
         .glass-card {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(1, 1, 87, 0.75);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(9, 133, 255, 0.25);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 35px -5px rgba(9, 133, 255, 0.2);
+        }
+        .btn-brand {
+            background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
+            box-shadow: 0 10px 25px -5px rgba(9, 133, 255, 0.4);
+        }
+        .btn-brand:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1aa0ff 0%, #0985ff 100%);
+            box-shadow: 0 12px 28px -5px rgba(9, 133, 255, 0.5);
         }
     </style>
 </head>
-<body class="bg-pattern min-h-screen flex items-center justify-center p-4 antialiased text-slate-100">
+<body class="bg-brand min-h-screen flex items-center justify-center p-4 antialiased text-slate-100">
 
-    <div class="max-w-md w-full glass-card rounded-3xl shadow-2xl p-8 md:p-10 relative overflow-hidden">
+    <div class="max-w-md w-full glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden">
         
-        <!-- Linha de gradiente no topo -->
-        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500"></div>
+        <!-- Linha de gradiente no topo oficial (#0985ff para #010157) -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0985ff] via-[#0985ff] to-[#010157]"></div>
 
         <div class="text-center mb-8 mt-2">
-            <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-900 rounded-2xl mx-auto mb-5 flex items-center justify-center text-white font-extrabold text-3xl shadow-lg shadow-blue-600/30 border border-blue-400/30 transition transform hover:scale-105 duration-300">
-                MC
+            <div class="bg-white/95 rounded-2xl p-3 inline-block shadow-lg shadow-black/20 mb-4 border border-white/20">
+                <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-20 w-auto object-contain">
             </div>
             <h1 class="text-2xl font-bold text-white tracking-tight">Portal do Gestor</h1>
-            <p class="text-slate-400 text-sm mt-1.5">Painel Seguro de Gestão Open Finance</p>
+            <p class="text-blue-200/80 text-xs mt-1">Gestão Centralizada de Open Finance e Pix Automático</p>
         </div>
 
         <form id="form-login" onsubmit="fazerLogin(event)" class="space-y-5">
             <div>
-                <label for="usuario" class="block text-xs font-semibold text-slate-300 uppercase tracking-widest mb-2">Usuário</label>
+                <label for="usuario" class="block text-xs font-semibold text-blue-100 uppercase tracking-widest mb-2">Usuário</label>
                 <div class="relative">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-blue-300">
                         <i class="fa-solid fa-user text-sm"></i>
                     </div>
                     <input 
@@ -55,16 +64,16 @@
                         id="usuario" 
                         required 
                         autocomplete="username"
-                        placeholder="Digite seu usuário corporativo" 
-                        class="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200"
+                        placeholder="Digite seu usuário" 
+                        class="w-full bg-[#050538]/90 border border-blue-500/30 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-blue-300/40 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/50 focus:border-[#0985ff] transition duration-200"
                     >
                 </div>
             </div>
 
             <div>
-                <label for="senha" class="block text-xs font-semibold text-slate-300 uppercase tracking-widest mb-2">Senha</label>
+                <label for="senha" class="block text-xs font-semibold text-blue-100 uppercase tracking-widest mb-2">Senha</label>
                 <div class="relative">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-blue-300">
                         <i class="fa-solid fa-lock text-sm"></i>
                     </div>
                     <input 
@@ -73,12 +82,12 @@
                         required 
                         autocomplete="current-password"
                         placeholder="Digite sua senha de acesso" 
-                        class="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-11 pr-11 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200"
+                        class="w-full bg-[#050538]/90 border border-blue-500/30 rounded-xl pl-11 pr-11 py-3.5 text-sm text-white placeholder-blue-300/40 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/50 focus:border-[#0985ff] transition duration-200"
                     >
                     <button 
                         type="button" 
                         onclick="alternarVisibilidadeSenha()" 
-                        class="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-200 transition"
+                        class="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-300 hover:text-white transition"
                         title="Ver / Ocultar Senha"
                     >
                         <i id="icone-olho" class="fa-solid fa-eye text-sm"></i>
@@ -86,14 +95,14 @@
                 </div>
             </div>
 
-            <div class="flex items-center justify-between text-xs text-slate-400">
+            <div class="flex items-center justify-between text-xs text-blue-200/80">
                 <label class="flex items-center gap-2 cursor-pointer select-none">
-                    <input type="checkbox" id="lembrar-sessao" checked class="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500/50">
+                    <input type="checkbox" id="lembrar-sessao" checked class="rounded border-blue-500/50 bg-[#050538] text-[#0985ff] focus:ring-[#0985ff]/50">
                     Lembrar neste navegador
                 </label>
             </div>
 
-            <div id="msg-erro" class="hidden bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium p-3.5 rounded-xl flex items-center gap-2.5">
+            <div id="msg-erro" class="hidden bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-medium p-3.5 rounded-xl flex items-center gap-2.5">
                 <i class="fa-solid fa-circle-exclamation text-rose-400 text-base flex-shrink-0"></i>
                 <span id="texto-erro">Usuário ou senha incorretos.</span>
             </div>
@@ -101,15 +110,15 @@
             <button 
                 type="submit" 
                 id="btn-entrar" 
-                class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-900/40 transition duration-300 flex items-center justify-center gap-2 text-sm tracking-wide mt-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                class="btn-brand w-full text-white font-bold py-4 px-6 rounded-xl transition duration-300 flex items-center justify-center gap-2 text-sm tracking-wide mt-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
                 <span>Acessar Painel</span> 
                 <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>
             </button>
         </form>
 
-        <div class="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-500 uppercase tracking-widest font-semibold">
-            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Autenticação Criptografada
+        <div class="mt-8 pt-6 border-t border-blue-500/20 flex items-center justify-center gap-2 text-[11px] text-blue-300/70 uppercase tracking-widest font-semibold">
+            <i class="fa-solid fa-shield-halved text-[#0985ff]"></i> Autenticação Criptografada
         </div>
     </div>
 
@@ -143,7 +152,6 @@
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-sm"></i> Validando credenciais...`;
 
             try {
-                // Autenticação segura delegada ao backend oficial
                 const resposta = await fetch(`${MC_CONFIG.API_BASE_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -156,7 +164,6 @@
                     throw new Error(dados.erro || 'Falha na autenticação');
                 }
 
-                // Armazena o token seguro de sessão retornado pelo servidor
                 MC_CONFIG.setAuthToken(dados.token, dados.usuario, lembrar);
                 MC_CONFIG.showToast('Login efetuado com sucesso! Redirecionando...', 'success');
 
@@ -173,7 +180,6 @@
             }
         }
 
-        // Se o gestor já estiver autenticado com token válido, redireciona direto
         window.onload = () => {
             if (MC_CONFIG.isAuthenticated()) {
                 window.location.href = "gestor.html";

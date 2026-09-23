@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Securitizadora - Painel de Gestão</title>
+    <title>MC Minha Conta - Painel de Gestão</title>
     
     <!-- Configuração Central e Segurança -->
     <script src="config.js"></script>
@@ -24,36 +24,50 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .btn-brand-primary {
+            background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
+            box-shadow: 0 8px 20px -4px rgba(9, 133, 255, 0.35);
+        }
+        .btn-brand-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1aa0ff 0%, #0985ff 100%);
+            box-shadow: 0 10px 24px -4px rgba(9, 133, 255, 0.45);
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen p-4 md:p-8">
+<body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen p-4 md:p-8">
 
     <div class="max-w-7xl mx-auto space-y-8">
         
-        <!-- HEADER PRINCIPAL -->
-        <header class="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
+        <!-- HEADER PRINCIPAL COM A IDENTIDADE MC MINHA CONTA -->
+        <header class="bg-[#010157] rounded-3xl border border-blue-900/40 p-6 md:p-7 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl relative overflow-hidden text-white">
+            <!-- Linha decorativa de gradiente oficial (#0985ff para #010157) -->
+            <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0985ff] via-sky-400 to-[#010157]"></div>
+            
             <div class="flex items-center gap-4">
-                <div class="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl shadow-md shadow-blue-600/20">
-                    MC
+                <div class="bg-white rounded-2xl p-2 shadow-md flex items-center justify-center">
+                    <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-12 w-auto object-contain">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">MC Securitizadora</h1>
+                    <h1 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                        MC Securitizadora
+                        <span class="text-[11px] bg-[#0985ff] text-white px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Gestão</span>
+                    </h1>
                     <div class="flex items-center gap-2 mt-1">
-                        <span class="text-xs text-blue-600 font-bold uppercase tracking-widest">Portal de Gestão</span>
-                        <span class="text-slate-300">•</span>
-                        <span id="nome-gestor-logado" class="text-xs text-slate-500 font-medium">Gestor</span>
+                        <span class="text-xs text-blue-200/80 font-medium">Plataforma Open Finance & Pix Automático</span>
+                        <span class="text-blue-400/40">•</span>
+                        <span id="nome-gestor-logado" class="text-xs text-sky-300 font-bold">Gestor</span>
                     </div>
                 </div>
             </div>
             
             <div class="flex flex-wrap items-center gap-3">
-                <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-xs font-bold border border-emerald-200">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> Sistema Seguro Ativo
+                <div class="flex items-center gap-2 bg-[#0985ff]/20 text-sky-300 px-4 py-2 rounded-full text-xs font-bold border border-[#0985ff]/30 backdrop-blur-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#0985ff] animate-pulse"></span> Sistema Seguro Ativo
                 </div>
 
                 <button 
                     onclick="fazerLogout()" 
-                    class="text-slate-600 hover:text-rose-600 font-semibold text-xs transition flex items-center gap-2 border border-slate-200 hover:border-rose-200 bg-white hover:bg-rose-50 px-4 py-2 rounded-full shadow-sm cursor-pointer"
+                    class="text-blue-200 hover:text-white font-semibold text-xs transition flex items-center gap-2 border border-blue-400/30 hover:border-rose-400 bg-white/10 hover:bg-rose-500/20 px-4 py-2 rounded-full shadow-sm cursor-pointer"
                 >
                     <i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do Painel
                 </button>
@@ -64,13 +78,13 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             <!-- COLUNA ESQUERDA: GERADOR DE ACESSO -->
-            <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm">
+            <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm">
                 <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
                         <i class="fa-solid fa-link"></i>
                     </div>
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Gerar Novo Acesso</h2>
+                        <h2 class="text-lg font-bold text-[#010157]">Gerar Novo Acesso</h2>
                         <p class="text-xs text-slate-500 mt-0.5">Envie o link seguro para o WhatsApp do cliente.</p>
                     </div>
                 </div>
@@ -81,7 +95,7 @@
                         type="button"
                         onclick="mudarAbaGerador('extrato')" 
                         id="aba-gen-extrato" 
-                        class="flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200 cursor-pointer"
+                        class="flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer"
                     >
                         Open Finance (Extrato)
                     </button>
@@ -89,7 +103,7 @@
                         type="button"
                         onclick="mudarAbaGerador('pix')" 
                         id="aba-gen-pix" 
-                        class="flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer"
+                        class="flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer"
                     >
                         Pix Automático
                     </button>
@@ -97,54 +111,54 @@
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Identificador ou Nome do Cliente</label>
+                        <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">Identificador ou Nome do Cliente</label>
                         <input 
                             type="text" 
                             id="identificadorCliente" 
                             placeholder="Ex: JoaoSilva ou Contrato482" 
-                            class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
                         >
                     </div>
 
                     <!-- CAMPOS EXCLUSIVOS DO PIX AUTOMÁTICO -->
                     <div id="campos-pix" class="hidden space-y-4 pt-2 border-t border-slate-100">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Instituição Financeira</label>
-                            <select id="bancoPix" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition cursor-pointer">
+                            <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">Instituição Financeira</label>
+                            <select id="bancoPix" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition cursor-pointer">
                                 <option value="">Carregando bancos autorizados...</option>
                             </select>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">CPF do Titular (Apenas dígitos)</label>
+                            <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">CPF do Titular (Apenas dígitos)</label>
                             <input 
                                 type="text" 
                                 id="cpfCliente" 
                                 placeholder="000.000.000-00" 
                                 maxlength="14" 
-                                class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                                class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
                             >
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Valor Mensal Recorrente (R$)</label>
+                            <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">Valor Mensal Recorrente (R$)</label>
                             <input 
                                 type="number" 
                                 id="valorPix" 
                                 placeholder="Ex: 150.00" 
                                 step="0.01" 
-                                class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                                class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
                             >
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Data Início</label>
-                                <input type="date" id="dataInicio" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition">
+                                <label class="block text-[11px] font-bold text-[#010157] uppercase tracking-wider mb-1.5">Data Início</label>
+                                <input type="date" id="dataInicio" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition">
                             </div>
                             <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Data Término</label>
-                                <input type="date" id="dataFim" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition">
+                                <label class="block text-[11px] font-bold text-[#010157] uppercase tracking-wider mb-1.5">Data Término</label>
+                                <input type="date" id="dataFim" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition">
                             </div>
                         </div>
                     </div>
@@ -152,7 +166,7 @@
                     <button 
                         type="button"
                         onclick="gerarLink()" 
-                        class="w-full mt-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3.5 px-6 rounded-xl shadow-md shadow-blue-600/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer text-sm"
+                        class="btn-brand-primary w-full mt-4 text-white font-bold py-3.5 px-6 rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer text-sm"
                     >
                         <i class="fa-solid fa-bolt"></i> Gerar Link Seguro
                     </button>
@@ -160,7 +174,7 @@
                     <!-- ÁREA DO LINK GERADO -->
                     <div id="box-resultado" class="mt-4 hidden space-y-3">
                         <div class="relative">
-                            <div id="linkGerado" class="bg-blue-50/70 border border-blue-200 p-3.5 rounded-xl text-xs font-mono text-blue-900 break-all select-all"></div>
+                            <div id="linkGerado" class="bg-blue-50/70 border border-blue-200 p-3.5 rounded-xl text-xs font-mono text-[#010157] break-all select-all font-semibold"></div>
                         </div>
                         
                         <div class="flex gap-2">
@@ -168,7 +182,7 @@
                                 type="button"
                                 id="btn-copiar"
                                 onclick="copiarLink()" 
-                                class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 text-xs cursor-pointer"
+                                class="flex-1 bg-[#010157] hover:bg-[#080868] text-white font-semibold py-2.5 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 text-xs cursor-pointer"
                             >
                                 <i class="fa-regular fa-copy"></i> Copiar Link
                             </button>
@@ -187,15 +201,15 @@
             </div>
 
             <!-- COLUNA DIREITA: HISTÓRICO DE CONEXÕES DOS CLIENTES -->
-            <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm flex flex-col min-h-[640px]">
+            <div class="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col min-h-[640px]">
                 
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
                             <i class="fa-solid fa-users-viewfinder"></i>
                         </div>
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">Clientes Conectados</h2>
+                            <h2 class="text-lg font-bold text-[#010157]">Clientes Conectados</h2>
                             <p class="text-xs text-slate-500 mt-0.5">Acompanhe extratos de Open Finance e contratos de Pix Automático.</p>
                         </div>
                     </div>
@@ -210,7 +224,7 @@
                                 id="inputBusca" 
                                 onkeyup="filtrarClientes()" 
                                 placeholder="Buscar cliente..." 
-                                class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
+                                class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
                             >
                         </div>
 
@@ -218,7 +232,7 @@
                             type="button"
                             onclick="carregarClientes()" 
                             id="btn-recarregar"
-                            class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center gap-2 cursor-pointer"
+                            class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center gap-2 cursor-pointer"
                             title="Atualizar lista"
                         >
                             <i class="fa-solid fa-rotate"></i>
@@ -228,15 +242,15 @@
 
                 <!-- ABAS DE FILTRO -->
                 <div class="flex bg-slate-100 p-1 rounded-xl w-fit mb-6">
-                    <button type="button" onclick="mudarAbaLista('todos')" id="aba-lista-todos" class="px-4 py-1.5 rounded-lg text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200 cursor-pointer">Todos</button>
-                    <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer">Open Finance</button>
-                    <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer">Pix Automático</button>
+                    <button type="button" onclick="mudarAbaLista('todos')" id="aba-lista-todos" class="px-4 py-1.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer">Todos</button>
+                    <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer">Open Finance</button>
+                    <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer">Pix Automático</button>
                 </div>
                 
                 <!-- LISTA DE CLIENTES -->
                 <div id="lista-clientes" class="space-y-4 overflow-y-auto pr-1 custom-scrollbar flex-1 max-h-[620px]">
                     <div class="flex flex-col items-center justify-center py-16 text-slate-400">
-                        <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl mb-3"></i>
+                        <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl mb-3"></i>
                         <p class="text-xs">Carregando registros de conexões...</p>
                     </div>
                 </div>
@@ -278,15 +292,15 @@
             const camposPix = document.getElementById('campos-pix');
             const boxResultado = document.getElementById('box-resultado');
 
-            btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer";
-            btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer";
+            btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
+            btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
             boxResultado.classList.add("hidden");
 
             if (aba === 'extrato') {
-                btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200 cursor-pointer";
+                btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
                 camposPix.classList.add('hidden');
             } else {
-                btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200 cursor-pointer";
+                btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
                 camposPix.classList.remove('hidden');
             }
         }
@@ -320,7 +334,6 @@
                 if (dataFim) parametros.append('fim', dataFim);
             }
 
-            // Define a URL base dependendo se está rodando local ou remoto
             const urlBase = window.location.origin;
             const urlFinal = `${urlBase}/cliente.html?${parametros.toString()}`;
             
@@ -346,7 +359,7 @@
         function compartilharWhatsApp() {
             const texto = document.getElementById("linkGerado").textContent;
             const cliente = document.getElementById("identificadorCliente").value.trim();
-            const mensagem = `Olá ${cliente}, segue o link seguro da MC Securitizadora para autorização bancária: ${texto}`;
+            const mensagem = `Olá ${cliente}, segue o link seguro da MC Minha Conta para autorização bancária: ${texto}`;
             const urlWhats = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
             window.open(urlWhats, '_blank');
         }
@@ -358,13 +371,12 @@
             btnRecarregar.innerHTML = `<i class="fa-solid fa-rotate fa-spin"></i>`;
             divLista.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-16 text-slate-400">
-                    <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl mb-3"></i>
+                    <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl mb-3"></i>
                     <p class="text-xs">Consultando banco de conexões...</p>
                 </div>
             `;
             
             try {
-                // Utiliza authFetch para enviar o token de sessão do gestor
                 const resposta = await MC_CONFIG.authFetch('/listar-conexoes');
                 if (!resposta.ok) throw new Error('Falha ao consultar as conexões');
                 
@@ -383,19 +395,21 @@
         }
 
         function mudarAbaLista(abaSelecionada) {
-            document.getElementById('aba-lista-todos').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer";
-            document.getElementById('aba-lista-extrato').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer";
-            document.getElementById('aba-lista-pix').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800 cursor-pointer";
+            document.getElementById('aba-lista-todos').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
+            document.getElementById('aba-lista-extrato').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
+            document.getElementById('aba-lista-pix').className = "px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
             
-            document.getElementById(`aba-lista-${abaSelecionada}`).className = "px-4 py-1.5 rounded-lg text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200 cursor-pointer";
+            document.getElementById(`aba-lista-${abaSelecionada}`).className = "px-4 py-1.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
             
             renderizarLista(abaSelecionada);
         }
 
         function filtrarClientes() {
             let abaAtiva = 'todos';
-            if (document.getElementById('aba-lista-extrato').classList.contains('text-blue-600')) abaAtiva = 'extrato';
-            if (document.getElementById('aba-lista-pix').classList.contains('text-blue-600')) abaAtiva = 'pix';
+            const btnExtrato = document.getElementById('aba-lista-extrato');
+            const btnPix = document.getElementById('aba-lista-pix');
+            if (btnExtrato && btnExtrato.classList.contains('bg-[#010157]')) abaAtiva = 'extrato';
+            if (btnPix && btnPix.classList.contains('bg-[#010157]')) abaAtiva = 'pix';
             renderizarLista(abaAtiva);
         }
 
@@ -433,25 +447,25 @@
                 if (cliente.payment_intent_id) {
                     badgeTipo = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase font-bold rounded-md border border-emerald-200">Pix Automático</span>`;
                     btnAcao = `
-                        <button onclick="consultarPix('${MC_CONFIG.escapeHtml(cliente.payment_intent_id)}', 'detalhe-${clienteId}')" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto shadow-sm cursor-pointer">
-                            <i class="fa-solid fa-file-signature text-emerald-600"></i> Ver Contrato Pix
+                        <button onclick="consultarPix('${MC_CONFIG.escapeHtml(cliente.payment_intent_id)}', 'detalhe-${clienteId}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto shadow-sm cursor-pointer">
+                            <i class="fa-solid fa-file-signature text-[#0985ff]"></i> Ver Contrato Pix
                         </button>
                     `;
                 } else if (cliente.item_id) {
-                    badgeTipo = `<span class="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
+                    badgeTipo = `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
                     btnAcao = `
-                        <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-${clienteId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto shadow-sm shadow-blue-600/20 cursor-pointer">
+                        <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-${clienteId}')" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer">
                             <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
                         </button>
                     `;
                 }
 
                 divLista.innerHTML += `
-                    <div class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition duration-200 shadow-sm">
+                    <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <h3 class="font-bold text-slate-900 text-sm">#${nomeSeguro}</h3>
+                                    <h3 class="font-bold text-[#010157] text-sm">#${nomeSeguro}</h3>
                                     ${badgeTipo}
                                 </div>
                                 <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
@@ -475,7 +489,7 @@
 
             areaDetalhe.classList.remove('hidden');
             areaDetalhe.innerHTML = `
-                <div class="flex items-center justify-center py-6 text-blue-600 text-xs gap-2">
+                <div class="flex items-center justify-center py-6 text-[#0985ff] text-xs gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
                     Buscando contas bancárias e saldos atualizados...
                 </div>
@@ -505,20 +519,20 @@
                         <div class="border-b border-slate-200 pb-5 mb-5 last:border-0 last:pb-0 last:mb-0">
                             <div class="flex justify-between items-center mb-2">
                                 <div>
-                                    <h4 class="font-bold text-slate-900 text-sm">${nomeConta}</h4>
+                                    <h4 class="font-bold text-[#010157] text-sm">${nomeConta}</h4>
                                     <div class="text-[11px] text-slate-500 mt-0.5">
                                         Agência: ${agencia} | Conta: ${numero} | ${subtipo}
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Saldo Disponível</span>
-                                    <span class="text-emerald-600 font-extrabold text-base">${saldoFormatado}</span>
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponível</span>
+                                    <span class="text-[#0985ff] font-extrabold text-base">${saldoFormatado}</span>
                                 </div>
                             </div>
 
                             <div id="transacoes-${conta.id}" class="bg-white p-4 rounded-xl border border-slate-200 mt-3 shadow-sm">
                                 <div class="flex items-center justify-center py-4 text-xs text-slate-400 gap-2">
-                                    <i class="fa-solid fa-circle-notch fa-spin text-blue-500"></i>
+                                    <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i>
                                     Carregando histórico de transações...
                                 </div>
                             </div>
@@ -528,7 +542,6 @@
 
                 areaDetalhe.innerHTML = htmlContas;
 
-                // Carrega movimentações de cada conta
                 contas.forEach(conta => {
                     buscarMovimentacoes(conta.id);
                 });
@@ -561,7 +574,7 @@
 
                 let htmlTx = `
                     <div class="flex justify-between items-center mb-3">
-                        <strong class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Histórico Recente</strong>
+                        <strong class="text-[11px] font-bold text-[#010157] uppercase tracking-wider">Histórico Recente</strong>
                         <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">${transacoesData.length} registros</span>
                     </div>
                     <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
@@ -572,7 +585,7 @@
 
                     const valorForm = MC_CONFIG.formatMoney(Math.abs(tx.amount));
                     const isNegativo = tx.amount < 0;
-                    const cor = isNegativo ? 'text-slate-800' : 'text-emerald-600 font-semibold';
+                    const cor = isNegativo ? 'text-slate-800' : 'text-[#0985ff] font-semibold';
                     const sinal = isNegativo ? '-' : '+';
                     const dataBR = tx.date ? new Date(tx.date).toLocaleDateString('pt-BR') : '---';
                     const descSegura = MC_CONFIG.escapeHtml(tx.description || 'Transação');
@@ -633,8 +646,8 @@
                 areaDetalhe.innerHTML = `
                     <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
                         <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
-                            <h4 class="text-slate-900 font-bold text-sm flex items-center gap-2">
-                                <i class="fa-solid fa-file-contract text-emerald-600"></i> Detalhes do Contrato Pix
+                            <h4 class="text-[#010157] font-bold text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-file-contract text-[#0985ff]"></i> Detalhes do Contrato Pix
                             </h4>
                             <span class="font-bold text-xs px-3 py-1 rounded-full border ${statusCor}">${statusTexto}</span>
                         </div>
@@ -642,11 +655,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <p class="text-slate-500 uppercase tracking-wider font-semibold text-[10px] mb-1">Valor Recorrente</p>
-                                <p class="text-slate-900 font-extrabold text-base">${valorFormatado}</p>
+                                <p class="text-[#010157] font-extrabold text-base">${valorFormatado}</p>
                             </div>
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <p class="text-slate-500 uppercase tracking-wider font-semibold text-[10px] mb-1">Frequência</p>
-                                <p class="text-slate-900 font-bold text-sm">Mensal (12 meses)</p>
+                                <p class="text-[#010157] font-bold text-sm">Mensal (12 meses)</p>
                             </div>
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 md:col-span-1">
                                 <p class="text-slate-500 uppercase tracking-wider font-semibold text-[10px] mb-1">Código da Intenção</p>

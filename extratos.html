@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Securitizadora - Extrato Open Finance</title>
+    <title>MC Minha Conta - Extrato Open Finance</title>
     
     <script src="config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,28 +14,28 @@
         body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen p-4 md:p-8">
+<body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen p-4 md:p-8">
 
     <div class="max-w-3xl mx-auto space-y-6">
         
-        <div class="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-blue-600/20">
-                    MC
+                <div class="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 flex items-center justify-center">
+                    <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-12 w-auto object-contain">
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold text-slate-900 tracking-tight">Painel de Extratos Bancários</h1>
+                    <h1 class="text-xl font-bold text-[#010157] tracking-tight">Painel de Extratos Bancários</h1>
                     <p id="info-cliente" class="text-xs text-slate-500 mt-0.5">Cliente: Carregando...</p>
                 </div>
             </div>
 
-            <a href="gestor.html" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 bg-blue-50 px-3.5 py-2 rounded-xl transition">
+            <a href="gestor.html" class="text-xs font-semibold text-[#0985ff] hover:text-[#0772dc] flex items-center gap-1.5 bg-blue-50/80 px-4 py-2.5 rounded-xl border border-blue-100 transition">
                 <i class="fa-solid fa-arrow-left"></i> Voltar ao Gestor
             </a>
         </div>
 
-        <div id="status-box" class="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold p-4 rounded-xl flex items-center justify-center gap-2">
-            <i class="fa-solid fa-circle-notch fa-spin"></i> Buscando dados bancários seguros na Pluggy...
+        <div id="status-box" class="bg-blue-50 border border-blue-200 text-[#010157] text-xs font-semibold p-4 rounded-xl flex items-center justify-center gap-2">
+            <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i> Buscando dados bancários seguros na Pluggy...
         </div>
 
         <div id="lista-contas" class="space-y-4"></div>
@@ -80,7 +80,7 @@
 
             if (contas.length === 0) {
                 listaContas.innerHTML = `
-                    <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-xs text-slate-500">
+                    <div class="bg-white rounded-3xl border border-slate-200/80 p-8 text-center text-xs text-slate-500">
                         Nenhuma conta bancária ativa encontrada para esta conexão.
                     </div>
                 `;
@@ -92,16 +92,16 @@
             contas.forEach(conta => {
                 const saldoFormatado = MC_CONFIG.formatMoney(conta.balance);
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex justify-between items-center';
+                card.className = 'bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm flex justify-between items-center';
                 card.innerHTML = `
                     <div>
-                        <h3 class="font-bold text-slate-900 text-sm mb-1">${MC_CONFIG.escapeHtml(conta.name || 'Conta Bancária')}</h3>
+                        <h3 class="font-bold text-[#010157] text-sm mb-1">${MC_CONFIG.escapeHtml(conta.name || 'Conta Bancária')}</h3>
                         <p class="text-xs text-slate-500">Agência: ${MC_CONFIG.escapeHtml(conta.agency || '---')} | Conta: ${MC_CONFIG.escapeHtml(conta.number || '---')}</p>
-                        <p class="text-[11px] text-slate-400 mt-1 uppercase font-semibold">${MC_CONFIG.escapeHtml(conta.subtype || 'Corrente')}</p>
+                        <p class="text-[11px] text-[#0985ff] mt-1 uppercase font-semibold">${MC_CONFIG.escapeHtml(conta.subtype || 'Corrente')}</p>
                     </div>
                     <div class="text-right">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponível</span>
-                        <strong class="text-emerald-600 font-extrabold text-xl">${saldoFormatado}</strong>
+                        <strong class="text-[#0985ff] font-extrabold text-xl">${saldoFormatado}</strong>
                     </div>
                 `;
                 listaContas.appendChild(card);
