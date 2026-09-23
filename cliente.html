@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MC Securitizadora - Conexão Segura</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Configuração Central -->
+    <script src="config.js"></script>
+
+    <!-- SDK Oficial Pluggy Connect -->
+    <script src="https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .bg-pattern {
+            background-color: #0b1120;
+            background-image: 
+                radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
+                linear-gradient(to bottom, #0b1120, #0f172a);
+        }
+    </style>
+</head>
+<body class="bg-pattern min-h-screen flex items-center justify-center p-4 antialiased text-slate-800">
+
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-7 md:p-9 text-center relative overflow-hidden">
+        
+        <!-- Linha de gradiente superior -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500"></div>
+
+        <!-- Logo e Cabeçalho -->
+        <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl mx-auto mb-5 flex items-center justify-center text-white font-extrabold text-2xl shadow-lg shadow-blue-500/25">
+            MC
+        </div>
+
+        <h2 id="titulo-pagina" class="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight">Conecte seu Banco</h2>
+        <p id="texto-cliente" class="text-xs text-slate-500 mb-6 leading-relaxed">
+            Autorize a consulta segura através do Open Finance regulado pelo Banco Central do Brasil.
+        </p>
+
+        <!-- SELETOR DE BANCO (Ativo para Pix Automático) -->
+        <div id="area-seletor-banco" class="hidden mb-6 text-left">
+            <label for="banco-escolhido" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Selecione o seu banco para autorizar:
+            </label>
+            <div class="relative">
+                <select 
+                    id="banco-escolhido" 
+                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 appearance-none transition cursor-pointer"
+                >
+                    <option value="" disabled selected>Carregando bancos autorizados...</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTÃO PRINCIPAL -->
+        <button 
+            type="button"
+            id="btn-conectar" 
+            onclick="iniciarConexao()" 
+            class="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-600/25 transition duration-200 flex items-center justify-center gap-2 text-sm tracking-wide cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+            <i class="fa-solid fa-shield-halved text-base"></i> 
+            <span id="texto-btn-conectar">Autorizar Conexão Segura</span>
+        </button>
+
+        <!-- MENSAGEM DE SUCESSO -->
+        <div id="mensagem-sucesso" class="hidden space-y-4 py-6">
+            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full mx-auto flex items-center justify-center text-3xl border border-emerald-200">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900">Autorização Concluída!</h3>
+            <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+                Sua autorização bancária foi validada com sucesso pelo Open Finance. Você já pode fechar esta página e retornar ao atendimento pelo WhatsApp.
+            </p>
+        </div>
+
+        <!-- MENSAGEM DE ERRO OU CANCELAMENTO -->
+        <div id="mensagem-erro" class="hidden space-y-3 py-4 text-left bg-rose-50 border border-rose-200 p-4 rounded-xl mt-4">
+            <div class="flex items-center gap-2 text-rose-700 font-bold text-xs">
+                <i class="fa-solid fa-circle-exclamation text-base"></i>
+                <span>Não foi possível concluir</span>
+            </div>
+            <p id="texto-erro-detalhe" class="text-[11px] text-rose-600 leading-relaxed">
+                A autorização foi cancelada ou o banco encontrou uma instabilidade. Por favor, tente novamente.
+            </p>
+        </div>
+
+        <!-- RODAPÉ DE SEGURANÇA -->
+        <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center justify-center gap-1.5 text-[11px] text-slate-400">
+            <div class="flex items-center gap-1.5 font-semibold text-slate-500">
+                <i class="fa-solid fa-lock text-emerald-600"></i> Criptografia Bancária de Ponta a Ponta
+            </div>
+            <span>Regulado e Supervisionado pelo Banco Central do Brasil</span>
+        </div>
+    </div>
+
+    <script>
+        const parametrosUrl = new URLSearchParams(window.location.search);
+        
+        let clienteId = parametrosUrl.get('cliente');
+        let valor = parametrosUrl.get('valor');
+        let bancoParam = parametrosUrl.get('banco');
+        let cpfParam = parametrosUrl.get('cpf');
+        let inicioParam = parametrosUrl.get('inicio');
+
+        // Persistência em localStorage para resiliência de recarga
+        if (clienteId) {
+            localStorage.setItem('memoriaCliente', clienteId);
+            if (valor) {
+                localStorage.setItem('memoriaCpf', cpfParam || '');
+                localStorage.setItem('memoriaValor', valor);
+                localStorage.setItem('memoriaInicio', inicioParam || '');
+                if (bancoParam) localStorage.setItem('memoriaBanco', bancoParam);
+            } else {
+                localStorage.removeItem('memoriaCpf');
+                localStorage.removeItem('memoriaValor');
+                localStorage.removeItem('memoriaInicio');
+                localStorage.removeItem('memoriaBanco');
+            }
+        } else {
+            clienteId = localStorage.getItem('memoriaCliente') || 'Atendimento';
+            valor = localStorage.getItem('memoriaValor');
+        }
+
+        async function carregarBancos() {
+            const selectBanco = document.getElementById('banco-escolhido');
+            try {
+                const resposta = await fetch(`${MC_CONFIG.API_BASE_URL}/listar-bancos`);
+                if (!resposta.ok) throw new Error("Erro ao buscar lista de instituições");
+                
+                const bancos = await resposta.json();
+                selectBanco.innerHTML = '<option value="" disabled selected>Selecione a sua instituição bancária...</option>';
+                
+                const bancoSalvo = localStorage.getItem('memoriaBanco');
+                bancos.forEach(banco => {
+                    const selected = bancoSalvo && String(banco.id) === String(bancoSalvo) ? 'selected' : '';
+                    selectBanco.innerHTML += `<option value="${banco.id}" ${selected}>${MC_CONFIG.escapeHtml(banco.name)}</option>`;
+                });
+            } catch (erro) {
+                selectBanco.innerHTML = '<option value="" disabled selected>Erro ao carregar lista de bancos. Tente recarregar.</option>';
+            }
+        }
+
+        // Customização da interface com base no tipo de operação
+        if (clienteId && clienteId !== 'Atendimento') {
+            const clienteSeguro = MC_CONFIG.escapeHtml(clienteId);
+
+            if (valor && valor !== "null" && valor !== "") {
+                const valorFormatado = MC_CONFIG.formatMoney(valor);
+                document.getElementById('texto-cliente').innerHTML = `
+                    Autorize o contrato de Pix Automático no valor de <strong class="text-slate-900 font-bold">${valorFormatado} mensais</strong> para o atendimento <strong class="text-blue-600 font-bold">#${clienteSeguro}</strong>.
+                `;
+                document.getElementById('texto-btn-conectar').innerText = "Autorizar Pix Automático";
+                document.getElementById('area-seletor-banco').classList.remove('hidden');
+                carregarBancos();
+            } else {
+                document.getElementById('texto-cliente').innerHTML = `
+                    Autorize a consulta segura de extratos pelo Open Finance para o atendimento <strong class="text-blue-600 font-bold">#${clienteSeguro}</strong>.
+                `;
+                document.getElementById('texto-btn-conectar').innerText = "Autorizar Leitura Segura";
+            }
+        }
+
+        function iniciarWidget(token) {
+            const btn = document.getElementById("btn-conectar");
+            
+            const pluggyConnect = new PluggyConnect({
+                connectToken: token,
+                onSuccess: async (dadosRetorno) => {
+                    btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Finalizando registro seguro...`;
+                    btn.disabled = true;
+
+                    try {
+                        const itemId = dadosRetorno.item && dadosRetorno.item.id;
+                        
+                        await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                cliente: clienteId, 
+                                item_id: itemId 
+                            })
+                        });
+
+                        exibirTelaSucesso();
+                    } catch (erroSalvar) {
+                        // Mesmo que o salvamento falhe, a autorização ocorreu com sucesso na Pluggy
+                        exibirTelaSucesso();
+                    }
+                },
+                onError: (erro) => {
+                    document.getElementById('mensagem-erro').classList.remove('hidden');
+                    document.getElementById('texto-erro-detalhe').innerText = "A autorização bancária não foi concluída. Você pode tentar novamente.";
+                    btn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> Tentar Novamente`;
+                    btn.disabled = false;
+                }
+            });
+
+            pluggyConnect.init();
+        }
+
+        async function iniciarConexao() {
+            const btn = document.getElementById("btn-conectar");
+            const msgErro = document.getElementById("mensagem-erro");
+            msgErro.classList.add("hidden");
+
+            const cpfMemoria = localStorage.getItem('memoriaCpf');
+            const valorMemoria = localStorage.getItem('memoriaValor');
+            const inicioMemoria = localStorage.getItem('memoriaInicio');
+            let bancoEscolhido = null;
+
+            if (valorMemoria && valorMemoria !== "null" && valorMemoria !== "") {
+                bancoEscolhido = document.getElementById("banco-escolhido").value;
+                if (!bancoEscolhido) {
+                    MC_CONFIG.showToast("Selecione seu banco na lista antes de continuar.", "warning");
+                    return;
+                }
+            }
+
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Conectando ambiente seguro...`;
+            btn.disabled = true;
+
+            try {
+                let urlBackend = `${MC_CONFIG.API_BASE_URL}/gerar-token`;
+                let configuracaoFetch = { method: 'POST' };
+
+                if (valorMemoria && valorMemoria !== "null" && valorMemoria !== "") {
+                    urlBackend = `${MC_CONFIG.API_BASE_URL}/gerar-token-pix`;
+                    configuracaoFetch = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            valor: parseFloat(valorMemoria),
+                            cpf: cpfMemoria,
+                            data_inicio: inicioMemoria,
+                            banco: parseInt(bancoEscolhido)
+                        })
+                    };
+                }
+
+                const resposta = await fetch(urlBackend, configuracaoFetch);
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error(dados.erro || dados.detalhes || 'Falha ao comunicar com o servidor');
+                }
+
+                // =======================================================
+                // FLUXO DO PIX AUTOMÁTICO: Redirecionamento Direto ao App do Banco
+                // =======================================================
+                const consentUrl = dados.consentUrl || dados.consent_url;
+                if (consentUrl) {
+                    // Salva a intenção no banco com a coluna correta (payment_intent_id)
+                    try {
+                        await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                cliente: clienteId, 
+                                payment_intent_id: dados.payment_intent_id 
+                            })
+                        });
+                    } catch (e) {
+                        console.warn("Aviso ao salvar pré-conexão:", e);
+                    }
+                    
+                    // Redireciona o usuário diretamente para o app/internet banking
+                    window.location.href = consentUrl;
+                    return; 
+                }
+
+                // =======================================================
+                // FLUXO DO OPEN FINANCE (Extrato): Widget Pluggy Connect
+                // =======================================================
+                const connectToken = dados.token;
+                if (!connectToken) {
+                    throw new Error('Token de segurança não pôde ser gerado.');
+                }
+
+                iniciarWidget(connectToken);
+
+            } catch (erro) {
+                msgErro.classList.remove('hidden');
+                document.getElementById('texto-erro-detalhe').innerText = erro.message;
+                btn.innerHTML = `<i class="fa-solid fa-shield-halved"></i> Tentar Novamente`;
+                btn.disabled = false;
+            }
+        }
+
+        function exibirTelaSucesso() {
+            document.getElementById('titulo-pagina').style.display = 'none';
+            document.getElementById('texto-cliente').style.display = 'none';
+            if (document.getElementById('area-seletor-banco')) {
+                document.getElementById('area-seletor-banco').style.display = 'none';
+            }
+            document.getElementById('btn-conectar').style.display = 'none';
+            document.getElementById('mensagem-sucesso').classList.remove('hidden');
+            document.getElementById('mensagem-erro').classList.add('hidden');
+            localStorage.clear();
+        }
+
+        // Lógica de Retorno do Callback do Banco (Pix Automático)
+        window.onload = () => {
+            const statusCallback = parametrosUrl.get('status');
+            
+            if (statusCallback === 'sucesso') {
+                exibirTelaSucesso();
+                return;
+            }
+            
+            if (statusCallback === 'erro') {
+                document.getElementById('mensagem-erro').classList.remove('hidden');
+                document.getElementById('texto-erro-detalhe').innerText = "A autorização no aplicativo do banco foi cancelada ou falhou. Você pode tentar novamente abaixo.";
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        };
+    </script>
+</body>
+</html>

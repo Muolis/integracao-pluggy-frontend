@@ -3,74 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integração Pluggy - Frontend</title>
+    <title>MC Securitizadora - Open Finance & Pix Automático</title>
     
-    <script src="https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js"></script>
-    
+    <script src="config.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f4f7f6;
-            margin: 0;
-        }
-        .container {
-            text-align: center;
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
+        body { font-family: 'Inter', sans-serif; }
+        .bg-pattern {
+            background-color: #0b1120;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 40%),
+                linear-gradient(to bottom, #0b1120, #0f172a);
         }
     </style>
 </head>
-<body>
+<body class="bg-pattern min-h-screen flex items-center justify-center p-4 antialiased text-slate-100">
 
-    <div class="container">
-        <h2>Conecte sua Conta Bancária</h2>
-        <p>Clique no botão abaixo para abrir o ambiente seguro.</p>
-        
-        <button id="btn-conectar">Conectar Conta</button>
+    <div class="max-w-md w-full bg-slate-900/90 border border-slate-700/60 rounded-3xl shadow-2xl p-8 md:p-10 text-center relative overflow-hidden backdrop-blur-xl">
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500"></div>
+
+        <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-900 rounded-2xl mx-auto mb-6 flex items-center justify-center text-white font-extrabold text-3xl shadow-lg shadow-blue-600/30 border border-blue-400/20">
+            MC
+        </div>
+
+        <h1 class="text-2xl font-bold text-white tracking-tight mb-2">MC Securitizadora</h1>
+        <p class="text-slate-400 text-xs mb-8 leading-relaxed">
+            Plataforma Corporativa de Integração com Open Finance e Cobrança Recorrente Pix Automático.
+        </p>
+
+        <div class="space-y-3.5">
+            <a 
+                href="gestor-login.html" 
+                class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-900/40 transition duration-200 flex items-center justify-center gap-2.5 text-xs tracking-wide cursor-pointer"
+            >
+                <i class="fa-solid fa-lock text-sm"></i> Acessar Portal do Gestor
+            </a>
+
+            <a 
+                href="cliente.html?cliente=Demonstracao" 
+                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3.5 px-6 rounded-xl border border-slate-700 transition duration-200 flex items-center justify-center gap-2.5 text-xs tracking-wide cursor-pointer"
+            >
+                <i class="fa-solid fa-user-check text-sm text-emerald-400"></i> Simular Conexão do Cliente
+            </a>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
+            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Infraestrutura Bancária Certificada
+        </div>
     </div>
 
-    <script>
-        const btnConectar = document.getElementById('btn-conectar');
-
-        btnConectar.addEventListener('click', () => {
-            
-            // O seu token real recém-gerado
-            const connectToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGllbnRJZCI6IjIxMWQwMmZiLWVmZDYtNGZkNi04OWQzLTU4NTU2ODJjY2VhZSIsImRhdGEiOiI1YmY4NzAyYzhiYzhjNTI5NDdiMTc3NjczZTFjOTczMjoyZTBiZDNiY2VjYzQyZjdjNWFmZGM1NjM5N2ExZmI2ZTJiMDU0MmM3NzBiZDQ2NjVkZjE0NDc3ZDczNjc5NTY0OWVkM2VmNmI1OWRiYjAwZjZiMjI4YTU2MmFkZGE1YWY1YzlkMzU0OTNiYjQwMGIzOTQ3Yjc5NTk0ZjIxMzczNzQwZGYwYzIxNzhkY2VmZGY1YTcxODg4NzE0NDBjNjJlMGJlYWY2N2FiY2VmMDRhMjY2NjMyYjczNDEwYjkzMWQ4ZTBlMjhlYjlhZGI1YzgzZWZjNDA0MzU5OTdiNjdiODQyNzA3Yjc4NzExMGFlNDkzMjQzYzU3ZTQyMDkwNDMwIiwiaWF0IjoxNzgzNDQzMDUxLCJleHAiOjE3ODM0NDQ4NTF9.FG4rW9mHCuzuEfqLh-kKdhPG_f6CxwJBuzrM-rCNDQuL1pZfya69rVhKK3XIAIHsIno_cHXeYf9iBX-pv3Bbms88k-d8H6wYoMsksqJ-vli5TyJEbjNRQaH4mI4iu4jg-zKNlNcx7tdL3uT6WwMuTB08Lx9Jfl7F9cb-Q-BIMxXVtiA4y2Rz_19-O3gGuMJKa2YAPDFq7D10DVIbV7_iPpIIb8pCNaLKUmxMr0pQZc5jtoEiPS6cH9I10gfZU6GuHZ-_ZBBt-7NWHFp8RXNZhod6mElVyM7TkJ-Xv04NMnqkzSgZP72AcNY5YsDqAC4ocNF1Ck2lw_QS7kJmvRSDxw'; 
-
-            const pluggyConnect = new PluggyConnect({
-                connectToken: connectToken,
-                
-                onSuccess: (itemData) => {
-                    console.log('Sucesso! O ID do Item criado é:', itemData.item.id);
-                    alert('Conta conectada com sucesso! Verifique o console.');
-                },
-                
-                onError: (error) => {
-                    console.error('Ops, algo deu errado:', error);
-                }
-            });
-
-            pluggyConnect.init();
-        });
-    </script>
 </body>
 </html>
