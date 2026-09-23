@@ -495,5 +495,5 @@ def rota_estaticos(filename):
 # ====================================================================
 if __name__ == "__main__":
     porta = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Iniciando MC Securitizadora Open Finance na porta {porta}...")
+    print(f"[OK] Iniciando MC Securitizadora Open Finance na porta {porta}...")
     app.run(host="0.0.0.0", port=porta, debug=False)
