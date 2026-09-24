@@ -727,9 +727,14 @@
                                         <i class="fa-regular fa-clock"></i> Conectado em: ${dataFormatada}
                                     </p>
                                 </div>
-                                <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer shadow-sm">
-                                    <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
-                                </button>
+                                <div class="flex items-center gap-2 w-full md:w-auto">
+                                    <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
+                                        <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
+                                    </button>
+                                    <a href="extratos.html?item=${encodeURIComponent(cliente.item_id)}&cliente=${encodeURIComponent(cliente.cliente)}" target="_blank" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir extrato detalhado em tela cheia">
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[#0985ff]"></i> Tela Cheia
+                                    </a>
+                                </div>
                             </div>
                             <div id="detalhe-of-${clienteId}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
                         </div>
@@ -828,16 +833,19 @@
                 }
 
                 let htmlContas = `
-                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 flex-wrap gap-2">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid fa-building-columns text-[#0985ff]"></i>
                             <h4 class="font-bold text-[#010157] text-sm">${bancoNome}</h4>
                         </div>
                         <div class="flex items-center gap-3">
+                            <a href="extratos.html?item=${encodeURIComponent(itemId)}&cliente=${encodeURIComponent(nomeCliente)}" target="_blank" class="text-xs font-bold text-[#0985ff] hover:text-[#0772dc] flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shadow-xs">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> Abrir Extrato Completo
+                            </a>
                             <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                <i class="fa-solid fa-circle text-[6px]"></i> Conexao Ativa
+                                <i class="fa-solid fa-circle text-[6px]"></i> Conexão Ativa
                             </span>
-                            <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs">
+                            <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs cursor-pointer">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
@@ -848,19 +856,22 @@
                     const saldoFormatado = MC_CONFIG.formatMoney(conta.balance);
                     const nomeConta = MC_CONFIG.escapeHtml(conta.name || 'Conta Bancaria');
                     const subtipo = MC_CONFIG.escapeHtml(conta.subtype || 'Corrente');
-                    const agencia = MC_CONFIG.escapeHtml(conta.agency || '---');
+                    const agencia = MC_CONFIG.escapeHtml(conta.agency || (conta.bankData?.transferNumber ? conta.bankData.transferNumber.split('/')[1] : null) || '---');
                     const numero = MC_CONFIG.escapeHtml(conta.number || '---');
+                    const titular = MC_CONFIG.escapeHtml(conta.owner || 'Não informado');
+                    const cpfTitular = conta.taxNumber ? ` | CPF: ${MC_CONFIG.escapeHtml(conta.taxNumber)}` : '';
 
                     htmlContas += `
                         <div class="border-b border-slate-200 pb-5 mb-5 last:border-0 last:pb-0 last:mb-0">
-                            <div class="flex justify-between items-center mb-2">
+                            <div class="flex justify-between items-start mb-2">
                                 <div>
                                     <h4 class="font-bold text-[#010157] text-sm">${nomeConta}</h4>
-                                    <div class="text-[11px] text-slate-500 mt-0.5">Agencia: ${agencia} | Conta: ${numero} | ${subtipo}</div>
+                                    <div class="text-[11px] text-slate-700 font-medium mt-0.5">Titular: <strong>${titular}</strong>${cpfTitular}</div>
+                                    <div class="text-[11px] text-slate-500 mt-0.5">Agência: ${agencia} | Conta: ${numero} | ${subtipo}</div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponivel</span>
-                                    <span class="text-[#0985ff] font-extrabold text-base">${saldoFormatado}</span>
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponível</span>
+                                    <span class="text-[#0985ff] font-extrabold text-base font-mono">${saldoFormatado}</span>
                                 </div>
                             </div>
                             <div id="transacoes-${conta.id}" class="bg-white p-4 rounded-xl border border-slate-200 mt-3 shadow-sm">
