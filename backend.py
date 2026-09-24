@@ -742,13 +742,19 @@ def listar_conexoes():
         ]), 200
 
     try:
-        resposta = supabase.table('conexoes').select('*').order('data_conexao', desc=True).limit(200).execute()
-        conexoes = resposta.data or []
-        for c in conexoes:
-            if c.get('payment_intent_id'):
-                c['tipo'] = 'pix_automatico'
-            else:
-                c['tipo'] = 'open_finance'
+        # 1. Busca conexoes Open Finance (payment_intent_id IS NULL) - quota garantida
+        res_of = supabase.table('conexoes').select('*').is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(100).execute()
+        conexoes_of = res_of.data or []
+        for c in conexoes_of:
+            c['tipo'] = 'open_finance'
+
+        # 2. Busca conexoes Pix Automatico (payment_intent_id IS NOT NULL)
+        res_pix = supabase.table('conexoes').select('*').not_.is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(250).execute()
+        conexoes_pix = res_pix.data or []
+        for c in conexoes_pix:
+            c['tipo'] = 'pix_automatico'
+
+        conexoes = conexoes_of + conexoes_pix
         return jsonify(conexoes), 200
     except Exception as e:
         print(f'[ERRO SUPABASE SELECT]: {e}')
