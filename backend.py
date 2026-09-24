@@ -4,6 +4,7 @@ import hmac
 import hashlib
 import json
 import base64
+import re
 from functools import wraps
 import requests
 from flask import Flask, jsonify, request, send_from_directory
@@ -18,6 +19,14 @@ app = Flask(__name__, static_folder=".")
 # Configuração de CORS: aceita origens especificadas ou geral
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
 CORS(app, origins=CORS_ORIGINS.split(",") if CORS_ORIGINS != "*" else "*")
+
+@app.after_request
+def adicionar_headers_seguranca(response):
+    """Injeta cabeçalhos modernos de proteção e segurança HTTP"""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 # ====================================================================
 # 1. CONFIGURAÇÕES E CREDENCIAIS SEGURAS
@@ -342,12 +351,22 @@ def gerar_token_pix():
 
     dados = request.get_json(silent=True) or {}
     valor_pix = dados.get("valor")
-    cpf_cliente = str(dados.get("cpf", "")).strip()
+    cpf_cliente = re.sub(r'\D', '', str(dados.get("cpf", "")).strip())
     data_inicio = str(dados.get("data_inicio", "")).strip()
     banco_selecionado = dados.get("banco")
 
     if not all([valor_pix, cpf_cliente, data_inicio, banco_selecionado]):
-        return jsonify({"erro": "Faltam dados obrigatórios para Pix Automático"}), 400
+        return jsonify({"erro": "Faltam dados obrigatórios para Pix Automático (valor, CPF, data de início e banco)"}), 400
+
+    if len(cpf_cliente) != 11:
+        return jsonify({"erro": "CPF inválido. Deve conter exatamente 11 dígitos numéricos."}), 400
+
+    try:
+        valor_float = float(valor_pix)
+        if valor_float <= 0:
+            return jsonify({"erro": "O valor da parcela do Pix deve ser maior que zero."}), 400
+    except (ValueError, TypeError):
+        return jsonify({"erro": "Valor numérico inválido informado para o Pix."}), 400
 
     try:
         # Tratamento seguro do dia do mês
@@ -445,13 +464,27 @@ def calcular_extrato_pix(intent_data: dict) -> dict:
     schedule = req.get("schedule") or {}
     status = intent_data.get("status", "PENDING")
     connector = intent_data.get("connector") or {}
-    valor = float(req.get("amount") or 0.0)
-    occurrences = int(schedule.get("occurrences") or 12)
+    debtor = intent_data.get("debtor") or {}
+    
+    try:
+        valor = float(req.get("amount") or 0.0)
+    except (ValueError, TypeError):
+        valor = 0.0
+
+    try:
+        occurrences = int(schedule.get("occurrences") or 12)
+    except (ValueError, TypeError):
+        occurrences = 12
+    occurrences = max(1, occurrences)
+
     start_date_str = schedule.get("startDate") or time.strftime("%Y-%m-%d")
 
     try:
-        ano, mes, dia = [int(x) for x in str(start_date_str).split("-")[:3]]
-        data_base = date(ano, mes, dia)
+        partes = [int(x) for x in str(start_date_str).split("-")[:3]]
+        if len(partes) == 3:
+            data_base = date(partes[0], partes[1], partes[2])
+        else:
+            data_base = date.today()
     except Exception:
         data_base = date.today()
 
@@ -511,6 +544,17 @@ def calcular_extrato_pix(intent_data: dict) -> dict:
             "cor": cor_badge
         })
 
+    # Caso contrato esteja ativo (PAYMENT_COMPLETED) com adesão imediata
+    if status == "PAYMENT_COMPLETED" and parcelas_pagas == 0 and len(cronograma) > 0:
+        cronograma[0]["status"] = "paga"
+        cronograma[0]["badge"] = "Paga (Adesão)"
+        cronograma[0]["cor"] = "emerald"
+        parcelas_pagas = 1
+        if len(cronograma) > 1:
+            cronograma[1]["status"] = "proximo_debito"
+            cronograma[1]["badge"] = "Próximo Débito"
+            cronograma[1]["cor"] = "sky"
+
     parcelas_restantes = max(0, occurrences - parcelas_pagas)
     if status in ["CONSENT_REJECTED", "REJECTED", "ERROR"]:
         status_rotulo = "Cancelado / Rejeitado"
@@ -541,6 +585,7 @@ def calcular_extrato_pix(intent_data: dict) -> dict:
         "total_restante": round(parcelas_restantes * valor, 2),
         "proximo_vencimento": proximo_vencimento,
         "data_inicio": start_date_str,
+        "debtor": debtor,
         "cronograma": cronograma,
         "raw": intent_data
     }
@@ -569,8 +614,12 @@ def salvar_conexao():
     try:
         registro = {"cliente": cliente}
         if payment_intent_id:
-            registro["item_id"] = str(payment_intent_id)
             registro["payment_intent_id"] = str(payment_intent_id)
+            # Evita poluir a coluna item_id com payment_intent_id
+            if item_id and str(item_id) != str(payment_intent_id):
+                registro["item_id"] = str(item_id)
+            else:
+                registro["item_id"] = None
             registro["tipo"] = "pix_automatico"
         elif item_id:
             registro["item_id"] = str(item_id)
@@ -713,6 +762,11 @@ def consultar_pix(intent_id):
 @app.route('/')
 def rota_raiz():
     return send_from_directory(".", "gestor-login.html")
+
+@app.route('/index')
+@app.route('/index.html')
+def rota_index():
+    return send_from_directory(".", "index.html")
 
 @app.route('/cliente')
 @app.route('/cliente.html')
