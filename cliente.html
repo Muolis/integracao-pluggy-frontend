@@ -346,7 +346,8 @@
                             body: JSON.stringify({ 
                                 cliente: clienteId, 
                                 payment_intent_id: dados.payment_intent_id 
-                            })
+                            }),
+                            keepalive: true
                         });
                     } catch (e) {
                         console.warn("Aviso ao salvar pré-conexão:", e);

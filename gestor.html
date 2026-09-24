@@ -257,16 +257,72 @@
                 </div>
 
                 <!-- ABAS DE FILTRO EXCLUSIVAS: APENAS OPEN FINANCE E PIX AUTOMÁTICO (SEM ABA TODOS) -->
-                <div class="flex bg-slate-100 p-1.5 rounded-2xl w-fit mb-6 border border-slate-200/80 gap-1.5">
-                    <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-building-columns text-[#0985ff]"></i> Open Finance
-                    </button>
-                    <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-repeat text-emerald-500"></i> Pix Automático
-                    </button>
+                <!-- ABAS PRINCIPAIS: OPEN FINANCE vs PIX AUTOMÁTICO (PAINEL PLUGGY) -->
+                <div class="flex flex-col gap-4 mb-6">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div class="flex bg-slate-100 p-1.5 rounded-2xl w-fit border border-slate-200/80 gap-1.5">
+                            <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer">
+                                <i class="fa-solid fa-building-columns text-[#0985ff]"></i> Open Finance
+                            </button>
+                            <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer">
+                                <i class="fa-solid fa-bolt text-emerald-500"></i> Pix Automático (Painel Pluggy)
+                            </button>
+                        </div>
+                        
+                        <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
+                    </div>
+
+                    <!-- RIBBON DE KPIS DO PAINEL DA PLUGGY (EXIBIDO NA ABA PIX) -->
+                    <div id="kpis-painel-pluggy" class="hidden grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5">
+                            <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-0.5">Total Contratos</span>
+                            <div id="kpi-total-contratos" class="text-lg font-black text-[#010157]">0</div>
+                            <span class="text-[10px] text-slate-500 block">Sincronizados Pluggy</span>
+                        </div>
+
+                        <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5">
+                            <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block mb-0.5">Autorizados / Em Dia</span>
+                            <div id="kpi-ativos" class="text-lg font-black text-emerald-700">0</div>
+                            <span class="text-[10px] text-emerald-600 block">Cobrança ativa</span>
+                        </div>
+
+                        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5">
+                            <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider block mb-0.5">Aguardando Banco</span>
+                            <div id="kpi-pendentes" class="text-lg font-black text-amber-700">0</div>
+                            <span class="text-[10px] text-amber-600 block">Pendente cliente</span>
+                        </div>
+
+                        <div class="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-3.5">
+                            <span class="text-[10px] font-bold text-rose-700 uppercase tracking-wider block mb-0.5">Rejeitados / Cancelados</span>
+                            <div id="kpi-rejeitados" class="text-lg font-black text-rose-700">0</div>
+                            <span class="text-[10px] text-rose-600 block">Recusados / Cancelados</span>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 col-span-2 lg:col-span-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">Recorrência Mensal</span>
+                            <div id="kpi-volume-mensal" class="text-lg font-black text-[#010157]">R$ 0,00</div>
+                            <span class="text-[10px] text-slate-500 block">Total ativo/mês</span>
+                        </div>
+                    </div>
+
+                    <!-- PILULAS DE FILTRO POR STATUS (ABA PIX) -->
+                    <div id="filtros-status-pix" class="hidden flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                        <button type="button" onclick="filtrarStatusPix('todos')" id="filtro-pix-todos" class="px-3.5 py-1.5 rounded-xl font-bold bg-[#010157] text-white transition shadow-sm cursor-pointer whitespace-nowrap">
+                            Todos (<span id="count-filtro-todos">0</span>)
+                        </button>
+                        <button type="button" onclick="filtrarStatusPix('ativo')" id="filtro-pix-ativo" class="px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap">
+                            🟢 Autorizados (<span id="count-filtro-ativos">0</span>)
+                        </button>
+                        <button type="button" onclick="filtrarStatusPix('pendente')" id="filtro-pix-pendente" class="px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap">
+                            🟡 Aguardando (<span id="count-filtro-pendentes">0</span>)
+                        </button>
+                        <button type="button" onclick="filtrarStatusPix('rejeitado')" id="filtro-pix-rejeitado" class="px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap">
+                            🔴 Rejeitados (<span id="count-filtro-rejeitados">0</span>)
+                        </button>
+                    </div>
                 </div>
                 
-                <!-- LISTA DE CLIENTES -->
+                <!-- LISTA DE CLIENTES / CONTRATOS -->
                 <div id="lista-clientes" class="space-y-4 overflow-y-auto pr-1 custom-scrollbar flex-1 max-h-[620px]">
                     <div class="flex flex-col items-center justify-center py-16 text-slate-400">
                         <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl mb-3"></i>
@@ -279,6 +335,9 @@
 
     <script>
         let todosOsClientes = []; 
+        let todosOsPix = [];
+        let kpisPix = {};
+        let filtroStatusPixAtivo = 'todos';
         let tipoLinkAtivo = 'extrato';
         let listaTodosBancos = [];
 
@@ -289,54 +348,62 @@
             }
         }
 
-        async function carregarBancos() {
-            const selectBanco = document.getElementById('bancoPix');
-            try {
-                const resposta = await fetch(`${MC_CONFIG.API_BASE_URL}/listar-bancos`);
-                if (!resposta.ok) throw new Error('Falha ao buscar instituições');
-                listaTodosBancos = await resposta.json();
-                renderizarOpcoesBancos(listaTodosBancos);
-            } catch (erro) {
-                selectBanco.innerHTML = '<option value="">Erro ao carregar lista de bancos</option>';
-            }
-        }
+        function alternarTipoOperacao(tipo) {
+            tipoLinkAtivo = tipo;
+            const btnExtrato = document.getElementById("btn-tipo-extrato");
+            const btnPix = document.getElementById("btn-tipo-pix");
+            const camposPix = document.getElementById("campos-pix-automatico");
 
-        function renderizarOpcoesBancos(bancos) {
-            const selectBanco = document.getElementById('bancoPix');
-            selectBanco.innerHTML = '<option value="">Selecione o banco (com número COMPE)...</option>';
-            bancos.forEach(banco => {
-                selectBanco.innerHTML += `<option value="${banco.id}">${MC_CONFIG.escapeHtml(banco.name)}</option>`;
-            });
-        }
-
-        function filtrarOpcoesBancos() {
-            const termo = (document.getElementById('buscaBancoPix')?.value || '').toLowerCase().trim();
-            const bancosFiltrados = listaTodosBancos.filter(b => {
-                const nomeMatch = (b.name || '').toLowerCase().includes(termo);
-                const codeMatch = (b.code || '').includes(termo);
-                return nomeMatch || codeMatch;
-            });
-            renderizarOpcoesBancos(bancosFiltrados);
-        }
-
-        function mudarAbaGerador(aba) {
-            tipoLinkAtivo = aba;
-            const btnExtrato = document.getElementById('aba-gen-extrato');
-            const btnPix = document.getElementById('aba-gen-pix');
-            const camposPix = document.getElementById('campos-pix');
-            const boxResultado = document.getElementById('box-resultado');
-
-            btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
-            btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
-            boxResultado.classList.add("hidden");
-
-            if (aba === 'extrato') {
-                btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
-                camposPix.classList.add('hidden');
+            if (tipo === 'extrato') {
+                btnExtrato.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-[#010157] text-white shadow-sm cursor-pointer";
+                btnPix.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+                camposPix.classList.add("hidden");
             } else {
-                btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
-                camposPix.classList.remove('hidden');
+                btnPix.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-[#010157] text-white shadow-sm cursor-pointer";
+                btnExtrato.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+                camposPix.classList.remove("hidden");
+                if (listaTodosBancos.length === 0) carregarBancosNoSelect();
             }
+            document.getElementById("box-resultado").classList.add("hidden");
+        }
+
+        async function carregarBancosNoSelect() {
+            const select = document.getElementById("bancoCliente");
+            try {
+                const res = await fetch(`${MC_CONFIG.API_BASE_URL}/listar-bancos`);
+                if (!res.ok) throw new Error("Erro ao listar bancos");
+                listaTodosBancos = await res.json();
+                renderizarOptionsBancos(listaTodosBancos);
+            } catch (e) {
+                select.innerHTML = '<option value="" disabled selected>Erro ao carregar bancos</option>';
+            }
+        }
+
+        function renderizarOptionsBancos(bancos) {
+            const select = document.getElementById("bancoCliente");
+            select.innerHTML = '<option value="" disabled selected>Selecione a instituicao bancaria...</option>';
+            bancos.forEach(b => {
+                select.innerHTML += `<option value="${b.id}">${MC_CONFIG.escapeHtml(b.name)}</option>`;
+            });
+        }
+
+        function filtrarBancosSelect() {
+            const termo = (document.getElementById("buscaBanco")?.value || "").toLowerCase().trim();
+            const filtrados = listaTodosBancos.filter(b => {
+                return (b.name || "").toLowerCase().includes(termo) || (b.code || "").includes(termo);
+            });
+            renderizarOptionsBancos(filtrados);
+        }
+
+        function mascaraMoeda(input) {
+            let valor = input.value.replace(/\D/g, "");
+            if (!valor) { input.value = ""; return; }
+            valor = (parseFloat(valor) / 100).toFixed(2);
+            input.value = parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        }
+
+        function mascaraCpf(input) {
+            input.value = MC_CONFIG.formatCpf(input.value);
         }
 
         function gerarLink() {
@@ -346,44 +413,39 @@
                 return;
             }
 
-            const idFormatado = identificador.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();
-            const parametros = new URLSearchParams({ cliente: idFormatado });
+            const parametros = new URLSearchParams();
+            parametros.append("cliente", identificador);
 
-            if (tipoLinkAtivo === 'pix') {
-                const banco = document.getElementById("bancoPix").value;
+            if (tipoLinkAtivo === "pix") {
+                const valorRaw = document.getElementById("valorPix").value.replace(/\./g, "").replace(",", ".");
+                const valorFloat = parseFloat(valorRaw);
+                const banco = document.getElementById("bancoCliente").value;
                 const cpf = MC_CONFIG.cleanCpf(document.getElementById("cpfCliente").value);
-                const valor = document.getElementById("valorPix").value.trim();
-                const dataInicio = document.getElementById("dataInicio").value;
-                const dataFim = document.getElementById("dataFim").value;
+                const inicio = document.getElementById("dataInicioPix").value;
 
-                if (!banco || !cpf || !valor || !dataInicio) {
-                    MC_CONFIG.showToast("Preencha todos os campos obrigatórios do Pix Automático (Banco, CPF, Valor e Data de Início).", "warning");
+                if (!valorFloat || valorFloat <= 0) {
+                    MC_CONFIG.showToast("Informe o valor da parcela mensal do Pix.", "warning");
+                    return;
+                }
+                if (!banco) {
+                    MC_CONFIG.showToast("Selecione o banco de cobranca do cliente.", "warning");
+                    return;
+                }
+                if (!cpf || cpf.length !== 11) {
+                    MC_CONFIG.showToast("Informe um CPF valido com 11 digitos.", "warning");
+                    return;
+                }
+                if (!inicio) {
+                    MC_CONFIG.showToast("Informe a data de inicio da primeira cobranca.", "warning");
                     return;
                 }
 
-                if (cpf.length !== 11) {
-                    MC_CONFIG.showToast("CPF inválido. Digite 11 números.", "warning");
-                    return;
-                }
-
-                if (parseFloat(valor) <= 0) {
-                    MC_CONFIG.showToast("O valor da parcela deve ser maior que zero.", "warning");
-                    return;
-                }
-
-                if (dataFim && dataFim < dataInicio) {
-                    MC_CONFIG.showToast("A data de término não pode ser anterior à data de início.", "warning");
-                    return;
-                }
-                
-                parametros.append('banco', banco);
-                parametros.append('cpf', cpf);
-                parametros.append('valor', valor);
-                parametros.append('inicio', dataInicio);
-                if (dataFim) parametros.append('fim', dataFim);
+                parametros.append("valor", valorFloat.toFixed(2));
+                parametros.append("banco", banco);
+                parametros.append("cpf", cpf);
+                parametros.append("inicio", inicio);
             }
 
-            // Garante que o link gerado use o domínio público oficial da vitrine na nuvem
             let urlBase = window.location.origin;
             if (!urlBase || urlBase === 'null' || urlBase.startsWith('file:') || urlBase.includes('localhost') || urlBase.includes('127.0.0.1')) {
                 urlBase = 'https://vitrine-openfinance.onrender.com';
@@ -400,50 +462,65 @@
             navigator.clipboard.writeText(texto).then(() => {
                 const btn = document.getElementById("btn-copiar");
                 btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> Copiado!`;
-                MC_CONFIG.showToast("Link seguro copiado para a área de transferência!", "success");
+                MC_CONFIG.showToast("Link copiado para a area de transferencia!", "success");
                 setTimeout(() => {
                     btn.innerHTML = `<i class="fa-regular fa-copy"></i> Copiar Link`;
                 }, 2000);
             }).catch(() => {
-                MC_CONFIG.showToast("Erro ao copiar o link.", "error");
+                MC_CONFIG.showToast("Erro ao copiar link.", "error");
             });
         }
 
         function compartilharWhatsApp() {
             const texto = document.getElementById("linkGerado").textContent;
             const cliente = document.getElementById("identificadorCliente").value.trim();
-            const mensagem = `Olá ${cliente}, segue o link seguro da MC Minha Conta para autorização bancária: ${texto}`;
+            const mensagem = `Ola ${cliente}, segue o link seguro da MC Minha Conta para autorizacao bancaria: ${texto}`;
             const urlWhats = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
             window.open(urlWhats, '_blank');
         }
 
-        async function carregarClientes() {
+        // ============================================================
+        // CARREGAMENTO CENTRALIZADO (OPEN FINANCE + PAINEL PLUGGY PIX)
+        // ============================================================
+
+        async function carregarClientes(forcar = false) {
             const divLista = document.getElementById('lista-clientes');
             const btnRecarregar = document.getElementById('btn-recarregar');
             
             btnRecarregar.innerHTML = `<i class="fa-solid fa-rotate fa-spin"></i>`;
+            
+            const btnPix = document.getElementById('aba-lista-pix');
+            const abaAtual = (btnPix && btnPix.classList.contains('bg-[#010157]')) ? 'pix' : 'extrato';
+
             divLista.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-16 text-slate-400">
                     <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl mb-3"></i>
-                    <p class="text-xs">Consultando banco de conexões...</p>
+                    <p class="text-xs">Sincronizando com a API da Pluggy...</p>
                 </div>
             `;
             
             try {
-                const resposta = await MC_CONFIG.authFetch('/listar-conexoes');
-                if (!resposta.ok) throw new Error('Falha ao consultar as conexões');
+                // 1. Carrega Open Finance do Supabase
+                const resOf = await MC_CONFIG.authFetch('/listar-conexoes');
+                if (resOf.ok) {
+                    todosOsClientes = await resOf.json();
+                }
+
+                // 2. Carrega Pix Automatico diretamente da Pluggy com KPIs
+                const resPix = await MC_CONFIG.authFetch(`/api/pix-intents${forcar ? '?force=true' : ''}`);
+                if (resPix.ok) {
+                    const dataPix = await resPix.json();
+                    todosOsPix = dataPix.results || [];
+                    kpisPix = dataPix.kpis || {};
+                    atualizarRibbonKpisPix(kpisPix);
+                }
                 
-                todosOsClientes = await resposta.json();
-                
-                // Determina aba ativa (padrão é extrato / Open Finance)
-                const btnPix = document.getElementById('aba-lista-pix');
-                const abaAtual = (btnPix && btnPix.classList.contains('bg-[#010157]')) ? 'pix' : 'extrato';
                 renderizarLista(abaAtual);
             } catch (erro) {
                 divLista.innerHTML = `
                     <div class="text-center py-12 text-rose-500 text-xs">
                         <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
-                        <p>Falha ao carregar conexões de clientes: ${MC_CONFIG.escapeHtml(erro.message)}</p>
+                        <p>Falha ao carregar informacoes: ${MC_CONFIG.escapeHtml(erro.message)}</p>
                     </div>
                 `;
             } finally {
@@ -451,20 +528,55 @@
             }
         }
 
+        function atualizarRibbonKpisPix(kpis) {
+            document.getElementById('kpi-total-contratos').textContent = kpis.total_contratos || todosOsPix.length;
+            document.getElementById('kpi-ativos').textContent = kpis.ativos || 0;
+            document.getElementById('kpi-pendentes').textContent = kpis.pendentes || 0;
+            document.getElementById('kpi-rejeitados').textContent = kpis.rejeitados || 0;
+            document.getElementById('kpi-volume-mensal').textContent = MC_CONFIG.formatMoney(kpis.volume_recorrente_total || 0);
+
+            document.getElementById('count-filtro-todos').textContent = kpis.total_contratos || todosOsPix.length;
+            document.getElementById('count-filtro-ativos').textContent = kpis.ativos || 0;
+            document.getElementById('count-filtro-pendentes').textContent = kpis.pendentes || 0;
+            document.getElementById('count-filtro-rejeitados').textContent = kpis.rejeitados || 0;
+        }
+
         function mudarAbaLista(abaSelecionada) {
             const btnExtrato = document.getElementById('aba-lista-extrato');
             const btnPix = document.getElementById('aba-lista-pix');
+            const kpiRibbon = document.getElementById('kpis-painel-pluggy');
+            const filtroStatus = document.getElementById('filtros-status-pix');
             
             btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
             btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
             
             if (abaSelecionada === 'extrato') {
                 btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
+                kpiRibbon.classList.add("hidden");
+                filtroStatus.classList.add("hidden");
             } else {
                 btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
+                kpiRibbon.classList.remove("hidden");
+                filtroStatus.classList.remove("hidden");
             }
             
             renderizarLista(abaSelecionada);
+        }
+
+        function filtrarStatusPix(status) {
+            filtroStatusPixAtivo = status;
+            const botoes = ['todos', 'ativo', 'pendente', 'rejeitado'];
+            botoes.forEach(b => {
+                const el = document.getElementById(`filtro-pix-${b}`);
+                if (el) {
+                    if (b === status) {
+                        el.className = "px-3.5 py-1.5 rounded-xl font-bold bg-[#010157] text-white transition shadow-sm cursor-pointer whitespace-nowrap";
+                    } else {
+                        el.className = "px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap";
+                    }
+                }
+            });
+            renderizarLista('pix');
         }
 
         function filtrarClientes() {
@@ -473,79 +585,190 @@
             renderizarLista(abaAtiva);
         }
 
+        // ============================================================
+        // RENDERIZADOR PRINCIPAL
+        // ============================================================
+
         function renderizarLista(filtroAba) {
             const divLista = document.getElementById('lista-clientes');
-            const termoBusca = document.getElementById('inputBusca').value.toLowerCase().trim();
-            
-            let clientesFiltrados = todosOsClientes.filter(cliente => {
-                const nomeMatch = (cliente.cliente || '').toLowerCase().includes(termoBusca);
-                let abaMatch = false;
-                if (filtroAba === 'extrato') {
-                    // Open Finance ESTRITO: NÃO pode ter payment_intent_id
-                    abaMatch = (cliente.tipo === 'open_finance') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
-                } else if (filtroAba === 'pix') {
-                    // Pix Automático ESTRITO: DEVE ter payment_intent_id
-                    abaMatch = (cliente.tipo === 'pix_automatico') || Boolean(cliente.payment_intent_id);
-                }
-                return nomeMatch && abaMatch;
-            });
+            const termoBusca = (document.getElementById('inputBusca')?.value || '').toLowerCase().trim();
+            const badgeTotal = document.getElementById('badge-contador-total');
 
-            if (clientesFiltrados.length === 0) {
-                const tipoTexto = filtroAba === 'extrato' ? 'Open Finance' : 'Pix Automático';
-                divLista.innerHTML = `
-                    <div class="text-center py-16 text-slate-400">
-                        <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs">Nenhum registro de <strong>${tipoTexto}</strong> encontrado.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            divLista.innerHTML = ''; 
-            clientesFiltrados.forEach(cliente => {
-                const dataFormatada = MC_CONFIG.formatDate(cliente.data_conexao);
-                const nomeSeguro = MC_CONFIG.escapeHtml(cliente.cliente);
-                const clienteId = cliente.id || Math.random().toString(36).substring(7);
+            if (filtroAba === 'pix') {
+                // RENDERIZACAO DO PAINEL PLUGGY PIX AUTOMATICO
+                let pixFiltrados = todosOsPix.filter(p => {
+                    const matchTexto = (
+                        (p.cliente || '').toLowerCase().includes(termoBusca) ||
+                        (p.cpf || '').includes(termoBusca) ||
+                        (p.banco_nome || '').toLowerCase().includes(termoBusca) ||
+                        (p.id || '').toLowerCase().includes(termoBusca)
+                    );
+                    let matchStatus = true;
+                    if (filtroStatusPixAtivo !== 'todos') {
+                        matchStatus = (p.status_classe === filtroStatusPixAtivo);
+                    }
+                    return matchTexto && matchStatus;
+                });
 
-                let btnAcao = '';
-                let badgeTipo = '';
-                
-                if (cliente.payment_intent_id || cliente.tipo === 'pix_automatico') {
-                    badgeTipo = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase font-bold rounded-md border border-emerald-200">Pix Automático</span>`;
-                    const pixId = cliente.payment_intent_id || cliente.item_id;
-                    btnAcao = `
-                        <button onclick="consultarPix('${MC_CONFIG.escapeHtml(pixId)}', 'detalhe-${clienteId}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto shadow-sm cursor-pointer">
-                            <i class="fa-solid fa-file-invoice-dollar text-[#0985ff]"></i> Extrato de Cobrança Pix
-                        </button>
-                    `;
-                } else {
-                    badgeTipo = `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
-                    btnAcao = `
-                        <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer">
-                            <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
-                        </button>
-                    `;
-                }
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> contratos Pluggy`;
 
-                divLista.innerHTML += `
-                    <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <h3 class="font-bold text-[#010157] text-sm">#${nomeSeguro}</h3>
-                                    ${badgeTipo}
-                                </div>
-                                <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-                                    <i class="fa-regular fa-clock"></i> Conectado em: ${dataFormatada}
-                                </p>
-                            </div>
-                            ${btnAcao}
+                if (pixFiltrados.length === 0) {
+                    divLista.innerHTML = `
+                        <div class="text-center py-16 text-slate-400">
+                            <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
+                            <p class="text-xs">Nenhum contrato de <strong>Pix Automático</strong> encontrado para o filtro selecionado.</p>
                         </div>
-                        <div id="detalhe-${clienteId}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
-                    </div>
-                `;
+                    `;
+                    return;
+                }
+
+                divLista.innerHTML = '';
+                pixFiltrados.forEach(pix => {
+                    const dataCriacaoFormatada = MC_CONFIG.formatDate(pix.data_criacao);
+                    const valorParcelaForm = MC_CONFIG.formatMoney(pix.valor_parcela);
+                    const nomeSeguro = MC_CONFIG.escapeHtml(pix.cliente);
+                    const cpfDisplay = pix.cpf ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${pix.cpf}</span>` : '';
+                    const logoBanco = pix.banco_imagem 
+                        ? `<img src="${pix.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
+                        : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
+
+                    // Botao de link de autorizacao (caso pendente)
+                    let btnLinkWhats = '';
+                    if (pix.payment_url || pix.consent_url) {
+                        const linkAutorizacao = pix.payment_url || pix.consent_url;
+                        btnLinkWhats = `
+                            <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(linkAutorizacao)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Copiar link para WhatsApp">
+                                <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
+                            </button>
+                        `;
+                    }
+
+                    divLista.innerHTML += `
+                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
+                            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                                <div class="flex items-start gap-3.5">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                        ${logoBanco}
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h3 class="font-bold text-[#010157] text-sm">${nomeSeguro}</h3>
+                                            ${cpfDisplay}
+                                            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${pix.status_badge}">
+                                                ${pix.status_label}
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
+                                            <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(pix.banco_nome)}</span>
+                                            <span class="text-slate-300">•</span>
+                                            <span><i class="fa-regular fa-clock text-slate-400"></i> ${dataCriacaoFormatada}</span>
+                                            ${pix.data_inicio ? `<span class="text-slate-300">•</span><span>Início: <strong>${pix.data_inicio}</strong></span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                                    <div class="text-left lg:text-right mr-2">
+                                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Parcela Mensal</span>
+                                        <span class="text-base font-black text-[#010157] font-mono">${valorParcelaForm}</span>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                        ${btnLinkWhats}
+                                        <button onclick="consultarPix('${pix.id}', 'detalhe-pix-${pix.id}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                            <i class="fa-solid fa-file-invoice-dollar text-[#0985ff]"></i> Extrato
+                                        </button>
+                                        <button onclick="abrirModalJson('${pix.id}')" class="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-2 rounded-xl text-xs transition cursor-pointer" title="Ver JSON da Pluggy">
+                                            <i class="fa-solid fa-code"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="detalhe-pix-${pix.id}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
+                        </div>
+                    `;
+                });
+
+            } else {
+                // RENDERIZACAO DE OPEN FINANCE
+                let ofFiltrados = todosOsClientes.filter(cliente => {
+                    const matchTexto = (cliente.cliente || '').toLowerCase().includes(termoBusca);
+                    const matchTipo = (cliente.tipo === 'open_finance') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
+                    return matchTexto && matchTipo;
+                });
+
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${ofFiltrados.length}</strong> conexões Open Finance`;
+
+                if (ofFiltrados.length === 0) {
+                    divLista.innerHTML = `
+                        <div class="text-center py-16 text-slate-400">
+                            <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
+                            <p class="text-xs">Nenhum registro de <strong>Open Finance</strong> encontrado.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                divLista.innerHTML = '';
+                ofFiltrados.forEach(cliente => {
+                    const dataFormatada = MC_CONFIG.formatDate(cliente.data_conexao);
+                    const nomeSeguro = MC_CONFIG.escapeHtml(cliente.cliente);
+                    const clienteId = cliente.id || Math.random().toString(36).substring(7);
+
+                    divLista.innerHTML += `
+                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="font-bold text-[#010157] text-sm">#${nomeSeguro}</h3>
+                                        <span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                                        <i class="fa-regular fa-clock"></i> Conectado em: ${dataFormatada}
+                                    </p>
+                                </div>
+                                <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer shadow-sm">
+                                    <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
+                                </button>
+                            </div>
+                            <div id="detalhe-of-${clienteId}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function copiarLinkPagamento(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                MC_CONFIG.showToast("Link de autorizacao copiado para a area de transferencia!", "success");
+            }).catch(() => {
+                MC_CONFIG.showToast("Erro ao copiar link.", "error");
             });
         }
+
+        let jsonAtualInspecao = "";
+        function abrirModalJson(intentId) {
+            const item = todosOsPix.find(p => p.id === intentId);
+            if (!item) return;
+            jsonAtualInspecao = JSON.stringify(item.raw, null, 2);
+            document.getElementById('conteudo-json-pluggy').textContent = jsonAtualInspecao;
+            document.getElementById('modal-json-pluggy').classList.remove('hidden');
+        }
+
+        function fecharModalJson() {
+            document.getElementById('modal-json-pluggy').classList.add('hidden');
+        }
+
+        function copiarJsonBruto() {
+            if (!jsonAtualInspecao) return;
+            navigator.clipboard.writeText(jsonAtualInspecao).then(() => {
+                MC_CONFIG.showToast("JSON copiado para a area de transferencia!", "success");
+            });
+        }
+
+        // ============================================================
+        // EXTRATOS OPEN FINANCE (CONTAS & TRANSACOES)
+        // ============================================================
 
         async function buscarExtratos(itemId, divId, nomeCliente) {
             const areaDetalhe = document.getElementById(divId);
@@ -558,7 +781,7 @@
             areaDetalhe.innerHTML = `
                 <div class="flex items-center justify-center py-8 text-[#0985ff] text-xs gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
-                    Buscando contas bancárias e saldos atualizados na Pluggy...
+                    Buscando contas bancarias e saldos atualizados na Pluggy...
                 </div>
             `;
 
@@ -569,11 +792,10 @@
                 const dados = await resposta.json();
                 const item = dados.item || {};
                 const contas = dados.results || [];
-                const bancoNome = MC_CONFIG.escapeHtml(item.connector?.name || 'Instituição Bancária');
+                const bancoNome = MC_CONFIG.escapeHtml(item.connector?.name || 'Instituicao Bancaria');
 
-                // CASO 1: Item com erro de login ou permissão revogada (ex: Bradesco LOGIN_ERROR)
                 if (item.status === 'LOGIN_ERROR' || (contas.length === 0 && item.error)) {
-                    const motivo = item.error?.providerMessage || item.error?.message || 'A autorização expirou ou foi revogada no aplicativo do banco.';
+                    const motivo = item.error?.providerMessage || item.error?.message || 'A autorizacao expirou ou foi revogada no aplicativo do banco.';
                     areaDetalhe.innerHTML = `
                         <div class="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 text-amber-900">
                             <div class="flex items-start gap-3">
@@ -581,13 +803,9 @@
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 </div>
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-sm text-[#010157]">Autorização Expirada ou Revogada no Banco</h4>
-                                    <p class="text-xs text-slate-600 mt-1">
-                                        Banco: <strong>${bancoNome}</strong>. Motivo: ${MC_CONFIG.escapeHtml(motivo)}
-                                    </p>
-                                    <p class="text-[11px] text-slate-500 mt-2">
-                                        O cliente precisa realizar uma nova autorização rápida para que os extratos voltem a sincronizar.
-                                    </p>
+                                    <h4 class="font-bold text-sm text-[#010157]">Autorizacao Expirada ou Revogada no Banco</h4>
+                                    <p class="text-xs text-slate-600 mt-1">Banco: <strong>${bancoNome}</strong>. Motivo: ${MC_CONFIG.escapeHtml(motivo)}</p>
+                                    <p class="text-[11px] text-slate-500 mt-2">O cliente precisa realizar uma nova autorizacao para sincronizar.</p>
                                 </div>
                                 <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs">
                                     <i class="fa-solid fa-xmark"></i>
@@ -598,19 +816,17 @@
                     return;
                 }
 
-                // CASO 2: Nenhuma conta encontrada
                 if (contas.length === 0) {
                     areaDetalhe.innerHTML = `
                         <div class="text-center py-6 text-slate-500 text-xs">
                             <i class="fa-solid fa-building-columns text-2xl text-slate-300 mb-2 block"></i>
-                            <p>Nenhuma conta corrente ou poupança ativa encontrada para este cliente no banco <strong>${bancoNome}</strong>.</p>
+                            <p>Nenhuma conta ativa encontrada para este cliente no banco <strong>${bancoNome}</strong>.</p>
                             <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="mt-3 text-[11px] text-slate-400 hover:underline">Fechar</button>
                         </div>
                     `;
                     return;
                 }
 
-                // CASO 3: Contas encontradas
                 let htmlContas = `
                     <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
                         <div class="flex items-center gap-2">
@@ -619,7 +835,7 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                <i class="fa-solid fa-circle text-[6px]"></i> Conexão Ativa
+                                <i class="fa-solid fa-circle text-[6px]"></i> Conexao Ativa
                             </span>
                             <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs">
                                 <i class="fa-solid fa-xmark"></i>
@@ -630,7 +846,7 @@
 
                 contas.forEach(conta => {
                     const saldoFormatado = MC_CONFIG.formatMoney(conta.balance);
-                    const nomeConta = MC_CONFIG.escapeHtml(conta.name || 'Conta Bancária');
+                    const nomeConta = MC_CONFIG.escapeHtml(conta.name || 'Conta Bancaria');
                     const subtipo = MC_CONFIG.escapeHtml(conta.subtype || 'Corrente');
                     const agencia = MC_CONFIG.escapeHtml(conta.agency || '---');
                     const numero = MC_CONFIG.escapeHtml(conta.number || '---');
@@ -640,20 +856,17 @@
                             <div class="flex justify-between items-center mb-2">
                                 <div>
                                     <h4 class="font-bold text-[#010157] text-sm">${nomeConta}</h4>
-                                    <div class="text-[11px] text-slate-500 mt-0.5">
-                                        Agência: ${agencia} | Conta: ${numero} | ${subtipo}
-                                    </div>
+                                    <div class="text-[11px] text-slate-500 mt-0.5">Agencia: ${agencia} | Conta: ${numero} | ${subtipo}</div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponível</span>
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponivel</span>
                                     <span class="text-[#0985ff] font-extrabold text-base">${saldoFormatado}</span>
                                 </div>
                             </div>
-
                             <div id="transacoes-${conta.id}" class="bg-white p-4 rounded-xl border border-slate-200 mt-3 shadow-sm">
                                 <div class="flex items-center justify-center py-4 text-xs text-slate-400 gap-2">
                                     <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i>
-                                    Carregando histórico de transações...
+                                    Carregando historico de transacoes...
                                 </div>
                             </div>
                         </div>
@@ -661,11 +874,7 @@
                 });
 
                 areaDetalhe.innerHTML = htmlContas;
-
-                contas.forEach(conta => {
-                    buscarMovimentacoes(conta.id);
-                });
-
+                contas.forEach(conta => buscarMovimentacoes(conta.id));
             } catch (erro) {
                 areaDetalhe.innerHTML = `
                     <div class="text-center py-4 text-rose-500 text-xs">
@@ -681,21 +890,17 @@
             try {
                 const resposta = await MC_CONFIG.authFetch(`/consultar-transacoes/${accountId}`);
                 const payload = await resposta.json();
-                
-                if (!resposta.ok) {
-                    throw new Error(payload.erro || 'Falha ao buscar movimentações');
-                }
+                if (!resposta.ok) throw new Error(payload.erro || 'Falha ao buscar movimentacoes');
                 
                 const transacoesData = payload.results || payload.data || []; 
-                
                 if (transacoesData.length === 0) {
-                    areaTransacoes.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Sem movimentações recentes no período.</p>';
+                    areaTransacoes.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Sem movimentacoes recentes no periodo.</p>';
                     return;
                 }
 
                 let htmlTx = `
                     <div class="flex justify-between items-center mb-3">
-                        <strong class="text-[11px] font-bold text-[#010157] uppercase tracking-wider">Histórico Recente</strong>
+                        <strong class="text-[11px] font-bold text-[#010157] uppercase tracking-wider">Historico Recente</strong>
                         <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">${transacoesData.length} registros</span>
                     </div>
                     <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
@@ -703,13 +908,12 @@
                 
                 transacoesData.forEach(tx => {
                     if (tx.amount == null) return; 
-
                     const valorForm = MC_CONFIG.formatMoney(Math.abs(tx.amount));
                     const isNegativo = tx.amount < 0;
                     const cor = isNegativo ? 'text-slate-800' : 'text-[#0985ff] font-semibold';
                     const sinal = isNegativo ? '-' : '+';
                     const dataBR = tx.date ? new Date(tx.date).toLocaleDateString('pt-BR') : '---';
-                    const descSegura = MC_CONFIG.escapeHtml(tx.description || 'Transação');
+                    const descSegura = MC_CONFIG.escapeHtml(tx.description || 'Transacao');
 
                     htmlTx += `
                         <div class="flex justify-between items-center text-xs py-2 px-2.5 hover:bg-slate-50 transition rounded-lg border-b border-slate-100 last:border-0">
@@ -724,11 +928,14 @@
                 
                 htmlTx += '</div>';
                 areaTransacoes.innerHTML = htmlTx;
-                
             } catch (erro) {
-                areaTransacoes.innerHTML = `<p class="text-xs text-rose-500 text-center py-2">Falha nas transações: ${MC_CONFIG.escapeHtml(erro.message)}</p>`;
+                areaTransacoes.innerHTML = `<p class="text-xs text-rose-500 text-center py-2">Falha nas transacoes: ${MC_CONFIG.escapeHtml(erro.message)}</p>`;
             }
         }
+
+        // ============================================================
+        // EXTRATO ANALITICO DO PIX AUTOMATICO
+        // ============================================================
 
         async function consultarPix(intentId, divId, nomeCliente) {
             const areaDetalhe = document.getElementById(divId);
@@ -741,7 +948,7 @@
             areaDetalhe.innerHTML = `
                 <div class="flex items-center justify-center py-8 text-emerald-600 text-xs gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
-                    Buscando extrato analítico do Pix Automático na Pluggy...
+                    Buscando extrato analitico do Pix Automatico na Pluggy...
                 </div>
             `;
 
@@ -770,16 +977,15 @@
                 const percentualQuitado = pix.parcelas_total > 0 ? Math.round((pix.parcelas_pagas / pix.parcelas_total) * 100) : 0;
                 const bancoNome = MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco');
 
-                // Linhas da tabela de parcelas
                 let linhasCronograma = '';
                 (pix.cronograma || []).forEach(p => {
                     let badgeParc = '';
                     if (p.status === 'paga') {
                         badgeParc = '<span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-check"></i> Paga</span>';
                     } else if (p.status === 'proximo_debito') {
-                        badgeParc = '<span class="bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded text-[11px] border border-sky-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-calendar-day"></i> Próximo Débito</span>';
+                        badgeParc = '<span class="bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded text-[11px] border border-sky-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-calendar-day"></i> Proximo Debito</span>';
                     } else if (p.status === 'rejeitada') {
-                        badgeParc = '<span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[11px] border border-rose-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-xmark"></i> Não Autorizada</span>';
+                        badgeParc = '<span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[11px] border border-rose-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-xmark"></i> Nao Autorizada</span>';
                     } else {
                         badgeParc = '<span class="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-[11px] border border-slate-200 flex items-center gap-1 w-fit"><i class="fa-regular fa-clock"></i> A Vencer</span>';
                     }
@@ -796,15 +1002,14 @@
 
                 areaDetalhe.innerHTML = `
                     <div class="bg-white rounded-2xl p-5 md:p-6 border border-slate-200 shadow-sm space-y-6">
-                        <!-- HEADER DO EXTRATO PIX -->
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-4 border-b border-slate-100">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
                                     <i class="fa-solid fa-hand-holding-dollar"></i>
                                 </div>
                                 <div>
-                                    <h4 class="text-[#010157] font-bold text-sm">Extrato de Pagamentos - Pix Automático</h4>
-                                    <p class="text-xs text-slate-500">Banco: <strong>${bancoNome}</strong> | Início: ${pix.data_inicio || '---'}</p>
+                                    <h4 class="text-[#010157] font-bold text-sm">Extrato de Pagamentos - Pix Automatico</h4>
+                                    <p class="text-xs text-slate-500">Banco: <strong>${bancoNome}</strong> | Inicio: ${pix.data_inicio || '---'}</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -817,7 +1022,6 @@
                             </div>
                         </div>
 
-                        <!-- 4 CARDS DE RESUMO ANALÍTICO -->
                         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Parcelas Pagas</span>
@@ -844,26 +1048,24 @@
                             </div>
 
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Próximo Vencimento</span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Proximo Vencimento</span>
                                 <div class="text-base font-extrabold text-slate-800 font-mono flex items-center gap-1.5">
                                     <i class="fa-regular fa-calendar text-xs text-[#0985ff]"></i> ${pix.proximo_vencimento}
                                 </div>
-                                <span class="text-[11px] text-slate-500 block mt-0.5">Débito em conta</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Debito em conta</span>
                             </div>
                         </div>
 
-                        <!-- BARRA DE PROGRESSO DE QUITAÇÃO -->
                         <div class="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
                             <div class="flex justify-between text-xs">
                                 <span class="font-bold text-[#010157]">Progresso de Pagamento do Contrato</span>
-                                <span class="font-extrabold text-emerald-600">${percentualQuitado}% concluído</span>
+                                <span class="font-extrabold text-emerald-600">${percentualQuitado}% concluido</span>
                             </div>
                             <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
                                 <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full transition-all duration-500" style="width: ${percentualQuitado}%;"></div>
                             </div>
                         </div>
 
-                        <!-- TABELA DE CRONOGRAMA DE 1 A 12 PARCELAS -->
                         <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                             <div class="bg-slate-100/80 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center">
                                 <span class="text-xs font-bold text-[#010157] uppercase tracking-wider">Cronograma de Parcelas do Contrato</span>
@@ -887,25 +1089,56 @@
                         </div>
                     </div>
                 `;
-
             } catch (erro) {
                 areaDetalhe.innerHTML = `
                     <div class="text-center py-4 text-rose-500 text-xs">
-                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Erro ao buscar extrato do Pix Automático: ${MC_CONFIG.escapeHtml(erro.message)}
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Erro ao buscar extrato do Pix: ${MC_CONFIG.escapeHtml(erro.message)}
                         <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="ml-2 text-slate-400 hover:underline">Fechar</button>
                     </div>
                 `;
             }
         }
 
-        window.onload = () => {
-            const user = MC_CONFIG.getAuthUser();
-            if (user && user.nome) {
-                document.getElementById('nome-gestor-logado').textContent = user.nome;
+        // Inicializacao com verificacao de autenticacao
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!MC_CONFIG.isAuthenticated()) {
+                window.location.href = 'gestor-login.html';
+                return;
             }
+
+            const usuario = MC_CONFIG.getAuthUser();
+            if (usuario) {
+                const elNome = document.getElementById('nome-usuario-gestor');
+                if (elNome) elNome.textContent = usuario.nome || usuario.username || 'Gestor';
+            }
+
             carregarClientes();
-            carregarBancos();
-        };
+        });
     </script>
+
+
+    <!-- MODAL DE INSPEÇÃO JSON PLUGGY -->
+    <div id="modal-json-pluggy" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-code text-[#0985ff]"></i>
+                    <h3 class="font-bold text-[#010157] text-sm">Dados Brutos da API Pluggy (JSON)</h3>
+                </div>
+                <button onclick="fecharModalJson()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-200 text-xs">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                <pre id="conteudo-json-pluggy" class="bg-slate-900 text-slate-100 p-4 rounded-2xl text-xs font-mono overflow-x-auto select-all leading-relaxed"></pre>
+            </div>
+            <div class="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+                <button onclick="copiarJsonBruto()" class="btn-brand-primary text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer">
+                    <i class="fa-regular fa-copy"></i> Copiar JSON Completo
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

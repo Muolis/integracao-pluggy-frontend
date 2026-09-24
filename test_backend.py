@@ -112,7 +112,24 @@ def run_tests():
     assert calc["valor_parcela"] == 150.0, "Valor da parcela incorreto"
     print(f" Teste 12 [Cálculo analítico Pix]: Sucesso! {calc['parcelas_pagas']}/12 parcelas pagas calculadas com cronograma.")
 
-    print("\n TODOS OS 12 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 13. Teste /api/pix-intents (Espelho do Painel Pluggy com KPIs)
+    res_pix_intents = client.get('/api/pix-intents', headers={"Authorization": f"Bearer {token}"})
+    assert res_pix_intents.status_code == 200, f"/api/pix-intents falhou: {res_pix_intents.status_code}"
+    pix_data = res_pix_intents.get_json()
+    assert "kpis" in pix_data, "KPIs ausentes em /api/pix-intents"
+    assert "results" in pix_data, "Resultados ausentes em /api/pix-intents"
+    assert pix_data["total"] >= 100, f"Total de intents esperado >= 100, obteve {pix_data['total']}"
+    print(f" Teste 13 [/api/pix-intents]: Sucesso! {pix_data['total']} contratos Pluggy espelhados com KPIs.")
+
+    # 14. Teste /api/webhook/pluggy
+    res_wh = client.post('/api/webhook/pluggy', json={
+        "event": "payment_intent/updated",
+        "paymentIntentId": "dummy-intent-test-wh"
+    })
+    assert res_wh.status_code == 200, f"Webhook falhou: {res_wh.status_code}"
+    print(" Teste 14 [/api/webhook/pluggy]: Sucesso! Webhook aceito e processado com HTTP 200.")
+
+    print("\n TODOS OS 14 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()
