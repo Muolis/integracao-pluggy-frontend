@@ -23,6 +23,9 @@ def adicionar_headers_seguranca(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 # ====================================================================
@@ -647,13 +650,23 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
             first_payment = auto_pix.get('firstPayment') or {}
             valor_adesao = float(first_payment.get('amount') or 0.0) if first_payment else 0.0
 
-            identificador_display = (
-                mapa_aliases.get(intent_id)
-                or payment_request.get('clientPaymentId')
-                or debtor.get('name')
-                or payment_request.get('description')
-                or f'Contrato-{intent_id[:8]}'
-            )
+            # Prioriza identificadores reais e informativos da Pluggy
+            client_payment_id = payment_request.get('clientPaymentId')
+            debtor_name = debtor.get('name')
+            alias_supabase = mapa_aliases.get(intent_id)
+
+            if alias_supabase and alias_supabase not in ['Pagamento Pix Mensal', f'Pix-{intent_id[:8]}', f'Contrato-{intent_id[:8]}']:
+                identificador_display = alias_supabase
+            elif client_payment_id and client_payment_id.strip():
+                identificador_display = client_payment_id.strip()
+            elif debtor_name and debtor_name.strip():
+                identificador_display = debtor_name.strip()
+            elif alias_supabase:
+                identificador_display = alias_supabase
+            elif payment_request.get('description'):
+                identificador_display = payment_request.get('description')
+            else:
+                identificador_display = f'Contrato-{intent_id[:8]}'
 
             cpf_extraido = ''
             raw_text = f"{payment_request.get('clientPaymentId', '')} {debtor.get('taxNumber', '')}"
@@ -878,14 +891,35 @@ def webhook_pluggy():
                     print(f'[WEBHOOK] Open Finance salvo: {cliente_nome}')
 
             elif (event.startswith('payment_intent/') or event.startswith('payment_request/')) and intent_id:
+                # Nao polui a base oficial com IDs de teste automatizado
+                if str(intent_id).startswith(('dummy-', 'test-')):
+                    return jsonify({'status': 'ok', 'mensagem': 'Webhook de teste validado sem persistência'}), 200
+
                 existente = supabase.table('conexoes').select('id').eq('payment_intent_id', str(intent_id)).execute().data
                 if not existente:
-                    supabase.table('conexoes').insert({
-                        'cliente': f'Pix-{intent_id[:8]}',
+                    nome_cliente = f'Pix-{intent_id[:8]}'
+                    data_conexao = None
+                    api_key = obter_api_key()
+                    if api_key:
+                        try:
+                            pi_res = requests.get(f'https://api.pluggy.ai/payments/intents/{intent_id}', headers={'X-API-KEY': api_key}, timeout=10)
+                            if pi_res.status_code == 200:
+                                pi_data = pi_res.json()
+                                pr = pi_data.get('paymentRequest') or {}
+                                data_conexao = pi_data.get('createdAt')
+                                nome_cliente = pr.get('clientPaymentId') or (pi_data.get('debtor') or {}).get('name') or pr.get('description') or nome_cliente
+                        except Exception as e_pi:
+                            print(f'[AVISO WEBHOOK INTENT]: {e_pi}')
+                    
+                    registro = {
+                        'cliente': str(nome_cliente)[:255],
                         'item_id': str(intent_id),
                         'payment_intent_id': str(intent_id)
-                    }).execute()
-                    print(f'[WEBHOOK] Pix salvo: {intent_id}')
+                    }
+                    if data_conexao:
+                        registro['data_conexao'] = data_conexao
+                    supabase.table('conexoes').insert(registro).execute()
+                    print(f'[WEBHOOK] Pix salvo com sucesso: {nome_cliente} ({intent_id})')
         except Exception as e:
             print(f'[ERRO AO PROCESSAR WEBHOOK]: {e}')
 
