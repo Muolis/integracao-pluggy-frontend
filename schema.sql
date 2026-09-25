@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS public.conexoes (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Garante que colunas adicionadas recentemente existam caso a tabela já tenha sido criada anteriormente
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS tipo VARCHAR(50) DEFAULT NULL;
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ativo';
+
 -- 2. Criação de índices para consultas rápidas
 CREATE INDEX IF NOT EXISTS idx_conexoes_data_conexao ON public.conexoes (data_conexao DESC);
 CREATE INDEX IF NOT EXISTS idx_conexoes_cliente ON public.conexoes (cliente);

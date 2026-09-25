@@ -33,19 +33,19 @@
   4. O endpoint de webhook (`/api/webhook/pluggy`) foi blindado para **ignorar IDs dummy/test**, impedindo qualquer poluição futura do banco de dados em execuções de testes.
   5. O resolvedor de nomes de clientes no backend foi aprimorado para priorizar nomes reais e CPFs informativos (`clientPaymentId`, `debtor.name`), evitando rótulos genéricos.
 
-### 2.2. Ocorrência: Aba Open Finance vazia ("Nenhum registro de Open Finance encontrado")
-* **Causa Raiz:**
-  1. No Supabase, os clientes legítimos de Open Finance (**Juliane**, **Maria José**, **Gabriel** e **Enilda**) possuem datas originais entre 16/09 e 21/09.
-  2. Como havia 180 contratos de Pix com data gravada em 24/09, a query antiga (`limit(100)`) preenchia as 100 posições exclusivamente com Pix, afogando os clientes de Open Finance nas posições 181 a 184.
-  3. Adicionalmente, quando novos clientes autorizavam no celular, o backend antigo falhava com erro HTTP 500 (`PGRST204: Could not find 'tipo' column`).
+### 2.3. Ocorrência: Novos clientes de Open Finance autorizados não aparecem no painel
+* **Causa Raiz Comprovada:**
+  1. No Render, o serviço de backend (`motor-openfinance`) estava rodando uma versão desatualizada que enviava o campo `'tipo': 'open_finance'` ao Supabase em `/salvar-conexao`.
+  2. Como a tabela `conexoes` no Supabase não possui a coluna `tipo`, o Supabase rejeitava as novas inserções com o erro `PGRST204: Could not find the 'tipo' column of 'conexoes' in the schema cache`.
+  3. No script `schema.sql` anterior, o comando `CREATE TABLE IF NOT EXISTS` não adicionava a coluna `tipo` porque a tabela já existia.
+  4. O painel do gestor (`gestor.html`) continha divergência de IDs no formulário gerador de acessos (`aba-gen-pix`, `bancoPix`, `buscaBancoPix`, `dataInicio`).
 * **Solução Definitiva Executada:**
-  1. Com a restauração das datas reais dos contratos de Pix (a maioria em junho, julho e agosto), os clientes de Open Finance retornaram imediatamente às primeiras posições de qualquer consulta cronológica.
-  2. O backend já possui a segregação estrita de cotas:
-     ```python
-     # Open Finance garantido (100% imune a afogamentos por Pix)
-     res_of = supabase.table('conexoes').select('*').is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(100).execute()
-     ```
-  3. No frontend (`gestor.html`), adicionou-se fallback inteligente e cache-busting (`config.js?v=20260925`) para impedir que o navegador renderize cópias desatualizadas do cache.
+  1. `backend.py` foi blindado para não depender de `tipo` no Supabase e enriquecer automaticamente nomes reais via `/identity` da Pluggy quando vier genérico.
+  2. `gestor.html` teve todos os IDs do gerador unificados e corrigidos.
+  3. `cliente.html` agora extrai `itemId` de forma resiliente tanto de `dadosRetorno.item.id` quanto de `dadosRetorno.itemId`.
+  4. Criado o comando `ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS tipo VARCHAR(50);` para execução direta no Supabase.
+  5. Criado documento de retomada rápida: [STATUS_ATUAL_E_PROXIMOS_PASSOS.md](file:///c:/meu-frontend-plugg/STATUS_ATUAL_E_PROXIMOS_PASSOS.md).
+
 
 ---
 
