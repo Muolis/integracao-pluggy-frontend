@@ -6,7 +6,7 @@
     <title>MC Minha Conta - Painel de Gestão</title>
     
     <!-- Configuração Central e Segurança -->
-    <script src="config.js?v=20260925"></script>
+    <script src="config.js?v=20260925_v2"></script>
 
     <!-- TRAVA DE SEGURANÇA: Bloqueia usuários não autenticados imediatamente -->
     <script>
@@ -348,27 +348,29 @@
             }
         }
 
-        function alternarTipoOperacao(tipo) {
+        function mudarAbaGerador(tipo) {
             tipoLinkAtivo = tipo;
-            const btnExtrato = document.getElementById("btn-tipo-extrato");
-            const btnPix = document.getElementById("btn-tipo-pix");
-            const camposPix = document.getElementById("campos-pix-automatico");
+            const btnExtrato = document.getElementById("aba-gen-extrato");
+            const btnPix = document.getElementById("aba-gen-pix");
+            const camposPix = document.getElementById("campos-pix");
 
             if (tipo === 'extrato') {
-                btnExtrato.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-[#010157] text-white shadow-sm cursor-pointer";
-                btnPix.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
-                camposPix.classList.add("hidden");
+                if (btnExtrato) btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
+                if (btnPix) btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
+                if (camposPix) camposPix.classList.add("hidden");
             } else {
-                btnPix.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-[#010157] text-white shadow-sm cursor-pointer";
-                btnExtrato.className = "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
-                camposPix.classList.remove("hidden");
+                if (btnPix) btnPix.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer";
+                if (btnExtrato) btnExtrato.className = "flex-1 py-2.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer";
+                if (camposPix) camposPix.classList.remove("hidden");
                 if (listaTodosBancos.length === 0) carregarBancosNoSelect();
             }
-            document.getElementById("box-resultado").classList.add("hidden");
+            document.getElementById("box-resultado")?.classList.add("hidden");
         }
+        window.alternarTipoOperacao = mudarAbaGerador;
 
         async function carregarBancosNoSelect() {
-            const select = document.getElementById("bancoCliente");
+            const select = document.getElementById("bancoPix");
+            if (!select) return;
             try {
                 const res = await fetch(`${MC_CONFIG.API_BASE_URL}/listar-bancos`);
                 if (!res.ok) throw new Error("Erro ao listar bancos");
@@ -380,20 +382,22 @@
         }
 
         function renderizarOptionsBancos(bancos) {
-            const select = document.getElementById("bancoCliente");
+            const select = document.getElementById("bancoPix");
+            if (!select) return;
             select.innerHTML = '<option value="" disabled selected>Selecione a instituicao bancaria...</option>';
             bancos.forEach(b => {
                 select.innerHTML += `<option value="${b.id}">${MC_CONFIG.escapeHtml(b.name)}</option>`;
             });
         }
 
-        function filtrarBancosSelect() {
-            const termo = (document.getElementById("buscaBanco")?.value || "").toLowerCase().trim();
+        function filtrarOpcoesBancos() {
+            const termo = (document.getElementById("buscaBancoPix")?.value || "").toLowerCase().trim();
             const filtrados = listaTodosBancos.filter(b => {
                 return (b.name || "").toLowerCase().includes(termo) || (b.code || "").includes(termo);
             });
             renderizarOptionsBancos(filtrados);
         }
+        window.filtrarBancosSelect = filtrarOpcoesBancos;
 
         function mascaraMoeda(input) {
             let valor = input.value.replace(/\D/g, "");
@@ -419,9 +423,9 @@
             if (tipoLinkAtivo === "pix") {
                 const valorRaw = document.getElementById("valorPix").value.replace(/\./g, "").replace(",", ".");
                 const valorFloat = parseFloat(valorRaw);
-                const banco = document.getElementById("bancoCliente").value;
-                const cpf = MC_CONFIG.cleanCpf(document.getElementById("cpfCliente").value);
-                const inicio = document.getElementById("dataInicioPix").value;
+                const banco = document.getElementById("bancoPix")?.value;
+                const cpf = MC_CONFIG.cleanCpf(document.getElementById("cpfCliente")?.value);
+                const inicio = document.getElementById("dataInicio")?.value;
 
                 if (!valorFloat || valorFloat <= 0) {
                     MC_CONFIG.showToast("Informe o valor da parcela mensal do Pix.", "warning");

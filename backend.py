@@ -519,8 +519,8 @@ def salvar_conexao():
     item_id = dados.get('item_id')
     payment_intent_id = dados.get('payment_intent_id')
 
-    if not cliente:
-        return jsonify({'erro': 'Identificador do cliente e obrigatorio'}), 400
+    if not cliente or cliente in ['Atendimento', 'Cliente', 'null', 'undefined']:
+        cliente = ''
     if not item_id and not payment_intent_id:
         return jsonify({'erro': 'Nenhum dado financeiro enviado'}), 400
 
@@ -530,14 +530,43 @@ def salvar_conexao():
         return jsonify({'sucesso': True, 'aviso': 'Modo local'}), 200
 
     try:
+        # Se for Open Finance e o nome for genérico ou vazio, busca identidade na Pluggy
+        if item_id and not payment_intent_id:
+            api_key = obter_api_key()
+            if api_key and (not cliente or cliente.startswith(('Cliente', 'Atendimento'))):
+                try:
+                    id_res = requests.get(f'https://api.pluggy.ai/identity?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=8)
+                    if id_res.status_code == 200:
+                        ident = id_res.json()
+                        nome_real = ident.get('fullName') or ident.get('document')
+                        if nome_real:
+                            cliente = nome_real
+                except Exception as e_id:
+                    print(f'[AVISO SALVAR-CONEXAO IDENTITY]: {e_id}')
+
+        if not cliente:
+            cliente = f'Cliente-{str(item_id or payment_intent_id)[:8]}'
+
         item_id_seguro = str(item_id) if item_id else str(payment_intent_id)
+
+        # Evita duplicatas em Open Finance e atualiza nome se antes era genérico
+        if item_id and not payment_intent_id:
+            existente = supabase.table('conexoes').select('id, cliente').eq('item_id', str(item_id)).execute().data
+            if existente:
+                cliente_antigo = existente[0].get('cliente', '')
+                if cliente and cliente != cliente_antigo and cliente_antigo.startswith(('Cliente-', 'Atendimento')):
+                    supabase.table('conexoes').update({'cliente': str(cliente)[:255]}).eq('id', existente[0]['id']).execute()
+                print(f'[SALVAR-CONEXAO] Conexão já existente: {cliente} ({item_id})')
+                return jsonify({'sucesso': True, 'mensagem': 'Conexão já registrada'}), 200
+
         registro = {
-            'cliente': cliente,
+            'cliente': str(cliente)[:255],
             'item_id': item_id_seguro
         }
         if payment_intent_id:
             registro['payment_intent_id'] = str(payment_intent_id)
         supabase.table('conexoes').insert(registro).execute()
+        print(f'[SALVAR-CONEXAO] Sucesso ao salvar: {cliente} | Item: {item_id_seguro}')
         return jsonify({'sucesso': True}), 200
     except Exception as e:
         print(f'[ERRO SUPABASE INSERT]: {e}')
@@ -881,14 +910,19 @@ def webhook_pluggy():
                     except Exception as e_id:
                         print(f'[AVISO WEBHOOK IDENTITY]: {e_id}')
 
-                existente = supabase.table('conexoes').select('id').eq('item_id', str(item_id)).execute().data
+                existente = supabase.table('conexoes').select('id, cliente').eq('item_id', str(item_id)).execute().data
                 if not existente:
                     supabase.table('conexoes').insert({
-                        'cliente': cliente_nome,
+                        'cliente': str(cliente_nome)[:255],
                         'item_id': str(item_id),
                         'payment_intent_id': None
                     }).execute()
                     print(f'[WEBHOOK] Open Finance salvo: {cliente_nome}')
+                elif existente and cliente_nome and not cliente_nome.startswith('Cliente-'):
+                    cliente_antigo = existente[0].get('cliente', '')
+                    if cliente_antigo.startswith(('Cliente-', 'Atendimento')):
+                        supabase.table('conexoes').update({'cliente': str(cliente_nome)[:255]}).eq('id', existente[0]['id']).execute()
+                        print(f'[WEBHOOK] Nome atualizado: {cliente_nome}')
 
             elif (event.startswith('payment_intent/') or event.startswith('payment_request/')) and intent_id:
                 # Nao polui a base oficial com IDs de teste automatizado

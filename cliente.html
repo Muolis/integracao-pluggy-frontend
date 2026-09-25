@@ -6,7 +6,7 @@
     <title>MC Minha Conta - Conexão Segura</title>
     
     <!-- Configuração Central e Segurança -->
-    <script src="config.js?v=20260925"></script>
+    <script src="config.js?v=20260925_v2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -247,9 +247,9 @@
                     btn.disabled = true;
 
                     try {
-                        const itemId = dadosRetorno.item && dadosRetorno.item.id;
+                        const itemId = (dadosRetorno && dadosRetorno.item && dadosRetorno.item.id) || (dadosRetorno && dadosRetorno.itemId) || (dadosRetorno && dadosRetorno.id);
                         
-                        await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
+                        const res = await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
@@ -258,8 +258,14 @@
                             })
                         });
 
+                        if (!res.ok) {
+                            const errBody = await res.json().catch(() => ({}));
+                            console.warn('[AVISO SALVAR CONEXAO]', res.status, errBody);
+                        }
+
                         exibirTelaSucesso();
                     } catch (erroSalvar) {
+                        console.error('[ERRO SALVAR CONEXAO]', erroSalvar);
                         exibirTelaSucesso();
                     }
                 },
