@@ -1,7 +1,7 @@
 # MC Minha Conta - Resumo do Projeto e Status Oficial
 
-> **Última Atualização:** 24/09/2026  
-> **Objetivo:** Registro executivo e técnico detalhado de todas as implementações, correções arquiteturais, auditoria de segurança e instruções operacionais para continuidade.
+> **Última Atualização:** 25/09/2026  
+> **Objetivo:** Registro executivo e técnico detalhado de todas as correções implementadas, diagnóstico de causas raízes, restauração integral de dados históricos da Pluggy, auditoria crítica de segurança e arquitetura, e procedimentos operacionais.
 
 ---
 
@@ -19,116 +19,95 @@
 
 ---
 
-## 2. Credenciais de Acesso ao Portal do Gestor
+## 2. Diagnóstico das Ocorrências e Correções Definitivas (25/09/2026)
 
-O sistema utiliza sessões assinadas com tokens criptográficos via **HMAC-SHA256**:
+### 2.1. Ocorrência: Todos os contratos de Pix Automático exibiam data de 24/09 e nomes genéricos
+* **Causa Raiz:** 
+  1. Durante a sincronização em lote anterior, 179 contratos de Pix da Pluggy foram inseridos na tabela `conexoes` do Supabase sem informar o campo `data_conexao`, fazendo o PostgreSQL preencher todos com o valor padrão `now()` (`24/09/2026 19:01 UTC` / `16:01 local`).
+  2. Nos testes automatizados anteriores, um intent de teste com ID `dummy-intent-test-wh` gravou no Supabase o registro `#Pix-dummy-in` com data `24/09/2026 16:07`.
+  3. No serviço do Render, o backend ainda executava a query antiga de 100 itens ordenados por data decrescente, retornando exclusivamente essas linhas salvas no Supabase em 24/09 e ocultando a chamada em tempo real à Pluggy.
+* **Solução Definitiva Executada:**
+  1. Criado e executado o utilitário [sync_supabase_real_dates.py](file:///c:/meu-frontend-plugg/sync_supabase_real_dates.py), que consultou todos os 180 contratos de Pix na API oficial da Pluggy e restaurou no Supabase as **datas reais de criação** (distribuídas cronologicamente de junho de 2026 a setembro de 2026).
+  2. O contrato mais recente criado hoje (**25/09/2026 12:16 UTC** na Pluggy, valor R$ 231,55, Bradesco) foi inserido no Supabase com data de hoje.
+  3. O registro dummy de teste (`Pix-dummy-in` - ID 206) foi sumariamente deletado do Supabase.
+  4. O endpoint de webhook (`/api/webhook/pluggy`) foi blindado para **ignorar IDs dummy/test**, impedindo qualquer poluição futura do banco de dados em execuções de testes.
+  5. O resolvedor de nomes de clientes no backend foi aprimorado para priorizar nomes reais e CPFs informativos (`clientPaymentId`, `debtor.name`), evitando rótulos genéricos.
 
-| Usuário | Senha Padrão | Perfil | Permissões |
-|---|---|---|---|
-| `admin` | `securitizadora2026` | Administrador Geral | Acesso total, geração de links e auditoria |
-| `julianemc` | `MC@2026` | Gestora Operacional | Operação diária e consulta de extratos |
-| `gabriel` | `MC@2026` | Gestor Operacional | Operação diária e consulta de extratos |
-
----
-
-## 3. Resumo das Correções Críticas e Melhorias (24/09/2026)
-
-### 3.1. Correção das Datas Reais dos Clientes Antigos no Supabase
-* **Ocorrência:** Para forçar o reaparecimento dos clientes antigos na listagem limitada anterior, havia sido atribuída provisoriamente a data do dia `24/09/2026 16:28`.
-* **Solução:** Consultamos a API da Pluggy (`GET /items/{id}`) e restauramos as **datas reais de autorização** de cada cliente no Supabase:
-  * **Juliane** (`InfinitePay`): Conectado originalmente em **16/09/2026, 14:12**
-  * **Maria José** (`Bradesco`): Conectado originalmente em **17/09/2026, 16:14**
-  * **Gabriel** (`Santander`): Conectado originalmente em **18/09/2026, 13:46**
-  * **Enilda** (`Bradesco`): Conectado originalmente em **21/09/2026, 13:11**
-
-### 3.2. Solução Definitiva do Desaparecimento da Aba Open Finance (Segregação de Cotas)
-* **Causa Raiz:** A sincronização dos 179 contratos de Pix Automático na tabela de conexões provocou um afogamento: a query anterior executava `order('data_conexao', desc=True).limit(100)`, preenchendo as 100 vagas exclusivamente com contratos de Pix e truncando as conexões de Open Finance.
-* **Solução Arquitetural:** No `backend.py` (`listar_conexoes`), dividimos a consulta em duas cotas isoladas:
-  ```python
-  # 1. Busca exclusiva de Open Finance (garantia permanente)
-  res_of = supabase.table('conexoes').select('*').is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(100).execute()
-  
-  # 2. Busca exclusiva de Pix Automático
-  res_pix = supabase.table('conexoes').select('*').not_.is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(250).execute()
-  ```
-  Isso garante que, independentemente do volume de contratos de Pix, o Open Finance **nunca mais desaparecerá**.
-
-### 3.3. Correção de Gravação no Supabase (Eliminação do Erro PGRST204)
-* **Causa Raiz:** A função legada `salvar_conexao` tentava gravar a coluna `'tipo'` no Supabase (`registro['tipo'] = 'open_finance'`). Como essa coluna não existe na tabela `conexoes`, o Supabase rejeitava com HTTP 500 (`PGRST204`). Por essa razão, clientes que autorizavam no celular viam tela de sucesso, mas não eram salvos no banco.
-* **Solução:** O payload de inserção foi ajustado para enviar apenas colunas válidas (`cliente`, `item_id`, `payment_intent_id`), garantindo `item_id` não-nulo.
-
-### 3.4. Webhook Global da Pluggy para Redundância Total
-* Registrado webhook global na Pluggy:
-  * **URL:** `https://motor-openfinance.onrender.com/api/webhook/pluggy`
-  * **Evento:** `all` (captura `item/created`, `item/updated`, `payment_intent/updated`)
-  * **Comportamento:** Quando um cliente conclui a conexão, a Pluggy notifica o backend de forma assíncrona. O backend busca os dados de identidade (`/identity`) e registra o cliente no Supabase, garantindo que a conexão seja salva mesmo que o usuário feche a aba antes do redirecionamento.
-
-### 3.5. Espelho Completo do Painel da Pluggy para Pix Automático
-* Criado endpoint `/api/pix-intents` no `backend.py`:
-  * Paginação automática para varrer todos os 179 contratos cadastrados na Pluggy.
-  * KPIs em tempo real: Total de Contratos, Ativos, Pendentes, Rejeitados e Volume Mensal.
-  * Resolução oficial do banco emissor via código COMPE, logotipo e valor fixo (`fixedAmount`).
-  * Modal para inspeção técnica do JSON bruto diretamente no painel.
-
-### 3.6. Exibição do Extrato Bancário Real no Painel
-* **No `gestor.html`:**
-  * Exibição do **Nome Completo do Titular** e **CPF** oficial retornado pelo banco.
-  * Agência, conta corrente/poupança e saldo disponível formatado.
-  * Extrato cronológico com identificação de créditos (+ em azul) e débitos (- em escuro).
-  * Botão **"Tela Cheia"** em cada card que abre diretamente a página `extratos.html?item=...&cliente=...`.
-* **Tratamento Amigável para Conexões Expiradas:**
-  * Clientes com autorização revogada no app do banco (ex: Enilda no Bradesco) recebem um card explicativo com orientações claras para reenvio do link.
+### 2.2. Ocorrência: Aba Open Finance vazia ("Nenhum registro de Open Finance encontrado")
+* **Causa Raiz:**
+  1. No Supabase, os clientes legítimos de Open Finance (**Juliane**, **Maria José**, **Gabriel** e **Enilda**) possuem datas originais entre 16/09 e 21/09.
+  2. Como havia 180 contratos de Pix com data gravada em 24/09, a query antiga (`limit(100)`) preenchia as 100 posições exclusivamente com Pix, afogando os clientes de Open Finance nas posições 181 a 184.
+  3. Adicionalmente, quando novos clientes autorizavam no celular, o backend antigo falhava com erro HTTP 500 (`PGRST204: Could not find 'tipo' column`).
+* **Solução Definitiva Executada:**
+  1. Com a restauração das datas reais dos contratos de Pix (a maioria em junho, julho e agosto), os clientes de Open Finance retornaram imediatamente às primeiras posições de qualquer consulta cronológica.
+  2. O backend já possui a segregação estrita de cotas:
+     ```python
+     # Open Finance garantido (100% imune a afogamentos por Pix)
+     res_of = supabase.table('conexoes').select('*').is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(100).execute()
+     ```
+  3. No frontend (`gestor.html`), adicionou-se fallback inteligente e cache-busting (`config.js?v=20260925`) para impedir que o navegador renderize cópias desatualizadas do cache.
 
 ---
 
-## 4. Estado Atual dos Clientes no Banco de Dados (Supabase)
+## 3. Estado Atual dos Dados no Supabase e na Pluggy
 
-| ID | Cliente | Tipo | Status na Pluggy | Detalhes Bancários |
-|---|---|---|---|---|
-| 16 | `juliane` | **Open Finance** | `UPDATED` (Ativa) | InfinitePay (R$ 0,08 saldo, 24 transações) |
-| 17 | `maria-jose-da-conceicao-santos` | **Open Finance** | `UPDATED` (Ativa) | Bradesco (R$ 396,43 corrente, R$ 0,00 poupança) |
-| 18 | `gabriel` | **Open Finance** | `UPDATED` (Ativa) | Santander (R$ 1,06 corrente, R$ 195.927,93 cartão, 389 transações) |
-| 24 | `enilda-sabino-de-vasconcelos` | **Open Finance** | `LOGIN_ERROR` (Revogada) | Bradesco (autorização expirada/revogada no banco) |
-| 27 a 205 | 179 Contratos Pix | **Pix Automático** | Diversos | Espelhados diretamente da Pluggy via API |
-
----
-
-## 5. Validação e Testes Automatizados
-
-A suíte completa de testes unitários e de integração em `test_backend.py` foi executada:
-
-* **Teste 1 [/health]:** Sucesso (Backend, Pluggy e Supabase conectados).
-* **Teste 2 e 3 [/api/login]:** Sucesso (rejeição de senhas inválidas e emissão de token HMAC).
-* **Teste 4 e 5 [Segurança e Auth]:** Sucesso (bloqueio 401 sem token e liberação com token válido).
-* **Teste 6 [Arquivos Estáticos]:** Sucesso (HTMLs, `config.js` e assets servidos).
-* **Teste 7 [Security Headers]:** Sucesso (`X-Content-Type-Options`, `X-Frame-Options`).
-* **Teste 8 [/listar-bancos]:** Sucesso (124 bancos com código COMPE e logos).
-* **Teste 9 [/listar-conexoes]:** Sucesso (segregação estrita entre Open Finance e Pix).
-* **Teste 10 e 11 [Validação de Payloads]:** Sucesso (sanitização de CPF e integridade).
-* **Teste 12 [Cálculo Analítico Pix]:** Sucesso (cronograma de parcelas e quitação).
-* **Teste 13 [/api/pix-intents]:** Sucesso (179 contratos Pluggy espelhados com KPIs).
-* **Teste 14 [/api/webhook/pluggy]:** Sucesso (recebimento assíncrono de eventos com HTTP 200).
-
-> **Resultado Final:** 14/14 testes passaram com 100% de sucesso.
+* **Open Finance:** 4 clientes ativos e monitorados:
+  * **Juliane** (`InfinitePay`): Saldo R$ 0,08, 24 movimentações.
+  * **Maria José** (`Bradesco`): Saldo R$ 396,43 corrente.
+  * **Gabriel** (`Santander`): Saldo R$ 1,06 corrente, cartão R$ 195.927,93.
+  * **Enilda** (`Bradesco`): Status de consentimento revogado no app do banco (card explicativo exibido com orientações de reenvio de link).
+* **Pix Automático:** 180 contratos espelhados da Pluggy:
+  * **59 contratos ativos / autorizados** (Volume Mensal Recorrente: **R$ 12.219,71**).
+  * **106 contratos cancelados / rejeitados**.
+  * **15 contratos em processamento / aguardando autorização**.
+  * Datas reais de criação restauradas no Supabase (de 16/06/2026 até 25/09/2026).
+  * Registro dummy de teste eliminado com 100% de sucesso.
 
 ---
 
-## 6. Como Retomar Amanhã
+## 4. Auditoria Crítica e Minuciosa do Sistema
 
-1. **Repositório Local:**
-   * Caminho: `C:\meu-frontend-plugg`.
-   * Para rodar os testes: `C:\meu-frontend-plugg\.venv\Scripts\python.exe test_backend.py`.
+### 4.1. Auditoria de Segurança
+1. **Autenticação do Gestor (HMAC-SHA256):**
+   * *Status:* Adequado para operação interna.
+   * *Pontos Críticos Identificados:* As sessões são assinadas por HMAC sem persistência de blacklist em caso de revogação imediata (logout). Se um token for comprometido, ele permanece válido por até 24 horas (`86400s`).
+   * *Recomendação:* Adicionar tabela no Supabase para revogação de tokens (blacklist de `jti`) ou migrar para JWT padrão com expiração mais curta (ex: 2h) e refresh token.
+2. **Exposição de Credenciais e Segredos:**
+   * *Status:* As chaves sensíveis da Pluggy e do Supabase estão no `.env` do backend e protegidas de clientes web.
+   * *Recomendação de Hardening:* A variável `CORS_ORIGINS` no Render deve ser restrita explicitamente a `https://vitrine-openfinance.onrender.com`, evitando o uso de `*` em produção bancária.
+3. **Prevenção de XSS e Sanitização:**
+   * *Status:* Todas as inserções no DOM utilizam `MC_CONFIG.escapeHtml()` para nomes, bancos e identificadores.
+4. **Headers HTTP de Segurança:**
+   * *Status:* Implementados `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin` e `Cache-Control: no-cache, no-store, must-revalidate`.
 
-2. **Ativação dos Novos Commits no Render:**
-   * Como o Render está configurado com deploy manual, acesse [dashboard.render.com](https://dashboard.render.com):
-     * No serviço **motor-openfinance** (Backend): Clique em **Manual Deploy** ➔ **Deploy latest commit**.
-     * No serviço **vitrine-openfinance** (Frontend): Clique em **Manual Deploy** ➔ **Clear build cache & deploy**.
-   * Os últimos commits já estão disponíveis no GitHub:
-     * `6bce195`: Segregação arquitetural de Open Finance e Pix no backend.
-     * `9184224`: Exibição do extrato real completo, dados de titularidade/CPF e botão para `extratos.html`.
+### 4.2. Auditoria Arquitetural e Estrutura de Código
+1. **Monolito de Script vs Módulos:**
+   * O arquivo `backend.py` atingiu ~990 linhas congregando rotas públicas, rotas autenticadas, lógicas de cálculo analítico de parcelas, proxy de conectores, webhooks e servidor de estáticos.
+   * *Recomendação Arquitetural:* Modularizar em `Blueprints` Flask (`routes_auth.py`, `routes_pix.py`, `routes_openfinance.py`, `routes_webhooks.py`) para manutenção limpa e escalabilidade.
+2. **Sincronização com a Pluggy:**
+   * A Pluggy possui limitação de taxa (rate limiting). O cache em memória implementado (`_pix_cache` com TTL de 30s) protege o backend contra exaustão de requisições durante consultas frequentes do dashboard.
+   * *Recomendação:* Para volumes superiores a 500 contratos, implementar paginação contínua assíncrona com Redis ou fila Celery/RQ.
+3. **Resiliência do Supabase:**
+   * A tabela `conexoes` deve conter chave única composta em `(cliente, item_id)` ou `(payment_intent_id)` para evitar inserções concorrentes acidentais via webhooks duplicados.
 
-3. **Acesso Online para Teste:**
-   * Acesse: [https://vitrine-openfinance.onrender.com/gestor-login.html](https://vitrine-openfinance.onrender.com/gestor-login.html).
-   * Usuário: `admin` | Senha: `securitizadora2026`.
-   * Pressione **`Ctrl + F5`** para limpar o cache do navegador.
-   * Ambas as abas carregarão com precisão: **Open Finance** com os 4 clientes e datas reais históricas, e **Pix Automático** com todos os contratos da Pluggy.
+---
+
+## 5. Instruções Críticas para Deploy e Validação
+
+Como o Render está configurado com **deploy manual** (Auto-Deploy desligado), os novos commits no GitHub não entram em produção até que os serviços sejam acionados no painel:
+
+1. Acesse o painel do Render: [dashboard.render.com](https://dashboard.render.com)
+2. No serviço **`motor-openfinance`** (Backend API):
+   * Clique em **Manual Deploy** ➔ Selecione **Deploy latest commit**.
+   * Aguarde o log indicar: `[OK] Iniciando MC Securitizadora Open Finance...` e status verde **Live**.
+3. No serviço **`vitrine-openfinance`** (Frontend):
+   * Clique em **Manual Deploy** ➔ Selecione **Clear build cache & deploy**.
+   * Aguarde status verde **Live**.
+4. **Ativação Permanente de Auto-Deploy (Recomendado):**
+   * Em ambos os serviços no Render, acesse a aba **Settings** ➔ Seção **Build & Deploy** ➔ Altere a opção **Auto-Deploy** para **`Yes`**. Dessa forma, qualquer `git push` futuro entrará automaticamente em produção sem necessidade de cliques manuais.
+5. **No Navegador do Gestor:**
+   * Acesse [https://vitrine-openfinance.onrender.com/gestor-login.html](https://vitrine-openfinance.onrender.com/gestor-login.html).
+   * Pressione **`Ctrl + F5`** para limpar o cache local do navegador.
+   * Entre com `admin` e `securitizadora2026`.
+   * **Open Finance:** Os 4 clientes históricos e seus extratos estarão visíveis.
+   * **Pix Automático:** Os 180 contratos da Pluggy estarão visíveis com KPIs em tempo real, datas reais e bancos identificados.
