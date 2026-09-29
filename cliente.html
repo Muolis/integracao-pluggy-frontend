@@ -6,7 +6,7 @@
     <title>MC Minha Conta - Conexão Segura</title>
     
     <!-- Configuração Central e Segurança -->
-    <script src="config.js?v=20260925_v2"></script>
+    <script src="config.js?v=20260929"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -153,6 +153,7 @@
         let bancoParam = parametrosUrl.get('banco');
         let cpfParam = parametrosUrl.get('cpf');
         let inicioParam = parametrosUrl.get('inicio');
+        let fimParam = parametrosUrl.get('fim');
 
         // Persistência resiliente de sessão para recargas de página
         if (clienteId) {
@@ -161,7 +162,12 @@
                 localStorage.setItem('memoriaCpf', cpfParam ? MC_CONFIG.cleanCpf(cpfParam) : '');
                 localStorage.setItem('memoriaValor', valor);
                 localStorage.setItem('memoriaInicio', inicioParam || '');
-                if (bancoParam) localStorage.setItem('memoriaBanco', bancoParam);
+                if (fimParam) localStorage.setItem('memoriaFim', fimParam);
+                if (bancoParam) {
+                    localStorage.setItem('memoriaBanco', bancoParam);
+                } else {
+                    localStorage.removeItem('memoriaBanco');
+                }
             } else {
                 MC_CONFIG.limparMemoriaCliente();
                 localStorage.setItem('memoriaCliente', clienteId);
