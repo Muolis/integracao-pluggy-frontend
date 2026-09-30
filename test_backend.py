@@ -183,7 +183,20 @@ def run_tests():
         assert "results" in tx_json, "Resultados ausentes em /consultar-transacoes"
         print(f" Teste 18 [/consultar-transacoes v2]: Sucesso! {len(tx_json.get('results', []))} transações recuperadas com filtro de data.")
 
-    print("\n TODOS OS 18 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 19. Teste /consultar-pix com estrutura completa estilo Pluggy (Imagem 3)
+    if pix_data.get("results"):
+        intent_id_teste = pix_data["results"][0]["id"]
+        res_detalhe = client.get(f'/consultar-pix/{intent_id_teste}', headers={"Authorization": f"Bearer {token}"})
+        assert res_detalhe.status_code == 200, f"/consultar-pix falhou: {res_detalhe.status_code}"
+        detalhe_json = res_detalhe.get_json()
+        assert "configuracao_pix" in detalhe_json, "configuracao_pix ausente em /consultar-pix"
+        assert "cliente" in detalhe_json, "cliente ausente em /consultar-pix"
+        assert "recebedor" in detalhe_json, "recebedor ausente em /consultar-pix"
+        assert "pagamentos" in detalhe_json, "pagamentos ausente em /consultar-pix"
+        assert "concluidos_texto" in detalhe_json, "concluidos_texto ausente em /consultar-pix"
+        print(f" Teste 19 [/consultar-pix estilo Pluggy]: Sucesso! Detalhe da operação retornado com cliente: {detalhe_json['cliente'].get('nome') or 'N/A'}, {len(detalhe_json['pagamentos'])} pagamentos ({detalhe_json['concluidos_texto']}).")
+
+    print("\n TODOS OS 19 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()

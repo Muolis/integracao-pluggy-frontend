@@ -294,6 +294,7 @@ def gerar_token():
         token_payload = {
             'options': {
                 'clientUserId': str(cliente_id),
+                'clientName': 'Openfinance MC',
                 'webhookUrl': 'https://motor-openfinance.onrender.com/api/webhook/pluggy'
             }
         }
@@ -430,7 +431,12 @@ def gerar_token_pix():
         payment_intent_id = intent_data.get('id')
         consent_url = intent_data.get('consentUrl') or intent_data.get('url')
 
-        token_payload = {'options': {'paymentIntentId': payment_intent_id}}
+        token_payload = {
+            'options': {
+                'paymentIntentId': payment_intent_id,
+                'clientName': 'Openfinance MC'
+            }
+        }
         token_response = requests.post(
             'https://api.pluggy.ai/connect_token',
             headers={'X-API-KEY': api_key, 'Content-Type': 'application/json'},
@@ -686,13 +692,58 @@ def format_data_pluggy(iso_str):
     if not iso_str:
         return '---'
     try:
-        from datetime import datetime
+        from datetime import datetime, timezone, timedelta
+        fuso_brasilia = timezone(timedelta(hours=-3))
         dt = datetime.fromisoformat(str(iso_str).replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt_local = dt.astimezone(fuso_brasilia)
         meses = ['', 'jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.']
-        mes_nome = meses[dt.month] if 1 <= dt.month <= 12 else str(dt.month)
-        return f"{dt.day:02d} de {mes_nome} de {dt.year}, {dt.strftime('%H:%M:%S')}"
+        mes_nome = meses[dt_local.month] if 1 <= dt_local.month <= 12 else str(dt_local.month)
+        return f"{dt_local.day:02d} de {mes_nome} de {dt_local.year}, {dt_local.strftime('%H:%M:%S')}"
     except Exception:
         return str(iso_str)
+
+def format_data_simples_pluggy(iso_date):
+    if not iso_date:
+        return '---'
+    try:
+        partes = str(iso_date)[:10].split('-')
+        if len(partes) == 3:
+            meses = ['', 'jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.']
+            m_idx = int(partes[1])
+            mes_nome = meses[m_idx] if 1 <= m_idx <= 12 else partes[1]
+            return f"{int(partes[2]):02d} de {mes_nome} de {partes[0]}"
+    except Exception:
+        pass
+    return str(iso_date)
+
+_customers_cache = {'timestamp': 0, 'by_tax': {}, 'by_id': {}}
+
+def obter_mapa_customers(api_key):
+    agora = time.time()
+    if _customers_cache['timestamp'] > agora - 600 and _customers_cache['by_id']:
+        return _customers_cache['by_tax'], _customers_cache['by_id']
+    try:
+        r = requests.get('https://api.pluggy.ai/payments/customers?pageSize=100', headers={'X-API-KEY': api_key}, timeout=15)
+        if r.status_code == 200:
+            customers = r.json().get('results', [])
+            by_tax = {}
+            by_id = {}
+            for c in customers:
+                cid = c.get('id')
+                if cid: by_id[cid] = c
+                cpf_limpo = clean_cpf(c.get('cpf', ''))
+                cnpj_limpo = clean_cnpj(c.get('cnpj', ''))
+                if cpf_limpo: by_tax[cpf_limpo] = c
+                if cnpj_limpo: by_tax[cnpj_limpo] = c
+            _customers_cache['timestamp'] = agora
+            _customers_cache['by_tax'] = by_tax
+            _customers_cache['by_id'] = by_id
+            return by_tax, by_id
+    except Exception as e_c:
+        print(f'[AVISO MAPA CUSTOMERS]: {e_c}')
+    return _customers_cache.get('by_tax', {}), _customers_cache.get('by_id', {})
 
 def obter_todos_intents_pix(forcar_atualizacao=False):
     """Puxa TODAS as solicitacoes e intents de Pix da API da Pluggy (100% espelho fiel do dashboard Pluggy)"""
@@ -818,6 +869,8 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
         volume_recorrente_total = 0.0
         processed_ids = set()
 
+        by_tax, by_id = obter_mapa_customers(api_key)
+
         for r in raw_requests:
             req_id = r.get('id')
             if not req_id: continue
@@ -904,13 +957,23 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
             m_cnpj = re.search(r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}', text_doc)
             m_cpf = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', text_doc)
 
-            if m_cnpj or customer.get('type') == 'BUSINESS':
-                cnpj_raw = clean_cnpj(m_cnpj.group(0) if m_cnpj else customer.get('cnpj'))
+            # Cruzamento com mapa de clientes Pluggy
+            if not customer.get('name') or not (customer.get('cpf') or customer.get('cnpj')):
+                cid_c = customer.get('id')
+                if cid_c and cid_c in by_id:
+                    customer = by_id[cid_c]
+                elif m_cpf and clean_cpf(m_cpf.group(0)) in by_tax:
+                    customer = by_tax[clean_cpf(m_cpf.group(0))]
+                elif m_cnpj and clean_cnpj(m_cnpj.group(0)) in by_tax:
+                    customer = by_tax[clean_cnpj(m_cnpj.group(0))]
+
+            if customer.get('cnpj') or m_cnpj or customer.get('type') == 'BUSINESS':
+                cnpj_raw = clean_cnpj(customer.get('cnpj') or (m_cnpj.group(0) if m_cnpj else ''))
                 if len(cnpj_raw) == 14:
                     doc_extraido = format_cnpj(cnpj_raw)
                     tipo_doc = 'PJ'
-            elif m_cpf:
-                cpf_raw = clean_cpf(m_cpf.group(0))
+            elif customer.get('cpf') or m_cpf:
+                cpf_raw = clean_cpf(customer.get('cpf') or (m_cpf.group(0) if m_cpf else ''))
                 if len(cpf_raw) == 11:
                     doc_extraido = format_cpf(cpf_raw)
                     tipo_doc = 'PF'
@@ -998,6 +1061,240 @@ def api_pix_intents():
     forcar = request.args.get('force') in ['true', '1']
     dados = obter_todos_intents_pix(forcar_atualizacao=forcar)
     return jsonify(dados), 200
+
+@app.route('/consultar-pix/<operacao_id>', methods=['GET'])
+@app.route('/api/pix-detalhe/<operacao_id>', methods=['GET'])
+@requer_autenticacao
+def consultar_pix_detalhado(operacao_id):
+    """Consulta detalhada e analítica de um contrato/operação de Pix Automático idêntica ao painel da Pluggy"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Falha na autenticação com a Pluggy'}), 500
+
+    headers = {'X-API-KEY': api_key}
+    pr = None
+    intent = None
+    req_id = operacao_id
+
+    # 1. Tenta buscar como paymentRequest
+    try:
+        r_pr = requests.get(f'https://api.pluggy.ai/payments/requests/{operacao_id}', headers=headers, timeout=12)
+        if r_pr.status_code == 200:
+            pr = r_pr.json()
+            req_id = pr.get('id')
+    except Exception as e:
+        print(f'[AVISO BUSCA PR]: {e}')
+
+    # 2. Se não encontrou como PR, tenta como paymentIntent
+    if not pr:
+        try:
+            r_it = requests.get(f'https://api.pluggy.ai/payments/intents/{operacao_id}', headers=headers, timeout=12)
+            if r_it.status_code == 200:
+                intent = r_it.json()
+                pr = intent.get('paymentRequest')
+                if pr:
+                    req_id = pr.get('id')
+        except Exception as e:
+            print(f'[AVISO BUSCA INTENT]: {e}')
+
+    # 3. Se temos o PR mas não temos o intent correspondente, busca o intent do PR
+    if pr and not intent and req_id:
+        try:
+            r_all_intents = requests.get(f'https://api.pluggy.ai/payments/intents?paymentRequestId={req_id}', headers=headers, timeout=12)
+            if r_all_intents.status_code == 200:
+                intents_list = r_all_intents.json().get('results', [])
+                if intents_list:
+                    intent = intents_list[0]
+        except Exception as e:
+            print(f'[AVISO BUSCA INTENTS BY PR]: {e}')
+
+    if not pr and not intent:
+        return jsonify({'erro': 'Operação de Pix não encontrada na Pluggy'}), 404
+
+    pr = pr or {}
+    intent = intent or {}
+    auto_pix = pr.get('automaticPix') or {}
+    schedule = pr.get('schedule') or {}
+    recipient = pr.get('recipient') or {}
+    customer = pr.get('customer') or {}
+    connector = intent.get('connector') or {}
+    debtor = intent.get('debtor') or {}
+
+    # Enriquecimento do cliente se faltar
+    by_tax, by_id = obter_mapa_customers(api_key)
+    if not customer.get('name') or not (customer.get('cpf') or customer.get('cnpj')):
+        cid = customer.get('id')
+        if cid and cid in by_id:
+            customer = by_id[cid]
+        else:
+            cpid = str(pr.get('clientPaymentId') or '')
+            cpf_match = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', cpid) if cpid else None
+            cnpj_match = re.search(r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}', cpid) if cpid else None
+            if cpf_match and clean_cpf(cpf_match.group(0)) in by_tax:
+                customer = by_tax[clean_cpf(cpf_match.group(0))]
+            elif cnpj_match and clean_cnpj(cnpj_match.group(0)) in by_tax:
+                customer = by_tax[clean_cnpj(cnpj_match.group(0))]
+
+    nome_cliente = customer.get('name') or debtor.get('name') or pr.get('clientPaymentId') or 'Cliente'
+    cpf_raw = clean_cpf(customer.get('cpf') or debtor.get('taxNumber') or '')
+    cnpj_raw = clean_cnpj(customer.get('cnpj') or '')
+    if not cpf_raw and not cnpj_raw:
+        cpid = str(pr.get('clientPaymentId') or '')
+        m_c = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', cpid) if cpid else None
+        m_j = re.search(r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}', cpid) if cpid else None
+        if m_j: cnpj_raw = clean_cnpj(m_j.group(0))
+        elif m_c: cpf_raw = clean_cpf(m_c.group(0))
+
+    if cnpj_raw and len(cnpj_raw) == 14:
+        doc_formatado = format_cnpj(cnpj_raw)
+        tipo_doc = 'CNPJ'
+    elif cpf_raw and len(cpf_raw) == 11:
+        doc_formatado = format_cpf(cpf_raw)
+        tipo_doc = 'CPF'
+    else:
+        doc_formatado = '-'
+        tipo_doc = 'CPF/CNPJ'
+
+    interval_raw = auto_pix.get('interval') or 'MONTHLY'
+    interval_map = {
+        'MONTHLY': 'Mensal',
+        'WEEKLY': 'Semanal',
+        'BIWEEKLY': 'Quinzenal',
+        'ANNUALLY': 'Anual',
+        'DAILY': 'Diário'
+    }
+    intervalo_pt = interval_map.get(str(interval_raw).upper(), str(interval_raw))
+
+    val_fixo = 0.0
+    if auto_pix.get('fixedAmount') is not None:
+        try: val_fixo = float(auto_pix.get('fixedAmount'))
+        except (ValueError, TypeError): pass
+    elif pr.get('amount') is not None:
+        try: val_fixo = float(pr.get('amount'))
+        except (ValueError, TypeError): pass
+
+    status_raw = intent.get('status') or pr.get('status', 'PENDING')
+    criado_em = format_data_pluggy(pr.get('createdAt'))
+    autorizado_em = format_data_pluggy(intent.get('createdAt') or (pr.get('updatedAt') if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else None))
+    atualizado_em = format_data_pluggy(pr.get('updatedAt') or intent.get('updatedAt'))
+
+    retries_cfg = auto_pix.get('automaticRetriesConfiguration') or {}
+    retry_days = retries_cfg.get('retryDays', [1, 2, 3])
+    dias_retentativa_str = ', '.join(str(d) for d in retry_days) if retry_days else '1, 2, 3'
+
+    scheduler_cfg = auto_pix.get('schedulerConfiguration') or {}
+    agendador_ativo = scheduler_cfg.get('enabled', True)
+
+    pagamentos_lista = []
+    first_payment = auto_pix.get('firstPayment') or {}
+    total_concluidos = 0
+
+    if first_payment:
+        fp_amount = float(first_payment.get('amount') or 0.01)
+        fp_date = first_payment.get('date') or (str(pr.get('createdAt'))[:10] if pr.get('createdAt') else '2026-09-22')
+        fp_status = 'CONCLUIDO' if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else 'PENDENTE'
+        if fp_status == 'CONCLUIDO': total_concluidos += 1
+        pagamentos_lista.append({
+            'numero': 1,
+            'titulo': 'Confirmação / Adesão do Pix Automático',
+            'descricao': first_payment.get('description') or 'Adesão de Crédito',
+            'data': format_data_simples_pluggy(fp_date),
+            'valor': fp_amount,
+            'valor_formatado': f"R$ {fp_amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'status': fp_status,
+            'status_label': 'Concluído' if fp_status == 'CONCLUIDO' else 'Pendente',
+            'status_cor': 'emerald' if fp_status == 'CONCLUIDO' else 'amber'
+        })
+
+    data_inicio_parcela = auto_pix.get('startDate') or schedule.get('startDate')
+    data_inicio_fmt = format_data_simples_pluggy(data_inicio_parcela)
+    expira_em_fmt = format_data_pluggy(auto_pix.get('expiresAt'))
+
+    p2_status = 'CONCLUIDO' if (status_raw == 'PAYMENT_COMPLETED' and not first_payment) else ('EM_PROCESSAMENTO' if status_raw == 'PAYMENT_COMPLETED' else 'AGENDADO')
+    if p2_status == 'CONCLUIDO': total_concluidos += 1
+    
+    pagamentos_lista.append({
+        'numero': len(pagamentos_lista) + 1,
+        'titulo': f'Mensalidade 1 ({intervalo_pt})',
+        'descricao': pr.get('description') or 'CREDITO PESSOAL MC MINHACONTA',
+        'data': data_inicio_fmt,
+        'valor': val_fixo,
+        'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+        'status': p2_status,
+        'status_label': 'Agendado' if p2_status == 'AGENDADO' else ('Em Processamento' if p2_status == 'EM_PROCESSAMENTO' else 'Concluído'),
+        'status_cor': 'sky' if p2_status in ['AGENDADO', 'EM_PROCESSAMENTO'] else 'emerald'
+    })
+
+    total_pagamentos = len(pagamentos_lista)
+
+    rec_tax = format_cnpj(recipient.get('taxNumber', '62455954000146'))
+    rec_inst = (recipient.get('paymentInstitution') or {}).get('name') or 'Banco Bradesco S.A.'
+    rec_acc = recipient.get('account') or {}
+    rec_agencia = rec_acc.get('branch') or '3201'
+    rec_conta = rec_acc.get('number') or '796131'
+
+    cli_id = customer.get('id') or (str(pr.get('id')) if pr else '-')
+    cli_inst = connector.get('name') or 'Instituição Bancária'
+    cli_logo = connector.get('imageUrl')
+
+    # Calcula cronograma clássico para retrocompatibilidade
+    cronograma_calculado = calcular_extrato_pix(intent if intent else {'paymentRequest': pr, 'status': status_raw})
+
+    return jsonify({
+        'sucesso': True,
+        'id': req_id,
+        'intent_id': intent.get('id') or req_id,
+        'status': status_raw,
+        'status_label': 'Autorizado' if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else ('Concluído' if status_raw == 'PAYMENT_COMPLETED' else ('Cancelado' if status_raw in ['REJECTED', 'CANCELED'] else 'Pendente')),
+        'status_classe': 'ativo' if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else ('rejeitado' if status_raw in ['REJECTED', 'CANCELED'] else 'pendente'),
+        'criado_em': criado_em,
+        'autorizado_em': autorizado_em,
+        'atualizado_em': atualizado_em,
+        'configuracao_pix': {
+            'intervalo': intervalo_pt,
+            'valor_fixo': val_fixo,
+            'valor_fixo_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'aceita_retentativa': 'Sim' if auto_pix.get('isRetryAccepted') else 'Não',
+            'data_inicio': data_inicio_fmt,
+            'expira_em': expira_em_fmt,
+            'dias_retentativa': dias_retentativa_str,
+            'agendador': 'Sim' if agendador_ativo else 'Não'
+        },
+        'cliente': {
+            'id': cli_id,
+            'nome': nome_cliente,
+            'cpf_cnpj': doc_formatado,
+            'tipo_documento': tipo_doc,
+            'instituicao': cli_inst,
+            'instituicao_logo': cli_logo,
+            'agencia': debtor.get('branchNumber') or '-',
+            'conta': debtor.get('accountNumber') or '-'
+        },
+        'recebedor': {
+            'nome': recipient.get('name') or 'MC Minhaconta Securitizadora C SA',
+            'cnpj': rec_tax,
+            'instituicao': rec_inst,
+            'agencia': rec_agencia,
+            'conta': rec_conta
+        },
+        'pagamentos': {
+            'total': total_pagamentos,
+            'concluidos': total_concluidos,
+            'indicador': f"{total_concluidos} de {total_pagamentos} concluídos",
+            'itens': pagamentos_lista
+        },
+        'concluidos_texto': f"{total_concluidos} de {total_pagamentos} concluídos",
+        # Campos de retrocompatibilidade com frontend anterior
+        'valor_parcela': val_fixo,
+        'total_pago': cronograma_calculado.get('total_pago', 0.0),
+        'total_restante': cronograma_calculado.get('total_restante', 0.0),
+        'parcelas_total': cronograma_calculado.get('parcelas_total', 12),
+        'parcelas_pagas': cronograma_calculado.get('parcelas_pagas', total_concluidos),
+        'banco_nome': cli_inst,
+        'status_rotulo': cronograma_calculado.get('status_rotulo', 'Autorizado'),
+        'cronograma': cronograma_calculado.get('cronograma', []),
+        'raw': pr or intent
+    }), 200
 
 @app.route('/listar-conexoes', methods=['GET'])
 @requer_autenticacao

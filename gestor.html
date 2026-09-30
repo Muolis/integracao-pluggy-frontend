@@ -494,13 +494,12 @@
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr class="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                                        <th class="py-3 px-3.5">ID</th>
-                                        <th class="py-3 px-3">ID Externo</th>
-                                        <th class="py-3 px-3">Descrição</th>
+                                        <th class="py-3 px-3.5">Cliente / Documento</th>
+                                        <th class="py-3 px-3">Instituição Bancária</th>
+                                        <th class="py-3 px-3">ID Operação</th>
                                         <th class="py-3 px-3">Recebedor</th>
-                                        <th class="py-3 px-3 text-right">Valor</th>
+                                        <th class="py-3 px-3 text-right">Valor Recorrência</th>
                                         <th class="py-3 px-3 text-center">Status</th>
-                                        <th class="py-3 px-3 text-center">Tipo</th>
                                         <th class="py-3 px-3">Criado em</th>
                                         <th class="py-3 px-3 text-center">Ações</th>
                                     </tr>
@@ -1049,13 +1048,19 @@
                         let htmlRows = '';
                         itensPaginados.forEach(p => {
                             const idCurto = p.id ? (p.id.slice(0, 18) + '..') : '---';
-                            const idExternoDisplay = p.id_externo || '-';
-                            const descDisplay = MC_CONFIG.escapeHtml(p.descricao || 'CREDITO PESSOAL MC MINHACONTA');
                             const recDisplay = MC_CONFIG.escapeHtml(p.recebedor || 'MC Minhaconta Securitizadora C SA');
                             const valorDisplay = MC_CONFIG.formatMoney(p.valor || p.valor_parcela || 0);
                             const dataFmt = p.criado_em || formatarDataPluggy(p.data_criacao);
+                            const nomeSeguro = MC_CONFIG.escapeHtml(p.cliente || 'Cliente');
 
-                            // Estilo de badges
+                            const docDisplay = p.documento 
+                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">${p.tipo_documento || 'DOC'}: ${p.documento}</span>`
+                                : `<span class="text-slate-400 text-[11px] italic">Não informado</span>`;
+
+                            const logoBanco = p.banco_imagem 
+                                ? `<img src="${p.banco_imagem}" alt="Logo" class="w-5 h-5 object-contain rounded-md inline-block mr-1.5" onerror="this.style.display='none'">` 
+                                : `<i class="fa-solid fa-building-columns text-slate-400 mr-1.5"></i>`;
+
                             let badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
                             if (p.status_label === 'Autorizado') {
                                 badgeStatus = 'bg-purple-50 text-purple-700 border-purple-200';
@@ -1069,16 +1074,11 @@
                                 badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
                             }
 
-                            let badgeTipo = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                            if (p.tipo && p.tipo.includes('Agendado')) {
-                                badgeTipo = 'bg-sky-50 text-sky-700 border-sky-200';
-                            }
-
                             let btnLink = '';
                             if (p.payment_url || p.consent_url) {
                                 const urlAuth = p.payment_url || p.consent_url;
                                 btnLink = `
-                                    <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(urlAuth)}')" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-xs font-semibold cursor-pointer" title="Copiar link de autorização">
+                                    <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(urlAuth)}')" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-xs font-semibold cursor-pointer" title="Copiar link WhatsApp">
                                         <i class="fa-brands fa-whatsapp text-sm"></i>
                                     </button>
                                 `;
@@ -1086,34 +1086,42 @@
 
                             htmlRows += `
                                 <tr class="hover:bg-slate-50/80 transition duration-150">
-                                    <td class="py-3 px-3.5 font-mono text-[11px] text-slate-700 font-semibold" title="${p.id}">
-                                        <div class="flex items-center gap-1.5">
+                                    <td class="py-3 px-3.5">
+                                        <div class="flex flex-col gap-0.5">
+                                            <span class="font-bold text-[#010157] text-xs leading-snug">${nomeSeguro}</span>
+                                            <div>${docDisplay}</div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-3 text-slate-700 text-xs font-medium">
+                                        <div class="flex items-center">
+                                            ${logoBanco}
+                                            <span class="truncate max-w-[130px]" title="${MC_CONFIG.escapeHtml(p.banco_nome || 'Banco')}">${MC_CONFIG.escapeHtml(p.banco_nome || 'Banco')}</span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-3 font-mono text-[11px] text-slate-600" title="${p.id}">
+                                        <div class="flex items-center gap-1">
                                             <span>${idCurto}</span>
-                                            <button onclick="navigator.clipboard.writeText('${p.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID completo">
+                                            <button onclick="navigator.clipboard.writeText('${p.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
                                                 <i class="fa-regular fa-copy text-[10px]"></i>
                                             </button>
                                         </div>
                                     </td>
-                                    <td class="py-3 px-3 text-slate-600 font-mono text-[11px]">${idExternoDisplay}</td>
-                                    <td class="py-3 px-3 font-semibold text-[#010157] max-w-[180px] truncate" title="${descDisplay}">${descDisplay}</td>
-                                    <td class="py-3 px-3 text-slate-600 text-xs max-w-[160px] truncate" title="${recDisplay}">${recDisplay}</td>
-                                    <td class="py-3 px-3 text-right font-black text-slate-900 font-mono">${valorDisplay}</td>
+                                    <td class="py-3 px-3 text-slate-600 text-xs max-w-[140px] truncate" title="${recDisplay}">${recDisplay}</td>
+                                    <td class="py-3 px-3 text-right">
+                                        <div class="font-black text-slate-900 font-mono text-xs">${valorDisplay}</div>
+                                        <span class="text-[10px] text-slate-400 font-semibold block">Mensal</span>
+                                    </td>
                                     <td class="py-3 px-3 text-center">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStatus}">
                                             ${p.status_label || 'Pendente'}
                                         </span>
                                     </td>
-                                    <td class="py-3 px-3 text-center">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${badgeTipo}">
-                                            ${p.tipo || 'PIX Automático'}
-                                        </span>
-                                    </td>
                                     <td class="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">${dataFmt}</td>
                                     <td class="py-3 px-3 text-center">
-                                        <div class="flex items-center justify-center gap-1">
+                                        <div class="flex items-center justify-center gap-1.5">
                                             ${btnLink}
-                                            <button onclick="consultarPix('${p.id}', 'detalhe-solicitacao-container', '${MC_CONFIG.escapeHtml(p.cliente || 'Contrato')}')" class="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-xs cursor-pointer" title="Ver Extrato e Cronograma">
-                                                <i class="fa-solid fa-file-invoice-dollar"></i>
+                                            <button onclick="consultarPix('${p.id}', null, '${nomeSeguro}')" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Ver Detalhes Oficiais da Pluggy">
+                                                <i class="fa-solid fa-eye"></i> Detalhes
                                             </button>
                                             <button onclick="abrirModalJson('${p.id}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-xs cursor-pointer" title="Ver JSON da Pluggy">
                                                 <i class="fa-solid fa-code"></i>
@@ -1538,165 +1546,285 @@
         // EXTRATO ANALITICO DO PIX AUTOMATICO
         // ============================================================
 
+        function fecharModalDetalhesPluggy() {
+            const modal = document.getElementById('modal-detalhe-operacao-pluggy');
+            if (modal) modal.classList.add('hidden');
+        }
+
         async function consultarPix(intentId, divId, nomeCliente) {
-            const areaDetalhe = document.getElementById(divId);
-            if (!areaDetalhe.classList.contains('hidden')) {
-                areaDetalhe.classList.add('hidden');
+            const modal = document.getElementById('modal-detalhe-operacao-pluggy');
+            const corpoModal = document.getElementById('corpo-detalhe-pluggy');
+            const areaDetalheInline = divId ? document.getElementById(divId) : null;
+
+            if (areaDetalheInline && !areaDetalheInline.classList.contains('hidden')) {
+                areaDetalheInline.classList.add('hidden');
                 return;
             }
 
-            areaDetalhe.classList.remove('hidden');
-            areaDetalhe.innerHTML = `
-                <div class="flex items-center justify-center py-8 text-emerald-600 text-xs gap-2">
-                    <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
-                    Buscando extrato analitico do Pix Automatico na Pluggy...
-                </div>
-            `;
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('det-topo-criado-em').textContent = 'Carregando...';
+                document.getElementById('det-topo-autorizado-em').textContent = 'Carregando...';
+                document.getElementById('det-topo-atualizado-em').textContent = 'Carregando...';
+                corpoModal.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+                        <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl"></i>
+                        <span class="text-xs font-semibold text-slate-600">Buscando dados oficiais do Pix Automático na Pluggy...</span>
+                    </div>
+                `;
+            }
+
+            if (areaDetalheInline) {
+                areaDetalheInline.classList.remove('hidden');
+                areaDetalheInline.innerHTML = `
+                    <div class="flex items-center justify-center py-6 text-slate-500 text-xs gap-2">
+                        <i class="fa-solid fa-circle-notch fa-spin text-lg text-[#0985ff]"></i>
+                        Carregando detalhes da operação...
+                    </div>
+                `;
+            }
 
             try {
                 const resposta = await MC_CONFIG.authFetch(`/consultar-pix/${intentId}`);
-                if (!resposta.ok) throw new Error('Falha ao consultar contrato Pix');
+                if (!resposta.ok) throw new Error('Falha ao consultar operação de Pix na Pluggy');
                 
                 const pix = await resposta.json();
-                
-                let badgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
-                let iconStatus = '<i class="fa-solid fa-clock text-slate-400"></i>';
-                if (pix.status_classe === 'ativo') {
-                    badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-                    iconStatus = '<i class="fa-solid fa-circle-check text-emerald-600"></i>';
-                } else if (pix.status_classe === 'rejeitado') {
-                    badgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
-                    iconStatus = '<i class="fa-solid fa-circle-xmark text-rose-600"></i>';
-                } else if (pix.status_classe === 'pendente') {
-                    badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
-                    iconStatus = '<i class="fa-solid fa-hourglass-half text-amber-600"></i>';
-                }
+                const cfg = pix.configuracao_pix || {};
+                const cli = pix.cliente || {};
+                const rec = pix.recebedor || {};
+                const pag = pix.pagamentos || {};
 
-                const valorFormatado = MC_CONFIG.formatMoney(pix.valor_parcela);
-                const totalPagoForm = MC_CONFIG.formatMoney(pix.total_pago);
-                const totalRestanteForm = MC_CONFIG.formatMoney(pix.total_restante);
-                const percentualQuitado = pix.parcelas_total > 0 ? Math.round((pix.parcelas_pagas / pix.parcelas_total) * 100) : 0;
-                const bancoNome = MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco');
+                document.getElementById('det-topo-criado-em').textContent = pix.criado_em || '---';
+                document.getElementById('det-topo-autorizado-em').textContent = pix.autorizado_em || '---';
+                document.getElementById('det-topo-atualizado-em').textContent = pix.atualizado_em || '---';
 
-                let linhasCronograma = '';
-                (pix.cronograma || []).forEach(p => {
-                    let badgeParc = '';
-                    if (p.status === 'paga') {
-                        badgeParc = '<span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-check"></i> Paga</span>';
-                    } else if (p.status === 'proximo_debito') {
-                        badgeParc = '<span class="bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded text-[11px] border border-sky-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-calendar-day"></i> Proximo Debito</span>';
-                    } else if (p.status === 'rejeitada') {
-                        badgeParc = '<span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[11px] border border-rose-200 flex items-center gap-1 w-fit"><i class="fa-solid fa-xmark"></i> Nao Autorizada</span>';
-                    } else {
-                        badgeParc = '<span class="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-[11px] border border-slate-200 flex items-center gap-1 w-fit"><i class="fa-regular fa-clock"></i> A Vencer</span>';
+                const logoBancoCli = cli.instituicao_logo 
+                    ? `<img src="${cli.instituicao_logo}" alt="Logo" class="w-5 h-5 object-contain rounded-md" onerror="this.style.display='none'">` 
+                    : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
+
+                let htmlLinhasPagamentos = '';
+                (pag.itens || []).forEach(item => {
+                    let badgeItem = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    let iconeItem = '<i class="fa-solid fa-check"></i>';
+                    if (item.status === 'AGENDADO' || item.status === 'EM_PROCESSAMENTO') {
+                        badgeItem = 'bg-sky-50 text-sky-700 border-sky-200';
+                        iconeItem = '<i class="fa-regular fa-clock"></i>';
+                    } else if (item.status === 'PENDENTE') {
+                        badgeItem = 'bg-amber-50 text-amber-700 border-amber-200';
+                        iconeItem = '<i class="fa-solid fa-hourglass-half"></i>';
                     }
 
-                    linhasCronograma += `
-                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition text-xs">
-                            <td class="py-2.5 px-3 font-semibold text-[#010157]">Parcela ${p.numero} / ${pix.parcelas_total}</td>
-                            <td class="py-2.5 px-3 text-slate-600 font-mono">${p.vencimento}</td>
-                            <td class="py-2.5 px-3 font-bold text-slate-800 font-mono">${MC_CONFIG.formatMoney(p.valor)}</td>
-                            <td class="py-2.5 px-3">${badgeParc}</td>
+                    htmlLinhasPagamentos += `
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition text-xs">
+                            <td class="py-3 px-4 font-semibold text-[#010157]">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[11px]">${item.numero}</span>
+                                    <span>${item.titulo}</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-slate-600 font-mono text-[11px]">${item.data}</td>
+                            <td class="py-3 px-4 font-black text-slate-900 font-mono">${item.valor_formatado}</td>
+                            <td class="py-3 px-4 text-slate-500 max-w-[200px] truncate" title="${item.descricao}">${item.descricao}</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeItem}">
+                                    ${iconeItem} ${item.status_label}
+                                </span>
+                            </td>
                         </tr>
                     `;
                 });
 
-                areaDetalhe.innerHTML = `
-                    <div class="bg-white rounded-2xl p-5 md:p-6 border border-slate-200 shadow-sm space-y-6">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-4 border-b border-slate-100">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
-                                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                const htmlDetalhesPluggy = `
+                    <!-- 1. BLOCO CONFIGURAÇÃO PIX AUTOMÁTICO -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm">
+                        <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+                            <h4 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-[#0985ff]"></i>
+                                CONFIGURAÇÃO PIX AUTOMÁTICO
+                            </h4>
+                            <span class="text-slate-400 text-xs"><i class="fa-solid fa-chevron-up"></i></span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs">
+                            <!-- Coluna 1 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Intervalo</span>
+                                    <span class="text-sm font-bold text-[#010157]">${cfg.intervalo || 'Mensal'}</span>
                                 </div>
                                 <div>
-                                    <h4 class="text-[#010157] font-bold text-sm">Extrato de Pagamentos - Pix Automatico</h4>
-                                    <p class="text-xs text-slate-500">Banco: <strong>${bancoNome}</strong> | Inicio: ${pix.data_inicio || '---'}</p>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Data de Início</span>
+                                    <span class="text-xs font-semibold text-slate-800">${cfg.data_inicio || '---'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Expira em</span>
+                                    <span class="text-xs font-semibold text-slate-800">${cfg.expira_em || '---'}</span>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold text-xs px-3 py-1 rounded-full border ${badgeClass} flex items-center gap-1.5 shadow-sm">
-                                    ${iconStatus} ${pix.status_rotulo}
-                                </span>
-                                <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs">
-                                    <i class="fa-solid fa-xmark"></i>
+                            <!-- Coluna 2 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Valor Fixo</span>
+                                    <span class="text-base font-black text-[#010157] font-mono">${cfg.valor_fixo_formatado || 'R$ 0,00'}</span>
+                                </div>
+                            </div>
+                            <!-- Coluna 3 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Aceita Retentativa</span>
+                                    <span class="text-xs font-semibold text-slate-800">${cfg.aceita_retentativa || 'Sim'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Dias de Retentativa Automatica</span>
+                                    <span class="text-xs font-semibold text-slate-800 font-mono">${cfg.dias_retentativa || '1, 2, 3'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Agendador</span>
+                                    <span class="text-xs font-semibold text-slate-800">${cfg.agendador || 'Sim'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. DOIS CARDS LADO A LADO: CLIENTE E RECEBEDOR -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- CARD DO CLIENTE -->
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+                                    <h4 class="text-xs font-bold text-[#010157] flex items-center gap-2">
+                                        <i class="fa-regular fa-user text-slate-400"></i>
+                                        <span>Cliente <span class="text-slate-300 font-normal">•</span> <strong class="text-[#0985ff]">${cli.nome}</strong></span>
+                                    </h4>
+                                    <span class="text-slate-400 text-xs"><i class="fa-solid fa-chevron-up"></i></span>
+                                </div>
+                                <div class="space-y-3.5 text-xs">
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">ID</span>
+                                        <div class="flex items-center gap-1.5 mt-0.5">
+                                            <span class="font-mono text-slate-600 text-[11px] select-all">${cli.id}</span>
+                                            <button onclick="navigator.clipboard.writeText('${cli.id}'); MC_CONFIG.showToast('ID do cliente copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
+                                                <i class="fa-regular fa-copy text-[11px]"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">Nome</span>
+                                        <span class="text-sm font-bold text-[#010157] uppercase">${cli.nome}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">CPF/CNPJ</span>
+                                        <span class="font-mono text-slate-800 font-bold">${cli.cpf_cnpj}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">Instituicao</span>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            ${logoBancoCli}
+                                            <span class="font-semibold text-slate-800">${cli.instituicao}</span>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4 pt-1">
+                                        <div>
+                                            <span class="text-[11px] text-slate-400 block font-medium">Agencia</span>
+                                            <span class="font-mono text-slate-700">${cli.agencia || '-'}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-[11px] text-slate-400 block font-medium">Conta</span>
+                                            <span class="font-mono text-slate-700">${cli.conta || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARD DO RECEBEDOR -->
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+                                    <h4 class="text-xs font-bold text-[#010157] flex items-center gap-2">
+                                        <i class="fa-solid fa-handshake text-slate-400"></i>
+                                        <span>Recebedor <span class="text-slate-300 font-normal">•</span> <strong class="text-slate-700">${rec.nome}</strong></span>
+                                    </h4>
+                                    <span class="text-slate-400 text-xs"><i class="fa-solid fa-chevron-up"></i></span>
+                                </div>
+                                <div class="space-y-3.5 text-xs">
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">Razão Social / Nome</span>
+                                        <span class="text-sm font-bold text-[#010157]">${rec.nome}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">CNPJ</span>
+                                        <span class="font-mono text-slate-800 font-bold">${rec.cnpj}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block font-medium">Instituição Financeira</span>
+                                        <span class="font-semibold text-slate-800">${rec.instituicao}</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4 pt-1">
+                                        <div>
+                                            <span class="text-[11px] text-slate-400 block font-medium">Agência</span>
+                                            <span class="font-mono text-slate-700">${rec.agencia || '-'}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-[11px] text-slate-400 block font-medium">Conta Corrente</span>
+                                            <span class="font-mono text-slate-700">${rec.conta || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. BLOCO PAGAMENTOS (LISTAGEM OFICIAL) -->
+                    <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-white">
+                            <h4 class="text-xs font-bold text-[#010157] uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-money-bill-transfer text-emerald-600"></i>
+                                PAGAMENTOS (${pag.total || 0})
+                            </h4>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-slate-500 font-medium">${pag.indicador || ''}</span>
+                                <button onclick="consultarPix('${intentId}', '${divId || ''}', '${MC_CONFIG.escapeHtml(nomeCliente)}')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition cursor-pointer" title="Atualizar">
+                                    <i class="fa-solid fa-rotate-right text-xs"></i>
+                                </button>
+                                <button onclick="MC_CONFIG.showToast('Módulo de agendamento acoplado ao contrato da Pluggy', 'info')" class="btn-brand-primary text-white text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                    <i class="fa-regular fa-calendar-plus"></i> Agendar Pagamento
                                 </button>
                             </div>
                         </div>
-
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Parcelas Pagas</span>
-                                <div class="text-base font-extrabold text-emerald-600 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-circle-check text-xs"></i> ${pix.parcelas_pagas} de ${pix.parcelas_total}
-                                </div>
-                                <span class="text-[11px] text-slate-500 font-mono block mt-0.5">${totalPagoForm} pago</span>
-                            </div>
-
-                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Parcelas Restantes</span>
-                                <div class="text-base font-extrabold text-[#010157] flex items-center gap-1.5">
-                                    <i class="fa-solid fa-hourglass text-xs text-[#0985ff]"></i> ${pix.parcelas_restantes} de ${pix.parcelas_total}
-                                </div>
-                                <span class="text-[11px] text-slate-500 font-mono block mt-0.5">${totalRestanteForm} a vencer</span>
-                            </div>
-
-                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Valor da Parcela</span>
-                                <div class="text-base font-extrabold text-[#0985ff] font-mono">
-                                    ${valorFormatado}
-                                </div>
-                                <span class="text-[11px] text-slate-500 block mt-0.5">Mensal recorrente</span>
-                            </div>
-
-                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Proximo Vencimento</span>
-                                <div class="text-base font-extrabold text-slate-800 font-mono flex items-center gap-1.5">
-                                    <i class="fa-regular fa-calendar text-xs text-[#0985ff]"></i> ${pix.proximo_vencimento}
-                                </div>
-                                <span class="text-[11px] text-slate-500 block mt-0.5">Debito em conta</span>
-                            </div>
-                        </div>
-
-                        <div class="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                            <div class="flex justify-between text-xs">
-                                <span class="font-bold text-[#010157]">Progresso de Pagamento do Contrato</span>
-                                <span class="font-extrabold text-emerald-600">${percentualQuitado}% concluido</span>
-                            </div>
-                            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                                <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full transition-all duration-500" style="width: ${percentualQuitado}%;"></div>
-                            </div>
-                        </div>
-
-                        <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                            <div class="bg-slate-100/80 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center">
-                                <span class="text-xs font-bold text-[#010157] uppercase tracking-wider">Cronograma de Parcelas do Contrato</span>
-                                <span class="text-[11px] text-slate-500 font-semibold">${pix.parcelas_total} parcelas programadas</span>
-                            </div>
-                            <div class="overflow-x-auto max-h-64 overflow-y-auto custom-scrollbar">
-                                <table class="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
-                                            <th class="py-2.5 px-3">Parcela</th>
-                                            <th class="py-2.5 px-3">Vencimento</th>
-                                            <th class="py-2.5 px-3">Valor</th>
-                                            <th class="py-2.5 px-3">Status do Pagamento</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${linhasCronograma}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-100">
+                                        <th class="py-3 px-4">Item / Cobrança</th>
+                                        <th class="py-3 px-4">Data Vencimento</th>
+                                        <th class="py-3 px-4">Valor</th>
+                                        <th class="py-3 px-4">Descrição</th>
+                                        <th class="py-3 px-4 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${htmlLinhasPagamentos}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 `;
+
+                if (corpoModal) corpoModal.innerHTML = htmlDetalhesPluggy;
+                if (areaDetalheInline) areaDetalheInline.innerHTML = htmlDetalhesPluggy;
+
             } catch (erro) {
-                areaDetalhe.innerHTML = `
-                    <div class="text-center py-4 text-rose-500 text-xs">
-                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Erro ao buscar extrato do Pix: ${MC_CONFIG.escapeHtml(erro.message)}
-                        <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="ml-2 text-slate-400 hover:underline">Fechar</button>
+                const erroHtml = `
+                    <div class="text-center py-10 text-rose-500 text-xs">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl mb-2 text-rose-400 block"></i>
+                        Erro ao carregar detalhes da operação: ${MC_CONFIG.escapeHtml(erro.message)}
+                        <div class="mt-4">
+                            <button onclick="fecharModalDetalhesPluggy()" class="btn-brand-primary text-white text-xs font-bold px-4 py-2 rounded-xl">Fechar</button>
+                        </div>
                     </div>
                 `;
+                if (corpoModal) corpoModal.innerHTML = erroHtml;
+                if (areaDetalheInline) areaDetalheInline.innerHTML = erroHtml;
             }
         }
 
@@ -1716,6 +1844,38 @@
             carregarClientes();
         });
     </script>
+
+
+    <!-- MODAL OFICIAL DETALHES DA OPERAÇÃO PLUGGY (IMAGEM 3) -->
+    <div id="modal-detalhe-operacao-pluggy" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-6">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200/90 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Topo com Datas -->
+            <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center bg-white gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-8 text-left">
+                    <div>
+                        <span class="text-[11px] text-slate-400 block font-medium">Criado em</span>
+                        <span id="det-topo-criado-em" class="text-xs text-slate-700 font-medium">---</span>
+                    </div>
+                    <div>
+                        <span class="text-[11px] text-slate-400 block font-medium">Autorizado em</span>
+                        <span id="det-topo-autorizado-em" class="text-xs text-slate-700 font-medium">---</span>
+                    </div>
+                    <div>
+                        <span class="text-[11px] text-slate-400 block font-medium">Atualizado em</span>
+                        <span id="det-topo-atualizado-em" class="text-xs text-slate-700 font-medium">---</span>
+                    </div>
+                </div>
+                <button onclick="fecharModalDetalhesPluggy()" class="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer" title="Fechar">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Conteúdo Rolável -->
+            <div id="corpo-detalhe-pluggy" class="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-5 bg-slate-50/40">
+                <!-- Inserido dinamicamente via JS -->
+            </div>
+        </div>
+    </div>
 
 
     <!-- MODAL DE INSPEÇÃO JSON PLUGGY -->

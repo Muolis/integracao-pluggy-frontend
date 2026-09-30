@@ -49,7 +49,10 @@
             >
         </div>
 
-        <h2 id="titulo-pagina" class="text-2xl font-extrabold text-[#010157] mb-2 tracking-tight">Conecte seu Banco</h2>
+        <h2 id="titulo-pagina" class="text-2xl font-extrabold text-[#010157] mb-1 tracking-tight">Openfinance MC</h2>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#0985ff] border border-blue-200/80 text-[11px] font-bold mb-3 shadow-xs">
+            <i class="fa-solid fa-shield-halved text-xs"></i> Conexão Bancária Oficial e Segura
+        </div>
         <p id="texto-cliente" class="text-xs text-slate-500 mb-6 leading-relaxed">
             Autorize a consulta segura através do Open Finance regulado pelo Banco Central do Brasil.
         </p>
@@ -294,30 +297,66 @@
 
         function iniciarWidget(token) {
             const btn = document.getElementById("btn-conectar");
+            let itemConectadoId = null;
+            let salvouItem = false;
+
+            const salvarConexaoSegura = async (itemId, statusConexao = 'ativo') => {
+                if (!itemId || salvouItem) return;
+                salvouItem = true;
+                itemConectadoId = itemId;
+                try {
+                    await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            cliente: clienteId, 
+                            item_id: itemId,
+                            status: statusConexao
+                        })
+                    });
+                } catch (err) {
+                    console.warn('[SALVAR CONEXAO ANTECIPADA]', err);
+                }
+            };
             
             const pluggyConnect = new PluggyConnect({
                 connectToken: token,
+                name: 'Openfinance MC',
+                title: 'Openfinance MC',
+                onEvent: async (payload) => {
+                    try {
+                        console.log('[PLUGGY EVENT]', payload);
+                        const evt = payload || {};
+                        const itemId = (evt.data && (evt.data.itemId || (evt.data.item && evt.data.item.id))) || evt.itemId || (evt.item && evt.item.id);
+                        if (itemId) {
+                            itemConectadoId = itemId;
+                            // Salva imediatamente em background para contas corporativas / CNPJ
+                            await salvarConexaoSegura(itemId, 'sincronizando');
+                        }
+                    } catch (e) {
+                        console.warn('[ERRO TRATAR EVENTO PLUGGY]', e);
+                    }
+                },
+                onClose: () => {
+                    // Se o item já foi gerado na Pluggy (comum em contas PJ / Bradesco Empresas onde o banco demora para coletar extratos)
+                    if (itemConectadoId || salvouItem) {
+                        exibirTelaSucesso();
+                    } else {
+                        btn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> Tentar Novamente`;
+                        btn.disabled = false;
+                    }
+                },
                 onSuccess: async (dadosRetorno) => {
                     btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Finalizando registro seguro...`;
                     btn.disabled = true;
 
                     try {
-                        const itemId = (dadosRetorno && dadosRetorno.item && dadosRetorno.item.id) || (dadosRetorno && dadosRetorno.itemId) || (dadosRetorno && dadosRetorno.id);
+                        const itemId = (dadosRetorno && dadosRetorno.item && dadosRetorno.item.id) || 
+                                       (dadosRetorno && dadosRetorno.itemId) || 
+                                       (dadosRetorno && dadosRetorno.id) || 
+                                       itemConectadoId;
                         
-                        const res = await fetch(`${MC_CONFIG.API_BASE_URL}/salvar-conexao`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                cliente: clienteId, 
-                                item_id: itemId 
-                            })
-                        });
-
-                        if (!res.ok) {
-                            const errBody = await res.json().catch(() => ({}));
-                            console.warn('[AVISO SALVAR CONEXAO]', res.status, errBody);
-                        }
-
+                        await salvarConexaoSegura(itemId, 'ativo');
                         exibirTelaSucesso();
                     } catch (erroSalvar) {
                         console.error('[ERRO SALVAR CONEXAO]', erroSalvar);
@@ -325,8 +364,14 @@
                     }
                 },
                 onError: (erro) => {
+                    console.error('[ERRO PLUGGY CONNECT]', erro);
+                    // Se o item já existia, não trata como erro total
+                    if (itemConectadoId || salvouItem) {
+                        exibirTelaSucesso();
+                        return;
+                    }
                     document.getElementById('mensagem-erro').classList.remove('hidden');
-                    document.getElementById('texto-erro-detalhe').innerText = "A autorização bancária não foi concluída. Você pode tentar novamente.";
+                    document.getElementById('texto-erro-detalhe').innerText = "A autorização bancária não foi concluída. Em contas empresariais (PJ), verifique o token ou chave de segurança do banco e tente novamente.";
                     btn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> Tentar Novamente`;
                     btn.disabled = false;
                 }
