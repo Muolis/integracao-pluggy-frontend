@@ -162,7 +162,28 @@ def run_tests():
     assert "recebedor" in primeiro_item, "recebedor ausente no item"
     print(f" Teste 16 [Painel Analítico Pluggy]: Sucesso! KPIs de Pagamentos e {len(kpis['instituicoes'])} Instituições validados.")
 
-    print("\n TODOS OS 16 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 17. Teste /consultar-dados e /sincronizar-item com autenticação
+    item_id_teste = '8e04346e-cc83-4d53-900a-3b92f5ab1039'
+    res_cd = client.get(f'/consultar-dados/{item_id_teste}', headers={"Authorization": f"Bearer {token}"})
+    assert res_cd.status_code == 200, f"/consultar-dados falhou: {res_cd.status_code}"
+    cd_data = res_cd.get_json()
+    assert "item" in cd_data, "Campo item ausente em /consultar-dados"
+    assert "results" in cd_data, "Campo results (contas) ausente em /consultar-dados"
+
+    res_sync = client.post(f'/sincronizar-item/{item_id_teste}', headers={"Authorization": f"Bearer {token}"})
+    assert res_sync.status_code in [200, 409], f"/sincronizar-item retornou status inesperado: {res_sync.status_code}"
+    print(f" Teste 17 [/consultar-dados e /sincronizar-item]: Sucesso! {len(cd_data['results'])} contas consultadas e sincronização testada.")
+
+    # 18. Teste /consultar-transacoes com repasse de parâmetros
+    if len(cd_data['results']) > 0:
+        conta_id_teste = cd_data['results'][0]['id']
+        res_tx = client.get(f'/consultar-transacoes/{conta_id_teste}?dateFrom=2026-09-01', headers={"Authorization": f"Bearer {token}"})
+        assert res_tx.status_code == 200, f"/consultar-transacoes falhou: {res_tx.status_code}"
+        tx_json = res_tx.get_json()
+        assert "results" in tx_json, "Resultados ausentes em /consultar-transacoes"
+        print(f" Teste 18 [/consultar-transacoes v2]: Sucesso! {len(tx_json.get('results', []))} transações recuperadas com filtro de data.")
+
+    print("\n TODOS OS 18 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()

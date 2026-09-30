@@ -276,7 +276,7 @@
                             <input 
                                 type="text" 
                                 id="inputBusca" 
-                                onkeyup="filtrarClientes()" 
+                                oninput="debounceFiltrarClientes()" 
                                 placeholder="Buscar cliente..." 
                                 class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
                             >
@@ -303,7 +303,7 @@
                                 <i class="fa-solid fa-building-columns text-[#0985ff]"></i> Open Finance
                             </button>
                             <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer">
-                                <i class="fa-solid fa-bolt text-emerald-500"></i> Pix Automático (Painel Pluggy)
+                                <i class="fa-solid fa-bolt text-emerald-500"></i> Pix Automático
                             </button>
                         </div>
                         
@@ -318,9 +318,6 @@
                             </button>
                             <button type="button" onclick="mudarSubVisaoPix('pagamentos')" id="subbtn-pagamentos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
                                 <i class="fa-solid fa-chart-pie"></i> Pagamentos (KPIs)
-                            </button>
-                            <button type="button" onclick="mudarSubVisaoPix('todos')" id="subbtn-todos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
-                                <i class="fa-solid fa-layer-group"></i> Visão Completa
                             </button>
                         </div>
 
@@ -781,7 +778,6 @@
             subVisaoPix = sub;
             const btnSol = document.getElementById('subbtn-solicitacoes');
             const btnPag = document.getElementById('subbtn-pagamentos');
-            const btnTodos = document.getElementById('subbtn-todos');
             const cSol = document.getElementById('container-painel-solicitacoes');
             const cPag = document.getElementById('container-painel-pagamentos');
 
@@ -790,16 +786,12 @@
 
             if (btnSol) btnSol.className = (sub === 'solicitacoes') ? ativo : inativo;
             if (btnPag) btnPag.className = (sub === 'pagamentos') ? ativo : inativo;
-            if (btnTodos) btnTodos.className = (sub === 'todos') ? ativo : inativo;
 
             if (sub === 'solicitacoes') {
                 if (cSol) cSol.classList.remove('hidden');
                 if (cPag) cPag.classList.add('hidden');
-            } else if (sub === 'pagamentos') {
-                if (cSol) cSol.classList.add('hidden');
-                if (cPag) cPag.classList.remove('hidden');
             } else {
-                if (cSol) cSol.classList.remove('hidden');
+                if (cSol) cSol.classList.add('hidden');
                 if (cPag) cPag.classList.remove('hidden');
             }
         }
@@ -837,8 +829,7 @@
         }
 
         function aplicarFiltrosPluggy() {
-            paginaAtualPluggy = 1;
-            renderizarLista('pix');
+            debounceFiltrarClientes();
         }
 
         function formatarDataPluggy(isoString) {
@@ -941,6 +932,15 @@
             renderizarDonutInstituicoes(kpis.instituicoes || [], kpis.total_concluidos_qtd || 0);
         }
 
+        let debounceTimerBusca = null;
+        function debounceFiltrarClientes() {
+            clearTimeout(debounceTimerBusca);
+            debounceTimerBusca = setTimeout(() => {
+                paginaAtualPluggy = 1;
+                filtrarClientes();
+            }, 180);
+        }
+
         function mudarAbaLista(abaSelecionada) {
             const btnExtrato = document.getElementById('aba-lista-extrato');
             const btnPix = document.getElementById('aba-lista-pix');
@@ -958,14 +958,13 @@
                 if (cPag) cPag.classList.add("hidden");
                 if (cSol) cSol.classList.add("hidden");
                 if (divLista) divLista.classList.remove("hidden");
+                renderizarLista('extrato');
             } else {
                 btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
                 if (subNavPix) subNavPix.classList.remove("hidden");
                 mudarSubVisaoPix(subVisaoPix);
                 alternarModoExibicao(modoExibicaoPix);
             }
-            
-            renderizarLista(abaSelecionada);
         }
 
         function filtrarClientes() {
@@ -975,7 +974,7 @@
         }
 
         // ============================================================
-        // RENDERIZADOR PRINCIPAL
+        // RENDERIZADOR PRINCIPAL DE ALTA PERFORMANCE (ZERO LAG)
         // ============================================================
 
         function renderizarLista(filtroAba) {
@@ -990,7 +989,7 @@
                 const buscaTexto = termoBusca;
                 const statusFiltro = (document.getElementById('filtro-pluggy-status')?.value || 'todos');
 
-                let pixFiltrados = todosOsPix.filter(p => {
+                const pixFiltrados = todosOsPix.filter(p => {
                     const matchTexto = (
                         (p.cliente || '').toLowerCase().includes(buscaTexto) ||
                         (p.cpf || '').includes(buscaTexto) ||
@@ -1008,7 +1007,7 @@
                     return matchTexto && matchStatus;
                 });
 
-                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> solicitações Pluggy`;
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> solicitações Pix`;
 
                 // Cálculo da paginação
                 const totalItens = pixFiltrados.length;
@@ -1034,7 +1033,7 @@
                 const btnProx = document.getElementById('btn-pag-prox');
                 if (btnProx) btnProx.disabled = (paginaAtualPluggy >= totalPaginas);
 
-                // 1. RENDERIZA TABELA OFICIAL PLUGGY (IMAGEM 1)
+                // 1. RENDERIZA TABELA (ALTA PERFORMANCE - STRING ACUMULADA)
                 const tbody = document.getElementById('tbody-solicitacoes-pluggy');
                 if (tbody) {
                     if (itensPaginados.length === 0) {
@@ -1047,7 +1046,7 @@
                             </tr>
                         `;
                     } else {
-                        tbody.innerHTML = '';
+                        let htmlRows = '';
                         itensPaginados.forEach(p => {
                             const idCurto = p.id ? (p.id.slice(0, 18) + '..') : '---';
                             const idExternoDisplay = p.id_externo || '-';
@@ -1056,7 +1055,7 @@
                             const valorDisplay = MC_CONFIG.formatMoney(p.valor || p.valor_parcela || 0);
                             const dataFmt = p.criado_em || formatarDataPluggy(p.data_criacao);
 
-                            // Estilo de badges fiéis às cores da Pluggy (Imagem 1)
+                            // Estilo de badges
                             let badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
                             if (p.status_label === 'Autorizado') {
                                 badgeStatus = 'bg-purple-50 text-purple-700 border-purple-200';
@@ -1070,13 +1069,11 @@
                                 badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
                             }
 
-                            // Badge de Tipo de Pix
                             let badgeTipo = 'bg-emerald-50 text-emerald-700 border-emerald-200';
                             if (p.tipo && p.tipo.includes('Agendado')) {
                                 badgeTipo = 'bg-sky-50 text-sky-700 border-sky-200';
                             }
 
-                            // Botão de link
                             let btnLink = '';
                             if (p.payment_url || p.consent_url) {
                                 const urlAuth = p.payment_url || p.consent_url;
@@ -1087,7 +1084,7 @@
                                 `;
                             }
 
-                            tbody.innerHTML += `
+                            htmlRows += `
                                 <tr class="hover:bg-slate-50/80 transition duration-150">
                                     <td class="py-3 px-3.5 font-mono text-[11px] text-slate-700 font-semibold" title="${p.id}">
                                         <div class="flex items-center gap-1.5">
@@ -1126,10 +1123,11 @@
                                 </tr>
                             `;
                         });
+                        tbody.innerHTML = htmlRows;
                     }
                 }
 
-                // 2. RENDERIZA VISÃO EM CARDS (SE O MODO CARDS ESTIVER ATIVO)
+                // 2. RENDERIZA VISÃO EM CARDS (ALTA PERFORMANCE)
                 if (modoExibicaoPix === 'cards') {
                     if (itensPaginados.length === 0) {
                         divLista.innerHTML = `
@@ -1141,7 +1139,7 @@
                         return;
                     }
 
-                    divLista.innerHTML = '';
+                    let htmlCards = '';
                     itensPaginados.forEach(pix => {
                         const dataCriacaoFormatada = pix.criado_em || formatarDataPluggy(pix.data_criacao);
                         const valorParcelaForm = MC_CONFIG.formatMoney(pix.valor || pix.valor_parcela || 0);
@@ -1164,7 +1162,7 @@
                             `;
                         }
 
-                        divLista.innerHTML += `
+                        htmlCards += `
                             <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
                                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                                     <div class="flex items-start gap-3.5">
@@ -1208,11 +1206,12 @@
                             </div>
                         `;
                     });
+                    divLista.innerHTML = htmlCards;
                 }
 
             } else {
-                // RENDERIZACAO DE OPEN FINANCE
-                let ofFiltrados = todosOsClientes.filter(cliente => {
+                // RENDERIZACAO DE OPEN FINANCE (ALTA PERFORMANCE)
+                const ofFiltrados = todosOsClientes.filter(cliente => {
                     const matchTexto = (cliente.cliente || '').toLowerCase().includes(termoBusca);
                     const matchTipo = (cliente.tipo === 'open_finance') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
                     return matchTexto && matchTipo;
@@ -1230,13 +1229,13 @@
                     return;
                 }
 
-                divLista.innerHTML = '';
+                let htmlOf = '';
                 ofFiltrados.forEach(cliente => {
                     const dataFormatada = MC_CONFIG.formatDate(cliente.data_conexao);
                     const nomeSeguro = MC_CONFIG.escapeHtml(cliente.cliente);
                     const clienteId = cliente.id || Math.random().toString(36).substring(7);
 
-                    divLista.innerHTML += `
+                    htmlOf += `
                         <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div>
@@ -1261,6 +1260,7 @@
                         </div>
                     `;
                 });
+                divLista.innerHTML = htmlOf;
             }
         }
 
@@ -1293,12 +1293,41 @@
         }
 
         // ============================================================
-        // EXTRATOS OPEN FINANCE (CONTAS & TRANSACOES)
+        // EXTRATOS OPEN FINANCE (CONTAS & TRANSACOES COM SYNC ATIVO)
         // ============================================================
 
-        async function buscarExtratos(itemId, divId, nomeCliente) {
+        async function forcarSincronizacaoExtrato(itemId, divId, nomeCliente) {
+            const btnSync = document.getElementById(`btn-sync-${divId}`);
+            if (btnSync) {
+                btnSync.disabled = true;
+                btnSync.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Solicitando ao banco...`;
+            }
+            try {
+                const res = await MC_CONFIG.authFetch(`/sincronizar-item/${itemId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.sucesso) {
+                    MC_CONFIG.showToast(data.mensagem || "Sincronização iniciada com o banco!", "success");
+                    // Recarrega extrato em 3 segundos para acompanhar o download da Pluggy
+                    setTimeout(() => buscarExtratos(itemId, divId, nomeCliente, true), 3000);
+                } else {
+                    MC_CONFIG.showToast(data.erro || "Não foi possível sincronizar agora.", "warning");
+                    if (btnSync) {
+                        btnSync.disabled = false;
+                        btnSync.innerHTML = `<i class="fa-solid fa-rotate mr-1"></i> Sincronizar com Banco`;
+                    }
+                }
+            } catch (e) {
+                MC_CONFIG.showToast("Erro ao contatar servidor de sincronização.", "error");
+                if (btnSync) {
+                    btnSync.disabled = false;
+                    btnSync.innerHTML = `<i class="fa-solid fa-rotate mr-1"></i> Sincronizar com Banco`;
+                }
+            }
+        }
+
+        async function buscarExtratos(itemId, divId, nomeCliente, forcarAbertura = false) {
             const areaDetalhe = document.getElementById(divId);
-            if (!areaDetalhe.classList.contains('hidden')) {
+            if (!forcarAbertura && !areaDetalhe.classList.contains('hidden')) {
                 areaDetalhe.classList.add('hidden');
                 return;
             }
@@ -1307,7 +1336,7 @@
             areaDetalhe.innerHTML = `
                 <div class="flex items-center justify-center py-8 text-[#0985ff] text-xs gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
-                    Buscando contas bancarias e saldos atualizados na Pluggy...
+                    Buscando contas bancárias e extrato atualizado na Pluggy...
                 </div>
             `;
 
@@ -1318,10 +1347,11 @@
                 const dados = await resposta.json();
                 const item = dados.item || {};
                 const contas = dados.results || [];
-                const bancoNome = MC_CONFIG.escapeHtml(item.connector?.name || 'Instituicao Bancaria');
+                const bancoNome = MC_CONFIG.escapeHtml(item.connector?.name || 'Instituição Bancária');
+                const ultimaAtualizacao = item.lastUpdatedAt ? MC_CONFIG.formatDate(item.lastUpdatedAt) : 'Hoje';
 
                 if (item.status === 'LOGIN_ERROR' || (contas.length === 0 && item.error)) {
-                    const motivo = item.error?.providerMessage || item.error?.message || 'A autorizacao expirou ou foi revogada no aplicativo do banco.';
+                    const motivo = item.error?.providerMessage || item.error?.message || 'A autorização expirou ou foi revogada no aplicativo do banco.';
                     areaDetalhe.innerHTML = `
                         <div class="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 text-amber-900">
                             <div class="flex items-start gap-3">
@@ -1329,9 +1359,9 @@
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 </div>
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-sm text-[#010157]">Autorizacao Expirada ou Revogada no Banco</h4>
+                                    <h4 class="font-bold text-sm text-[#010157]">Autorização Expirada ou Revogada no Banco</h4>
                                     <p class="text-xs text-slate-600 mt-1">Banco: <strong>${bancoNome}</strong>. Motivo: ${MC_CONFIG.escapeHtml(motivo)}</p>
-                                    <p class="text-[11px] text-slate-500 mt-2">O cliente precisa realizar uma nova autorizacao para sincronizar.</p>
+                                    <p class="text-[11px] text-slate-500 mt-2">O cliente precisa realizar uma nova autorização para sincronizar.</p>
                                 </div>
                                 <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs">
                                     <i class="fa-solid fa-xmark"></i>
@@ -1342,28 +1372,67 @@
                     return;
                 }
 
+                // Banner se a conexão ainda estiver sincronizando no banco
+                let bannerSincronizando = '';
+                if (item.status === 'UPDATING') {
+                    bannerSincronizando = `
+                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-blue-900 mb-4 flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <i class="fa-solid fa-circle-notch fa-spin text-base text-[#0985ff]"></i>
+                                <div>
+                                    <strong class="text-xs block text-[#010157]">Sincronização em andamento com o banco ${bancoNome}...</strong>
+                                    <span class="text-[11px] text-slate-500">As movimentações recentes estão sendo coletadas. A tela atualizará automaticamente.</span>
+                                </div>
+                            </div>
+                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(itemId)}', '${divId}', '${MC_CONFIG.escapeHtml(nomeCliente)}', true)" class="px-3 py-1 bg-white border border-blue-200 rounded-lg text-xs font-bold text-[#0985ff] hover:bg-blue-50 transition cursor-pointer shadow-2xs">
+                                Checar Agora
+                            </button>
+                        </div>
+                    `;
+                    // Auto-refresh em 4 segundos
+                    setTimeout(() => {
+                        const area = document.getElementById(divId);
+                        if (area && !area.classList.contains('hidden')) {
+                            buscarExtratos(itemId, divId, nomeCliente, true);
+                        }
+                    }, 4000);
+                }
+
                 if (contas.length === 0) {
                     areaDetalhe.innerHTML = `
+                        ${bannerSincronizando}
                         <div class="text-center py-6 text-slate-500 text-xs">
                             <i class="fa-solid fa-building-columns text-2xl text-slate-300 mb-2 block"></i>
                             <p>Nenhuma conta ativa encontrada para este cliente no banco <strong>${bancoNome}</strong>.</p>
-                            <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="mt-3 text-[11px] text-slate-400 hover:underline">Fechar</button>
+                            <div class="mt-3 flex items-center justify-center gap-2">
+                                <button onclick="forcarSincronizacaoExtrato('${MC_CONFIG.escapeHtml(itemId)}', '${divId}', '${MC_CONFIG.escapeHtml(nomeCliente)}')" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 cursor-pointer">
+                                    <i class="fa-solid fa-rotate mr-1"></i> Tentar Sincronizar Novamente
+                                </button>
+                                <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-[11px] text-slate-400 hover:underline">Fechar</button>
+                            </div>
                         </div>
                     `;
                     return;
                 }
 
                 let htmlContas = `
+                    ${bannerSincronizando}
                     <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 flex-wrap gap-2">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid fa-building-columns text-[#0985ff]"></i>
-                            <h4 class="font-bold text-[#010157] text-sm">${bancoNome}</h4>
+                            <div>
+                                <h4 class="font-bold text-[#010157] text-sm">${bancoNome}</h4>
+                                <span class="text-[10px] text-slate-400">Última atualização: ${ultimaAtualizacao}</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <a href="extratos.html?item=${encodeURIComponent(itemId)}&cliente=${encodeURIComponent(nomeCliente)}" target="_blank" class="text-xs font-bold text-[#0985ff] hover:text-[#0772dc] flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shadow-xs">
-                                <i class="fa-solid fa-file-invoice-dollar"></i> Abrir Extrato Completo
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button onclick="forcarSincronizacaoExtrato('${MC_CONFIG.escapeHtml(itemId)}', '${divId}', '${MC_CONFIG.escapeHtml(nomeCliente)}')" id="btn-sync-${divId}" class="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs cursor-pointer transition" title="Dispara sincronização direta do extrato atual no banco">
+                                <i class="fa-solid fa-rotate"></i> Sincronizar com Banco
+                            </button>
+                            <a href="extratos.html?item=${encodeURIComponent(itemId)}&cliente=${encodeURIComponent(nomeCliente)}" target="_blank" class="text-xs font-bold text-[#0985ff] hover:text-[#0772dc] flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 shadow-2xs">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> Tela Cheia
                             </a>
-                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1">
                                 <i class="fa-solid fa-circle text-[6px]"></i> Conexão Ativa
                             </span>
                             <button onclick="document.getElementById('${divId}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1 text-xs cursor-pointer">
@@ -1375,7 +1444,7 @@
 
                 contas.forEach(conta => {
                     const saldoFormatado = MC_CONFIG.formatMoney(conta.balance);
-                    const nomeConta = MC_CONFIG.escapeHtml(conta.name || 'Conta Bancaria');
+                    const nomeConta = MC_CONFIG.escapeHtml(conta.name || 'Conta Bancária');
                     const subtipo = MC_CONFIG.escapeHtml(conta.subtype || 'Corrente');
                     const agencia = MC_CONFIG.escapeHtml(conta.agency || (conta.bankData?.transferNumber ? conta.bankData.transferNumber.split('/')[1] : null) || '---');
                     const numero = MC_CONFIG.escapeHtml(conta.number || '---');
@@ -1398,7 +1467,7 @@
                             <div id="transacoes-${conta.id}" class="bg-white p-4 rounded-xl border border-slate-200 mt-3 shadow-sm">
                                 <div class="flex items-center justify-center py-4 text-xs text-slate-400 gap-2">
                                     <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i>
-                                    Carregando historico de transacoes...
+                                    Carregando histórico de transações...
                                 </div>
                             </div>
                         </div>
@@ -1422,17 +1491,17 @@
             try {
                 const resposta = await MC_CONFIG.authFetch(`/consultar-transacoes/${accountId}`);
                 const payload = await resposta.json();
-                if (!resposta.ok) throw new Error(payload.erro || 'Falha ao buscar movimentacoes');
+                if (!resposta.ok) throw new Error(payload.erro || 'Falha ao buscar movimentações');
                 
                 const transacoesData = payload.results || payload.data || []; 
                 if (transacoesData.length === 0) {
-                    areaTransacoes.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Sem movimentacoes recentes no periodo.</p>';
+                    areaTransacoes.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Sem movimentações recentes no período.</p>';
                     return;
                 }
 
                 let htmlTx = `
                     <div class="flex justify-between items-center mb-3">
-                        <strong class="text-[11px] font-bold text-[#010157] uppercase tracking-wider">Historico Recente</strong>
+                        <strong class="text-[11px] font-bold text-[#010157] uppercase tracking-wider">Histórico Recente</strong>
                         <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">${transacoesData.length} registros</span>
                     </div>
                     <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
@@ -1445,7 +1514,7 @@
                     const cor = isNegativo ? 'text-slate-800' : 'text-[#0985ff] font-semibold';
                     const sinal = isNegativo ? '-' : '+';
                     const dataBR = tx.date ? new Date(tx.date).toLocaleDateString('pt-BR') : '---';
-                    const descSegura = MC_CONFIG.escapeHtml(tx.description || 'Transacao');
+                    const descSegura = MC_CONFIG.escapeHtml(tx.description || 'Transação');
 
                     htmlTx += `
                         <div class="flex justify-between items-center text-xs py-2 px-2.5 hover:bg-slate-50 transition rounded-lg border-b border-slate-100 last:border-0">
@@ -1461,7 +1530,7 @@
                 htmlTx += '</div>';
                 areaTransacoes.innerHTML = htmlTx;
             } catch (erro) {
-                areaTransacoes.innerHTML = `<p class="text-xs text-rose-500 text-center py-2">Falha nas transacoes: ${MC_CONFIG.escapeHtml(erro.message)}</p>`;
+                areaTransacoes.innerHTML = `<p class="text-xs text-rose-500 text-center py-2">Falha nas transações: ${MC_CONFIG.escapeHtml(erro.message)}</p>`;
             }
         }
 

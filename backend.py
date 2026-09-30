@@ -657,11 +657,21 @@ def salvar_conexao():
 
         registro = {
             'cliente': str(cliente)[:255],
-            'item_id': item_id_seguro
+            'item_id': item_id_seguro,
+            'tipo': 'pix_automatico' if payment_intent_id else 'open_finance'
         }
         if payment_intent_id:
             registro['payment_intent_id'] = str(payment_intent_id)
-        supabase.table('conexoes').insert(registro).execute()
+        
+        try:
+            supabase.table('conexoes').insert(registro).execute()
+        except Exception as e_tipo:
+            if 'tipo' in registro:
+                del registro['tipo']
+                supabase.table('conexoes').insert(registro).execute()
+            else:
+                raise e_tipo
+
         print(f'[SALVAR-CONEXAO] Sucesso ao salvar: {cliente} | Item: {item_id_seguro}')
         return jsonify({'sucesso': True}), 200
     except Exception as e:
@@ -687,7 +697,7 @@ def format_data_pluggy(iso_str):
 def obter_todos_intents_pix(forcar_atualizacao=False):
     """Puxa TODAS as solicitacoes e intents de Pix da API da Pluggy (100% espelho fiel do dashboard Pluggy)"""
     agora = time.time()
-    if not forcar_atualizacao and _pix_cache['data'] and (_pix_cache['timestamp'] > agora - 30):
+    if not forcar_atualizacao and _pix_cache['data'] and (_pix_cache['timestamp'] > agora - 180):
         return _pix_cache['data']
 
     api_key = obter_api_key()
@@ -1023,6 +1033,43 @@ def listar_conexoes():
         print(f'[ERRO SUPABASE SELECT]: {e}')
         return jsonify({'erro': f'Falha ao consultar banco: {str(e)}'}), 500
 
+@app.route('/sincronizar-item/<item_id>', methods=['POST'])
+@requer_autenticacao
+def sincronizar_item(item_id):
+    """Dispara atualizacao forçada de extrato bancário na Pluggy (PATCH /items/{id})"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
+    try:
+        patch_res = requests.patch(
+            f'https://api.pluggy.ai/items/{item_id}',
+            json={},
+            headers={'X-API-KEY': api_key},
+            timeout=15
+        )
+        if patch_res.status_code == 200:
+            return jsonify({
+                'sucesso': True,
+                'status': 'UPDATING',
+                'mensagem': 'Sincronização em andamento. Buscando movimentações recentes no banco...'
+            }), 200
+        elif patch_res.status_code == 409:
+            # Já atualizado há menos de 1 hora
+            return jsonify({
+                'sucesso': True,
+                'status': 'UPDATED',
+                'mensagem': 'Extrato já está atualizado na versão mais recente permitida pelo banco.'
+            }), 200
+        else:
+            err_data = patch_res.json() if patch_res.text else {}
+            return jsonify({
+                'sucesso': False,
+                'erro': err_data.get('message', 'Não foi possível sincronizar o extrato no momento.'),
+                'detalhes': patch_res.text
+            }), patch_res.status_code
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao solicitar sincronização: {str(e)}'}), 500
+
 @app.route('/consultar-dados/<item_id>', methods=['GET'])
 @requer_autenticacao
 def consultar_dados(item_id):
@@ -1030,6 +1077,22 @@ def consultar_dados(item_id):
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     try:
+        # Se solicitada sincronização explícita via query (?sync=true)
+        sync_solicitado = request.args.get('sync') == 'true'
+        sync_disparado = False
+        if sync_solicitado:
+            try:
+                p_res = requests.patch(
+                    f'https://api.pluggy.ai/items/{item_id}',
+                    json={},
+                    headers={'X-API-KEY': api_key},
+                    timeout=8
+                )
+                if p_res.status_code in (200, 409):
+                    sync_disparado = True
+            except Exception as e_p:
+                print(f'[AVISO SYNC ITEM]: {e_p}')
+
         item_info = {}
         try:
             it_res = requests.get(
@@ -1055,12 +1118,14 @@ def consultar_dados(item_id):
             'item': {
                 'id': item_id,
                 'status': item_info.get('status', 'UPDATED'),
+                'executionStatus': item_info.get('executionStatus'),
                 'connector': item_info.get('connector', {}),
                 'error': item_info.get('error'),
                 'lastUpdatedAt': item_info.get('lastUpdatedAt')
             },
             'results': contas,
-            'total': len(contas)
+            'total': len(contas),
+            'sync_disparado': sync_disparado
         }), 200
     except Exception as e:
         return jsonify({'erro': f'Erro interno ao buscar contas: {str(e)}'}), 500
@@ -1072,8 +1137,18 @@ def consultar_transacoes(account_id):
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     try:
+        # Repassa dateFrom e dateTo compatíveis com API v2 da Pluggy
+        params = {}
+        date_from = request.args.get('dateFrom') or request.args.get('from')
+        date_to = request.args.get('dateTo') or request.args.get('to')
+        if date_from:
+            params['dateFrom'] = date_from
+        if date_to:
+            params['dateTo'] = date_to
+
         transacoes_response = requests.get(
             f'https://api.pluggy.ai/v2/transactions?accountId={account_id}',
+            params=params,
             headers={'X-API-KEY': api_key},
             timeout=15
         )
