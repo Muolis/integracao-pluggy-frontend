@@ -127,8 +127,32 @@
                             <span>O banco será selecionado pelo próprio cliente ao acessar o link seguro.</span>
                         </div>
 
+                        <!-- SELETOR PF / PJ -->
                         <div>
-                            <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">CPF do Titular</label>
+                            <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-2">Tipo de Cliente / Pagador</label>
+                            <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                                <button 
+                                    type="button" 
+                                    id="btn-doc-pf" 
+                                    onclick="alternarDocPix('pf')" 
+                                    class="py-2 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                    <i class="fa-solid fa-user"></i> Pessoa Física (PF)
+                                </button>
+                                <button 
+                                    type="button" 
+                                    id="btn-doc-pj" 
+                                    onclick="alternarDocPix('pj')" 
+                                    class="py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                    <i class="fa-solid fa-building"></i> Empresa (PJ)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- CAMPOS PARA PESSOA FÍSICA -->
+                        <div id="box-doc-pf" class="space-y-2">
+                            <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider">CPF do Titular</label>
                             <input 
                                 type="text" 
                                 id="cpfCliente" 
@@ -137,6 +161,36 @@
                                 oninput="this.value = MC_CONFIG.formatCpf(this.value)"
                                 class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition font-mono"
                             >
+                        </div>
+
+                        <!-- CAMPOS PARA PESSOA JURÍDICA (CNPJ) -->
+                        <div id="box-doc-pj" class="hidden space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-1.5">CNPJ da Empresa</label>
+                                <input 
+                                    type="text" 
+                                    id="cnpjEmpresa" 
+                                    placeholder="00.000.000/0000-00" 
+                                    maxlength="18" 
+                                    oninput="this.value = MC_CONFIG.formatCnpj(this.value)"
+                                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition font-mono"
+                                >
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-1.5">CPF do Representante / Operador</label>
+                                <input 
+                                    type="text" 
+                                    id="cpfRepresentante" 
+                                    placeholder="000.000.000-00" 
+                                    maxlength="14" 
+                                    oninput="this.value = MC_CONFIG.formatCpf(this.value)"
+                                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition font-mono"
+                                >
+                                <p class="text-[11px] text-slate-500 mt-1 leading-tight flex items-center gap-1">
+                                    <i class="fa-solid fa-shield-halved text-[#0985ff] text-xs"></i> Regra Open Finance Brasil: CPF de quem autoriza no internet banking PJ.
+                                </p>
+                            </div>
                         </div>
 
                         <div>
@@ -256,53 +310,212 @@
                         <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
                     </div>
 
-                    <!-- RIBBON DE KPIS DO PAINEL DA PLUGGY (EXIBIDO NA ABA PIX) -->
-                    <div id="kpis-painel-pluggy" class="hidden grid grid-cols-2 lg:grid-cols-5 gap-3">
-                        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5">
-                            <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-0.5">Total Contratos</span>
-                            <div id="kpi-total-contratos" class="text-lg font-black text-[#010157]">0</div>
-                            <span class="text-[10px] text-slate-500 block">Sincronizados Pluggy</span>
+                    <!-- NAVEGADOR DE SUB-VISÃO DO PIX AUTOMÁTICO (SOLICITAÇÕES VS PAGAMENTOS) -->
+                    <div id="subnavegacao-pix" class="hidden flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-100">
+                        <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                            <button type="button" onclick="mudarSubVisaoPix('solicitacoes')" id="subbtn-solicitacoes" class="px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                                <i class="fa-solid fa-list-check"></i> Solicitações
+                            </button>
+                            <button type="button" onclick="mudarSubVisaoPix('pagamentos')" id="subbtn-pagamentos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
+                                <i class="fa-solid fa-chart-pie"></i> Pagamentos (KPIs)
+                            </button>
+                            <button type="button" onclick="mudarSubVisaoPix('todos')" id="subbtn-todos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
+                                <i class="fa-solid fa-layer-group"></i> Visão Completa
+                            </button>
                         </div>
 
-                        <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5">
-                            <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block mb-0.5">Autorizados / Em Dia</span>
-                            <div id="kpi-ativos" class="text-lg font-black text-emerald-700">0</div>
-                            <span class="text-[10px] text-emerald-600 block">Cobrança ativa</span>
-                        </div>
-
-                        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5">
-                            <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider block mb-0.5">Aguardando Banco</span>
-                            <div id="kpi-pendentes" class="text-lg font-black text-amber-700">0</div>
-                            <span class="text-[10px] text-amber-600 block">Pendente cliente</span>
-                        </div>
-
-                        <div class="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-3.5">
-                            <span class="text-[10px] font-bold text-rose-700 uppercase tracking-wider block mb-0.5">Rejeitados / Cancelados</span>
-                            <div id="kpi-rejeitados" class="text-lg font-black text-rose-700">0</div>
-                            <span class="text-[10px] text-rose-600 block">Recusados / Cancelados</span>
-                        </div>
-
-                        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 col-span-2 lg:col-span-1">
-                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">Recorrência Mensal</span>
-                            <div id="kpi-volume-mensal" class="text-lg font-black text-[#010157]">R$ 0,00</div>
-                            <span class="text-[10px] text-slate-500 block">Total ativo/mês</span>
+                        <!-- Botão de alternar entre Tabela e Cards -->
+                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+                            <button type="button" onclick="alternarModoExibicao('tabela')" id="btn-modo-tabela" class="px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer" title="Visualização em Tabela (Painel Pluggy Oficial)">
+                                <i class="fa-solid fa-table-list mr-1"></i> Tabela
+                            </button>
+                            <button type="button" onclick="alternarModoExibicao('cards')" id="btn-modo-cards" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização em Cards Detalhados">
+                                <i class="fa-solid fa-table-cells-large mr-1"></i> Cards
+                            </button>
                         </div>
                     </div>
 
-                    <!-- PILULAS DE FILTRO POR STATUS (ABA PIX) -->
-                    <div id="filtros-status-pix" class="hidden flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-                        <button type="button" onclick="filtrarStatusPix('todos')" id="filtro-pix-todos" class="px-3.5 py-1.5 rounded-xl font-bold bg-[#010157] text-white transition shadow-sm cursor-pointer whitespace-nowrap">
-                            Todos (<span id="count-filtro-todos">0</span>)
-                        </button>
-                        <button type="button" onclick="filtrarStatusPix('ativo')" id="filtro-pix-ativo" class="px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap">
-                            🟢 Autorizados (<span id="count-filtro-ativos">0</span>)
-                        </button>
-                        <button type="button" onclick="filtrarStatusPix('pendente')" id="filtro-pix-pendente" class="px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap">
-                            🟡 Aguardando (<span id="count-filtro-pendentes">0</span>)
-                        </button>
-                        <button type="button" onclick="filtrarStatusPix('rejeitado')" id="filtro-pix-rejeitado" class="px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap">
-                            🔴 Rejeitados (<span id="count-filtro-rejeitados">0</span>)
-                        </button>
+                    <!-- CONTAINER DE PAGAMENTOS (IMAGEM 2 DO PAINEL PLUGGY) -->
+                    <div id="container-painel-pagamentos" class="hidden space-y-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div>
+                                <h3 class="text-xl font-extrabold text-[#010157] tracking-tight">Pagamentos</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">KPIs de pagamentos concluídos no período selecionado.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 shadow-2xs">
+                                    <i class="fa-regular fa-calendar text-slate-400"></i>
+                                    <span id="periodo-pagamentos-texto">Set 1 – Set 29, 2026</span>
+                                </div>
+                                <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs">
+                                    PIX Automático
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2 Cards de Métricas Principais -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+                                <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-2">
+                                    <span>Total de pagamentos concluídos (quantidade)</span>
+                                    <i class="fa-regular fa-circle-question text-slate-400 cursor-help" title="Número total de transações de Pix concluídas com sucesso."></i>
+                                </div>
+                                <div id="kpi-qtd-concluidos-grande" class="text-3xl font-black text-[#010157]">
+                                    0
+                                </div>
+                            </div>
+
+                            <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+                                <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-2">
+                                    <span>Total de pagamentos concluídos (valor)</span>
+                                    <i class="fa-regular fa-circle-question text-slate-400 cursor-help" title="Volume financeiro total de pagamentos concluídos."></i>
+                                </div>
+                                <div id="kpi-valor-concluidos-grande" class="text-3xl font-black text-[#010157] font-mono">
+                                    R$ 0,00
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card Pagamentos por Instituição com Donut Chart SVG -->
+                        <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+                            <div class="flex justify-between items-center mb-6">
+                                <h4 class="font-bold text-[#010157] text-sm">Pagamentos por Instituição</h4>
+                                <div class="flex items-center gap-1 text-slate-400 text-xs">
+                                    <span class="p-1.5 rounded-lg bg-slate-100 text-slate-700" title="Distribuição por Banco">
+                                        <i class="fa-solid fa-chart-pie"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                                <div class="md:col-span-5 flex justify-center items-center relative min-h-[180px]" id="container-donut-svg">
+                                    <!-- Donut SVG gerado dinamicamente -->
+                                </div>
+                                <div class="md:col-span-7 space-y-2.5" id="container-legenda-bancos">
+                                    <!-- Legenda de Bancos gerada dinamicamente -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTAINER DE SOLICITAÇÕES (IMAGEM 1 DO PAINEL PLUGGY) -->
+                    <div id="container-painel-solicitacoes" class="hidden space-y-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div>
+                                <h3 class="text-xl font-extrabold text-[#010157] tracking-tight">Solicitações</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">Visualize e gerencie todas as suas solicitações de pagamento.</p>
+                            </div>
+                            <button 
+                                type="button" 
+                                onclick="focarCriarSolicitacao()" 
+                                class="bg-[#e11d48] hover:bg-[#be123c] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition duration-150 flex items-center gap-2 shadow-sm cursor-pointer"
+                            >
+                                <i class="fa-solid fa-plus text-xs"></i> Criar Solicitação
+                            </button>
+                        </div>
+
+                        <!-- Controles e Filtros estilo Pluggy -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+                            <div class="sm:col-span-2">
+                                <div class="relative">
+                                    <select id="filtro-pluggy-conta" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30">
+                                        <option value="MC">MC</option>
+                                        <option value="todos">Todas</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sm:col-span-3">
+                                <div class="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-700 shadow-2xs">
+                                    <i class="fa-regular fa-calendar text-slate-400"></i>
+                                    <span id="filtro-pluggy-periodo">Jun 29 – Sep 29, 2026</span>
+                                </div>
+                            </div>
+
+                            <div class="sm:col-span-3">
+                                <div class="relative">
+                                    <select id="filtro-pluggy-status" onchange="aplicarFiltrosPluggy()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30">
+                                        <option value="todos">Todos os Status</option>
+                                        <option value="Autorizado">Autorizado</option>
+                                        <option value="Cancelado">Cancelado</option>
+                                        <option value="Erro">Erro</option>
+                                        <option value="Agendado">Agendado</option>
+                                        <option value="Concluído">Concluído</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sm:col-span-4">
+                                <div class="relative">
+                                    <input 
+                                        type="text" 
+                                        id="filtro-pluggy-busca" 
+                                        oninput="aplicarFiltrosPluggy()" 
+                                        placeholder="Buscar por ID da Solicitação..." 
+                                        class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30"
+                                    >
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Paginação Superior (Linhas por página & Mostrando X-Y de Z) -->
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-slate-500 py-2 border-b border-slate-100 gap-2">
+                            <div class="flex items-center gap-2">
+                                <span>Linhas por página</span>
+                                <select id="pluggy-linhas-pagina" onchange="mudarLinhasPorPagina(this.value)" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-semibold">
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100" selected>100</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-4">
+                                <span id="pluggy-resumo-paginacao">Mostrando 1-100 de 185</span>
+                                <div class="flex items-center gap-1">
+                                    <button type="button" onclick="mudarPagina(-1)" id="btn-pag-ant" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                                        &lt; Anterior
+                                    </button>
+                                    <span id="pluggy-indicador-pag" class="font-semibold text-slate-700 px-1">1/2</span>
+                                    <button type="button" onclick="mudarPagina(1)" id="btn-pag-prox" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                                        Próximo &gt;
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabela Oficial de Solicitações (Imagem 1) -->
+                        <div id="wrapper-tabela-pluggy" class="overflow-x-auto border border-slate-200/90 rounded-2xl bg-white shadow-xs custom-scrollbar">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                        <th class="py-3 px-3.5">ID</th>
+                                        <th class="py-3 px-3">ID Externo</th>
+                                        <th class="py-3 px-3">Descrição</th>
+                                        <th class="py-3 px-3">Recebedor</th>
+                                        <th class="py-3 px-3 text-right">Valor</th>
+                                        <th class="py-3 px-3 text-center">Status</th>
+                                        <th class="py-3 px-3 text-center">Tipo</th>
+                                        <th class="py-3 px-3">Criado em</th>
+                                        <th class="py-3 px-3 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-solicitacoes-pluggy" class="divide-y divide-slate-100">
+                                    <!-- Inserido dinamicamente via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Área para detalhes/extrato de solicitação aberta -->
+                        <div id="detalhe-solicitacao-container" class="hidden mt-4"></div>
                     </div>
                 </div>
                 
@@ -358,8 +571,33 @@
             input.value = parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         }
 
+        let tipoPessoaPix = 'pf';
+        function alternarDocPix(tipo) {
+            tipoPessoaPix = tipo;
+            const btnPf = document.getElementById("btn-doc-pf");
+            const btnPj = document.getElementById("btn-doc-pj");
+            const boxPf = document.getElementById("box-doc-pf");
+            const boxPj = document.getElementById("box-doc-pj");
+
+            if (tipo === 'pf') {
+                if (btnPf) btnPf.className = "py-2 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer flex items-center justify-center gap-1.5";
+                if (btnPj) btnPj.className = "py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer flex items-center justify-center gap-1.5";
+                if (boxPf) boxPf.classList.remove("hidden");
+                if (boxPj) boxPj.classList.add("hidden");
+            } else {
+                if (btnPj) btnPj.className = "py-2 rounded-lg text-xs font-bold transition bg-[#010157] text-white shadow-sm cursor-pointer flex items-center justify-center gap-1.5";
+                if (btnPf) btnPf.className = "py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-[#010157] cursor-pointer flex items-center justify-center gap-1.5";
+                if (boxPf) boxPf.classList.add("hidden");
+                if (boxPj) boxPj.classList.remove("hidden");
+            }
+        }
+
         function mascaraCpf(input) {
             input.value = MC_CONFIG.formatCpf(input.value);
+        }
+
+        function mascaraCnpj(input) {
+            input.value = MC_CONFIG.formatCnpj(input.value);
         }
 
         function gerarLink() {
@@ -375,7 +613,6 @@
             if (tipoLinkAtivo === "pix") {
                 const valorRaw = document.getElementById("valorPix").value.replace(/\./g, "").replace(",", ".");
                 const valorFloat = parseFloat(valorRaw);
-                const cpf = MC_CONFIG.cleanCpf(document.getElementById("cpfCliente")?.value);
                 const inicio = document.getElementById("dataInicio")?.value;
                 const fim = document.getElementById("dataFim")?.value;
 
@@ -383,20 +620,40 @@
                     MC_CONFIG.showToast("Informe o valor da parcela mensal do Pix.", "warning");
                     return;
                 }
-                if (!cpf || cpf.length !== 11) {
-                    MC_CONFIG.showToast("Informe um CPF valido com 11 digitos.", "warning");
-                    return;
-                }
                 if (!inicio) {
-                    MC_CONFIG.showToast("Informe a data de inicio da primeira cobranca.", "warning");
+                    MC_CONFIG.showToast("Informe a data de início da primeira cobrança.", "warning");
                     return;
                 }
 
                 parametros.append("valor", valorFloat.toFixed(2));
-                parametros.append("cpf", cpf);
                 parametros.append("inicio", inicio);
                 if (fim) {
                     parametros.append("fim", fim);
+                }
+
+                if (tipoPessoaPix === 'pf') {
+                    const cpf = MC_CONFIG.cleanCpf(document.getElementById("cpfCliente")?.value);
+                    if (!cpf || !MC_CONFIG.validarCpf(cpf)) {
+                        MC_CONFIG.showToast("Informe um CPF válido com 11 dígitos para a Pessoa Física.", "warning");
+                        return;
+                    }
+                    parametros.append("tipoDoc", "pf");
+                    parametros.append("cpf", cpf);
+                } else {
+                    const cnpj = MC_CONFIG.cleanCnpj(document.getElementById("cnpjEmpresa")?.value);
+                    const cpfRep = MC_CONFIG.cleanCpf(document.getElementById("cpfRepresentante")?.value);
+
+                    if (!cnpj || !MC_CONFIG.validarCnpj(cnpj)) {
+                        MC_CONFIG.showToast("Informe um CNPJ válido com 14 dígitos para a Empresa.", "warning");
+                        return;
+                    }
+                    if (!cpfRep || !MC_CONFIG.validarCpf(cpfRep)) {
+                        MC_CONFIG.showToast("Informe o CPF do representante legal/operador que autorizará no banco.", "warning");
+                        return;
+                    }
+                    parametros.append("tipoDoc", "pj");
+                    parametros.append("cnpj", cnpj);
+                    parametros.append("cpf", cpfRep);
                 }
             }
 
@@ -504,55 +761,211 @@
             }
         }
 
-        function atualizarRibbonKpisPix(kpis) {
-            document.getElementById('kpi-total-contratos').textContent = kpis.total_contratos || todosOsPix.length;
-            document.getElementById('kpi-ativos').textContent = kpis.ativos || 0;
-            document.getElementById('kpi-pendentes').textContent = kpis.pendentes || 0;
-            document.getElementById('kpi-rejeitados').textContent = kpis.rejeitados || 0;
-            document.getElementById('kpi-volume-mensal').textContent = MC_CONFIG.formatMoney(kpis.volume_recorrente_total || 0);
+        let modoExibicaoPix = 'tabela';
+        let subVisaoPix = 'solicitacoes';
+        let paginaAtualPluggy = 1;
+        let linhasPorPaginaPluggy = 100;
+        let filtroStatusPluggy = 'todos';
 
-            document.getElementById('count-filtro-todos').textContent = kpis.total_contratos || todosOsPix.length;
-            document.getElementById('count-filtro-ativos').textContent = kpis.ativos || 0;
-            document.getElementById('count-filtro-pendentes').textContent = kpis.pendentes || 0;
-            document.getElementById('count-filtro-rejeitados').textContent = kpis.rejeitados || 0;
+        function focarCriarSolicitacao() {
+            mudarAbaGerador('pix');
+            const inputCli = document.getElementById('identificadorCliente');
+            if (inputCli) {
+                inputCli.focus();
+                inputCli.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            MC_CONFIG.showToast("Informe os dados do cliente e valor para criar a solicitação Pix.", "info");
+        }
+
+        function mudarSubVisaoPix(sub) {
+            subVisaoPix = sub;
+            const btnSol = document.getElementById('subbtn-solicitacoes');
+            const btnPag = document.getElementById('subbtn-pagamentos');
+            const btnTodos = document.getElementById('subbtn-todos');
+            const cSol = document.getElementById('container-painel-solicitacoes');
+            const cPag = document.getElementById('container-painel-pagamentos');
+
+            const inativo = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5";
+            const ativo = "px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5";
+
+            if (btnSol) btnSol.className = (sub === 'solicitacoes') ? ativo : inativo;
+            if (btnPag) btnPag.className = (sub === 'pagamentos') ? ativo : inativo;
+            if (btnTodos) btnTodos.className = (sub === 'todos') ? ativo : inativo;
+
+            if (sub === 'solicitacoes') {
+                if (cSol) cSol.classList.remove('hidden');
+                if (cPag) cPag.classList.add('hidden');
+            } else if (sub === 'pagamentos') {
+                if (cSol) cSol.classList.add('hidden');
+                if (cPag) cPag.classList.remove('hidden');
+            } else {
+                if (cSol) cSol.classList.remove('hidden');
+                if (cPag) cPag.classList.remove('hidden');
+            }
+        }
+
+        function alternarModoExibicao(modo) {
+            modoExibicaoPix = modo;
+            const btnTab = document.getElementById('btn-modo-tabela');
+            const btnCard = document.getElementById('btn-modo-cards');
+            const wrapperTab = document.getElementById('wrapper-tabela-pluggy');
+            const listaCli = document.getElementById('lista-clientes');
+
+            if (modo === 'tabela') {
+                if (btnTab) btnTab.className = "px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer";
+                if (btnCard) btnCard.className = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer";
+                if (wrapperTab) wrapperTab.classList.remove('hidden');
+                if (listaCli) listaCli.classList.add('hidden');
+            } else {
+                if (btnCard) btnCard.className = "px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer";
+                if (btnTab) btnTab.className = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer";
+                if (wrapperTab) wrapperTab.classList.add('hidden');
+                if (listaCli) listaCli.classList.remove('hidden');
+            }
+            renderizarLista('pix');
+        }
+
+        function mudarPagina(delta) {
+            paginaAtualPluggy += delta;
+            renderizarLista('pix');
+        }
+
+        function mudarLinhasPorPagina(val) {
+            linhasPorPaginaPluggy = parseInt(val) || 100;
+            paginaAtualPluggy = 1;
+            renderizarLista('pix');
+        }
+
+        function aplicarFiltrosPluggy() {
+            paginaAtualPluggy = 1;
+            renderizarLista('pix');
+        }
+
+        function formatarDataPluggy(isoString) {
+            if (!isoString) return '---';
+            try {
+                const d = new Date(isoString);
+                if (isNaN(d.getTime())) return isoString;
+                const meses = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+                const dia = String(d.getDate()).padStart(2, '0');
+                const mes = meses[d.getMonth()];
+                const ano = d.getFullYear();
+                const hora = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                const seg = String(d.getSeconds()).padStart(2, '0');
+                return `${dia} de ${mes} de ${ano}, ${hora}:${min}:${seg}`;
+            } catch {
+                return isoString;
+            }
+        }
+
+        function renderizarDonutInstituicoes(instituicoes, totalQtd) {
+            const containerSvg = document.getElementById('container-donut-svg');
+            const containerLegenda = document.getElementById('container-legenda-bancos');
+            if (!containerSvg || !containerLegenda) return;
+
+            if (!instituicoes || instituicoes.length === 0) {
+                containerSvg.innerHTML = `
+                    <div class="w-32 h-32 rounded-full border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 text-xs text-center p-2">
+                        <i class="fa-solid fa-chart-pie text-xl mb-1 text-slate-300"></i>
+                        <span>Sem dados</span>
+                    </div>
+                `;
+                containerLegenda.innerHTML = `<p class="text-xs text-slate-400 italic">Nenhum pagamento concluído no período.</p>`;
+                return;
+            }
+
+            const r = 40;
+            const c = 2 * Math.PI * r;
+            let offsetAcumulado = 0;
+            let svgCircles = '';
+
+            instituicoes.forEach(inst => {
+                const pct = inst.percentual || 0;
+                const dash = (pct / 100) * c;
+                const gap = c - dash;
+                const cor = inst.cor || '#0985ff';
+
+                svgCircles += `
+                    <circle 
+                        cx="60" cy="60" r="${r}" 
+                        fill="transparent" 
+                        stroke="${cor}" 
+                        stroke-width="18" 
+                        stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" 
+                        stroke-dashoffset="${(-offsetAcumulado).toFixed(2)}"
+                        class="transition-all duration-300 hover:opacity-85 cursor-pointer"
+                    >
+                        <title>${inst.nome}: ${pct}% (${inst.qtd})</title>
+                    </circle>
+                `;
+                offsetAcumulado += dash;
+            });
+
+            containerSvg.innerHTML = `
+                <svg width="150" height="150" viewBox="0 0 120 120" class="transform -rotate-90">
+                    <circle cx="60" cy="60" r="${r}" fill="transparent" stroke="#f1f5f9" stroke-width="18" />
+                    ${svgCircles}
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span class="text-2xl font-black text-[#010157] font-mono leading-none">${totalQtd}</span>
+                    <span class="text-[9px] uppercase font-bold text-slate-400 mt-1 tracking-wider">Total</span>
+                </div>
+            `;
+
+            let htmlLegenda = '';
+            instituicoes.forEach(inst => {
+                const cor = inst.cor || '#0985ff';
+                const nomeSeguro = MC_CONFIG.escapeHtml(inst.nome);
+                htmlLegenda += `
+                    <div class="flex items-center justify-between text-xs py-1 px-2.5 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-100">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${cor}"></span>
+                            <span class="text-slate-700 font-medium">${nomeSeguro}</span>
+                        </div>
+                        <span class="font-bold text-slate-800 font-mono">${inst.percentual}% (${inst.qtd})</span>
+                    </div>
+                `;
+            });
+            containerLegenda.innerHTML = htmlLegenda;
+        }
+
+        function atualizarRibbonKpisPix(kpis) {
+            kpis = kpis || {};
+            const elQtd = document.getElementById('kpi-qtd-concluidos-grande');
+            if (elQtd) elQtd.textContent = kpis.total_concluidos_qtd ?? 0;
+
+            const elValor = document.getElementById('kpi-valor-concluidos-grande');
+            if (elValor) elValor.textContent = MC_CONFIG.formatMoney(kpis.total_concluidos_valor ?? 0);
+
+            renderizarDonutInstituicoes(kpis.instituicoes || [], kpis.total_concluidos_qtd || 0);
         }
 
         function mudarAbaLista(abaSelecionada) {
             const btnExtrato = document.getElementById('aba-lista-extrato');
             const btnPix = document.getElementById('aba-lista-pix');
-            const kpiRibbon = document.getElementById('kpis-painel-pluggy');
-            const filtroStatus = document.getElementById('filtros-status-pix');
+            const subNavPix = document.getElementById('subnavegacao-pix');
+            const cPag = document.getElementById('container-painel-pagamentos');
+            const cSol = document.getElementById('container-painel-solicitacoes');
+            const divLista = document.getElementById('lista-clientes');
             
             btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
             btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
             
             if (abaSelecionada === 'extrato') {
                 btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
-                kpiRibbon.classList.add("hidden");
-                filtroStatus.classList.add("hidden");
+                if (subNavPix) subNavPix.classList.add("hidden");
+                if (cPag) cPag.classList.add("hidden");
+                if (cSol) cSol.classList.add("hidden");
+                if (divLista) divLista.classList.remove("hidden");
             } else {
                 btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
-                kpiRibbon.classList.remove("hidden");
-                filtroStatus.classList.remove("hidden");
+                if (subNavPix) subNavPix.classList.remove("hidden");
+                mudarSubVisaoPix(subVisaoPix);
+                alternarModoExibicao(modoExibicaoPix);
             }
             
             renderizarLista(abaSelecionada);
-        }
-
-        function filtrarStatusPix(status) {
-            filtroStatusPixAtivo = status;
-            const botoes = ['todos', 'ativo', 'pendente', 'rejeitado'];
-            botoes.forEach(b => {
-                const el = document.getElementById(`filtro-pix-${b}`);
-                if (el) {
-                    if (b === status) {
-                        el.className = "px-3.5 py-1.5 rounded-xl font-bold bg-[#010157] text-white transition shadow-sm cursor-pointer whitespace-nowrap";
-                    } else {
-                        el.className = "px-3.5 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer whitespace-nowrap";
-                    }
-                }
-            });
-            renderizarLista('pix');
         }
 
         function filtrarClientes() {
@@ -567,103 +980,235 @@
 
         function renderizarLista(filtroAba) {
             const divLista = document.getElementById('lista-clientes');
-            const termoBusca = (document.getElementById('inputBusca')?.value || '').toLowerCase().trim();
             const badgeTotal = document.getElementById('badge-contador-total');
+            const termoBusca = (
+                (document.getElementById('filtro-pluggy-busca')?.value || '') ||
+                (document.getElementById('inputBusca')?.value || '')
+            ).toLowerCase().trim();
 
             if (filtroAba === 'pix') {
-                // RENDERIZACAO DO PAINEL PLUGGY PIX AUTOMATICO
+                const buscaTexto = termoBusca;
+                const statusFiltro = (document.getElementById('filtro-pluggy-status')?.value || 'todos');
+
                 let pixFiltrados = todosOsPix.filter(p => {
                     const matchTexto = (
-                        (p.cliente || '').toLowerCase().includes(termoBusca) ||
-                        (p.cpf || '').includes(termoBusca) ||
-                        (p.banco_nome || '').toLowerCase().includes(termoBusca) ||
-                        (p.id || '').toLowerCase().includes(termoBusca)
+                        (p.cliente || '').toLowerCase().includes(buscaTexto) ||
+                        (p.cpf || '').includes(buscaTexto) ||
+                        (p.cnpj || '').includes(buscaTexto) ||
+                        (p.id_externo || '').toLowerCase().includes(buscaTexto) ||
+                        (p.id || '').toLowerCase().includes(buscaTexto) ||
+                        (p.descricao || '').toLowerCase().includes(buscaTexto) ||
+                        (p.recebedor || '').toLowerCase().includes(buscaTexto) ||
+                        (p.banco_nome || '').toLowerCase().includes(buscaTexto)
                     );
                     let matchStatus = true;
-                    if (filtroStatusPixAtivo !== 'todos') {
-                        matchStatus = (p.status_classe === filtroStatusPixAtivo);
+                    if (statusFiltro !== 'todos') {
+                        matchStatus = (p.status_label === statusFiltro || p.status === statusFiltro);
                     }
                     return matchTexto && matchStatus;
                 });
 
-                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> contratos Pluggy`;
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> solicitações Pluggy`;
 
-                if (pixFiltrados.length === 0) {
-                    divLista.innerHTML = `
-                        <div class="text-center py-16 text-slate-400">
-                            <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
-                            <p class="text-xs">Nenhum contrato de <strong>Pix Automático</strong> encontrado para o filtro selecionado.</p>
-                        </div>
-                    `;
-                    return;
+                // Cálculo da paginação
+                const totalItens = pixFiltrados.length;
+                const totalPaginas = Math.max(1, Math.ceil(totalItens / linhasPorPaginaPluggy));
+                if (paginaAtualPluggy > totalPaginas) paginaAtualPluggy = totalPaginas;
+                if (paginaAtualPluggy < 1) paginaAtualPluggy = 1;
+
+                const inicioIdx = (paginaAtualPluggy - 1) * linhasPorPaginaPluggy;
+                const fimIdx = Math.min(inicioIdx + linhasPorPaginaPluggy, totalItens);
+                const itensPaginados = pixFiltrados.slice(inicioIdx, fimIdx);
+
+                // Atualiza controles de paginação
+                const elResumo = document.getElementById('pluggy-resumo-paginacao');
+                if (elResumo) {
+                    elResumo.textContent = `Mostrando ${totalItens ? inicioIdx + 1 : 0}-${fimIdx} de ${totalItens}`;
+                }
+                const elIndicador = document.getElementById('pluggy-indicador-pag');
+                if (elIndicador) {
+                    elIndicador.textContent = `${paginaAtualPluggy}/${totalPaginas}`;
+                }
+                const btnAnt = document.getElementById('btn-pag-ant');
+                if (btnAnt) btnAnt.disabled = (paginaAtualPluggy <= 1);
+                const btnProx = document.getElementById('btn-pag-prox');
+                if (btnProx) btnProx.disabled = (paginaAtualPluggy >= totalPaginas);
+
+                // 1. RENDERIZA TABELA OFICIAL PLUGGY (IMAGEM 1)
+                const tbody = document.getElementById('tbody-solicitacoes-pluggy');
+                if (tbody) {
+                    if (itensPaginados.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="9" class="py-12 text-center text-slate-400">
+                                    <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300 block"></i>
+                                    Nenhuma solicitação encontrada para o filtro selecionado.
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        tbody.innerHTML = '';
+                        itensPaginados.forEach(p => {
+                            const idCurto = p.id ? (p.id.slice(0, 18) + '..') : '---';
+                            const idExternoDisplay = p.id_externo || '-';
+                            const descDisplay = MC_CONFIG.escapeHtml(p.descricao || 'CREDITO PESSOAL MC MINHACONTA');
+                            const recDisplay = MC_CONFIG.escapeHtml(p.recebedor || 'MC Minhaconta Securitizadora C SA');
+                            const valorDisplay = MC_CONFIG.formatMoney(p.valor || p.valor_parcela || 0);
+                            const dataFmt = p.criado_em || formatarDataPluggy(p.data_criacao);
+
+                            // Estilo de badges fiéis às cores da Pluggy (Imagem 1)
+                            let badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
+                            if (p.status_label === 'Autorizado') {
+                                badgeStatus = 'bg-purple-50 text-purple-700 border-purple-200';
+                            } else if (p.status_label === 'Concluído') {
+                                badgeStatus = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                            } else if (p.status_label === 'Erro') {
+                                badgeStatus = 'bg-rose-50 text-rose-600 border-rose-200';
+                            } else if (p.status_label === 'Agendado') {
+                                badgeStatus = 'bg-sky-50 text-sky-700 border-sky-200';
+                            } else if (p.status_label === 'Cancelado') {
+                                badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
+                            }
+
+                            // Badge de Tipo de Pix
+                            let badgeTipo = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                            if (p.tipo && p.tipo.includes('Agendado')) {
+                                badgeTipo = 'bg-sky-50 text-sky-700 border-sky-200';
+                            }
+
+                            // Botão de link
+                            let btnLink = '';
+                            if (p.payment_url || p.consent_url) {
+                                const urlAuth = p.payment_url || p.consent_url;
+                                btnLink = `
+                                    <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(urlAuth)}')" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-xs font-semibold cursor-pointer" title="Copiar link de autorização">
+                                        <i class="fa-brands fa-whatsapp text-sm"></i>
+                                    </button>
+                                `;
+                            }
+
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-slate-50/80 transition duration-150">
+                                    <td class="py-3 px-3.5 font-mono text-[11px] text-slate-700 font-semibold" title="${p.id}">
+                                        <div class="flex items-center gap-1.5">
+                                            <span>${idCurto}</span>
+                                            <button onclick="navigator.clipboard.writeText('${p.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID completo">
+                                                <i class="fa-regular fa-copy text-[10px]"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-3 text-slate-600 font-mono text-[11px]">${idExternoDisplay}</td>
+                                    <td class="py-3 px-3 font-semibold text-[#010157] max-w-[180px] truncate" title="${descDisplay}">${descDisplay}</td>
+                                    <td class="py-3 px-3 text-slate-600 text-xs max-w-[160px] truncate" title="${recDisplay}">${recDisplay}</td>
+                                    <td class="py-3 px-3 text-right font-black text-slate-900 font-mono">${valorDisplay}</td>
+                                    <td class="py-3 px-3 text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStatus}">
+                                            ${p.status_label || 'Pendente'}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-3 text-center">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${badgeTipo}">
+                                            ${p.tipo || 'PIX Automático'}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">${dataFmt}</td>
+                                    <td class="py-3 px-3 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            ${btnLink}
+                                            <button onclick="consultarPix('${p.id}', 'detalhe-solicitacao-container', '${MC_CONFIG.escapeHtml(p.cliente || 'Contrato')}')" class="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-xs cursor-pointer" title="Ver Extrato e Cronograma">
+                                                <i class="fa-solid fa-file-invoice-dollar"></i>
+                                            </button>
+                                            <button onclick="abrirModalJson('${p.id}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-xs cursor-pointer" title="Ver JSON da Pluggy">
+                                                <i class="fa-solid fa-code"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
                 }
 
-                divLista.innerHTML = '';
-                pixFiltrados.forEach(pix => {
-                    const dataCriacaoFormatada = MC_CONFIG.formatDate(pix.data_criacao);
-                    const valorParcelaForm = MC_CONFIG.formatMoney(pix.valor_parcela);
-                    const nomeSeguro = MC_CONFIG.escapeHtml(pix.cliente);
-                    const cpfDisplay = pix.cpf ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${pix.cpf}</span>` : '';
-                    const logoBanco = pix.banco_imagem 
-                        ? `<img src="${pix.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
-                        : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
-
-                    // Botao de link de autorizacao (caso pendente)
-                    let btnLinkWhats = '';
-                    if (pix.payment_url || pix.consent_url) {
-                        const linkAutorizacao = pix.payment_url || pix.consent_url;
-                        btnLinkWhats = `
-                            <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(linkAutorizacao)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Copiar link para WhatsApp">
-                                <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
-                            </button>
+                // 2. RENDERIZA VISÃO EM CARDS (SE O MODO CARDS ESTIVER ATIVO)
+                if (modoExibicaoPix === 'cards') {
+                    if (itensPaginados.length === 0) {
+                        divLista.innerHTML = `
+                            <div class="text-center py-16 text-slate-400">
+                                <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
+                                <p class="text-xs">Nenhum contrato encontrado para o filtro selecionado.</p>
+                            </div>
                         `;
+                        return;
                     }
 
-                    divLista.innerHTML += `
-                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
-                            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                                <div class="flex items-start gap-3.5">
-                                    <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                                        ${logoBanco}
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-2 flex-wrap">
-                                            <h3 class="font-bold text-[#010157] text-sm">${nomeSeguro}</h3>
-                                            ${cpfDisplay}
-                                            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${pix.status_badge}">
-                                                ${pix.status_label}
-                                            </span>
+                    divLista.innerHTML = '';
+                    itensPaginados.forEach(pix => {
+                        const dataCriacaoFormatada = pix.criado_em || formatarDataPluggy(pix.data_criacao);
+                        const valorParcelaForm = MC_CONFIG.formatMoney(pix.valor || pix.valor_parcela || 0);
+                        const nomeSeguro = MC_CONFIG.escapeHtml(pix.cliente);
+                        const docDisplay = pix.documento 
+                            ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${pix.tipo_documento}: ${pix.documento}</span>` 
+                            : (pix.cpf ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${pix.cpf}</span>` : '');
+
+                        const logoBanco = pix.banco_imagem 
+                            ? `<img src="${pix.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
+                            : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
+
+                        let btnLinkWhats = '';
+                        if (pix.payment_url || pix.consent_url) {
+                            const linkAutorizacao = pix.payment_url || pix.consent_url;
+                            btnLinkWhats = `
+                                <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(linkAutorizacao)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Copiar link para WhatsApp">
+                                    <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
+                                </button>
+                            `;
+                        }
+
+                        divLista.innerHTML += `
+                            <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
+                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                                    <div class="flex items-start gap-3.5">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                            ${logoBanco}
                                         </div>
-                                        <div class="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                                            <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(pix.banco_nome)}</span>
-                                            <span class="text-slate-300">•</span>
-                                            <span><i class="fa-regular fa-clock text-slate-400"></i> ${dataCriacaoFormatada}</span>
-                                            ${pix.data_inicio ? `<span class="text-slate-300">•</span><span>Início: <strong>${pix.data_inicio}</strong></span>` : ''}
+                                        <div>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h3 class="font-bold text-[#010157] text-sm">${nomeSeguro}</h3>
+                                                ${docDisplay}
+                                                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${pix.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
+                                                    ${pix.status_label || 'Pendente'}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
+                                                <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco')}</span>
+                                                <span class="text-slate-300">•</span>
+                                                <span><i class="fa-regular fa-clock text-slate-400"></i> ${dataCriacaoFormatada}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                                        <div class="text-left lg:text-right mr-2">
+                                            <span class="text-[10px] text-slate-400 font-bold uppercase block">Valor</span>
+                                            <span class="text-base font-black text-[#010157] font-mono">${valorParcelaForm}</span>
+                                        </div>
+
+                                        <div class="flex items-center gap-2">
+                                            ${btnLinkWhats}
+                                            <button onclick="consultarPix('${pix.id}', 'detalhe-pix-${pix.id}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                                <i class="fa-solid fa-file-invoice-dollar text-[#0985ff]"></i> Extrato
+                                            </button>
+                                            <button onclick="abrirModalJson('${pix.id}')" class="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-2 rounded-xl text-xs transition cursor-pointer" title="Ver JSON da Pluggy">
+                                                <i class="fa-solid fa-code"></i>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                                    <div class="text-left lg:text-right mr-2">
-                                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Parcela Mensal</span>
-                                        <span class="text-base font-black text-[#010157] font-mono">${valorParcelaForm}</span>
-                                    </div>
-
-                                    <div class="flex items-center gap-2">
-                                        ${btnLinkWhats}
-                                        <button onclick="consultarPix('${pix.id}', 'detalhe-pix-${pix.id}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                            <i class="fa-solid fa-file-invoice-dollar text-[#0985ff]"></i> Extrato
-                                        </button>
-                                        <button onclick="abrirModalJson('${pix.id}')" class="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-2 rounded-xl text-xs transition cursor-pointer" title="Ver JSON da Pluggy">
-                                            <i class="fa-solid fa-code"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                                <div id="detalhe-pix-${pix.id}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
                             </div>
-                            <div id="detalhe-pix-${pix.id}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
-                        </div>
-                    `;
-                });
+                        `;
+                    });
+                }
 
             } else {
                 // RENDERIZACAO DE OPEN FINANCE

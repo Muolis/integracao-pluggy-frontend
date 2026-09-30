@@ -129,7 +129,40 @@ def run_tests():
     assert res_wh.status_code == 200, f"Webhook falhou: {res_wh.status_code}"
     print(" Teste 14 [/api/webhook/pluggy]: Sucesso! Webhook aceito e processado com HTTP 200.")
 
-    print("\n TODOS OS 14 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 15. Teste fluxo de CNPJ (Pessoa Jurídica) em /gerar-token-pix
+    res_cnpj_invalido = client.post('/gerar-token-pix', json={
+        "valor": 200,
+        "tipo_doc": "pj",
+        "cnpj": "11111111111111", # CNPJ com dígitos repetidos inválido
+        "cpf": "303.913.774-34",
+        "data_inicio": "2026-10-15",
+        "banco": 603
+    })
+    assert res_cnpj_invalido.status_code == 400, "Validação de CNPJ inválido não retornou 400"
+
+    res_cnpj_sem_rep = client.post('/gerar-token-pix', json={
+        "valor": 200,
+        "tipo_doc": "pj",
+        "cnpj": "62.455.954/0001-46", # CNPJ válido MC Securitizadora
+        "cpf": "123", # CPF representante inválido
+        "data_inicio": "2026-10-15",
+        "banco": 603
+    })
+    assert res_cnpj_sem_rep.status_code == 400, "Validação de representante sem CPF não retornou 400"
+    print(" Teste 15 [Fluxo CNPJ /gerar-token-pix]: Sucesso! Bloqueio de CNPJ/CPF representante inválidos validado.")
+
+    # 16. Teste campos analíticos da Pluggy em /api/pix-intents (Solicitações & Pagamentos)
+    kpis = pix_data.get("kpis", {})
+    assert "instituicoes" in kpis, "Campo 'instituicoes' ausente nos KPIs"
+    assert "total_concluidos_qtd" in kpis, "total_concluidos_qtd ausente nos KPIs"
+    assert "total_concluidos_valor" in kpis, "total_concluidos_valor ausente nos KPIs"
+    primeiro_item = pix_data["results"][0]
+    assert "id_externo" in primeiro_item, "id_externo ausente no item"
+    assert "descricao" in primeiro_item, "descricao ausente no item"
+    assert "recebedor" in primeiro_item, "recebedor ausente no item"
+    print(f" Teste 16 [Painel Analítico Pluggy]: Sucesso! KPIs de Pagamentos e {len(kpis['instituicoes'])} Instituições validados.")
+
+    print("\n TODOS OS 16 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()

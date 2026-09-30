@@ -235,8 +235,55 @@
         return resto === parseInt(digitos.charAt(10));
     }
 
+    function cleanCnpj(cnpj) {
+        return String(cnpj || '').replace(/\D/g, '');
+    }
+
+    function formatCnpj(cnpj) {
+        const digitos = cleanCnpj(cnpj).slice(0, 14);
+        if (!digitos) return '';
+        if (digitos.length <= 2) return digitos;
+        if (digitos.length <= 5) return `${digitos.slice(0, 2)}.${digitos.slice(2)}`;
+        if (digitos.length <= 8) return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5)}`;
+        if (digitos.length <= 12) return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8)}`;
+        return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8, 12)}-${digitos.slice(12, 14)}`;
+    }
+
+    function validarCnpj(cnpj) {
+        const digitos = cleanCnpj(cnpj);
+        if (digitos.length !== 14) return false;
+        if (/^(\d)\1{13}$/.test(digitos)) return false;
+
+        const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+        let soma1 = 0;
+        for (let i = 0; i < 12; i++) soma1 += parseInt(digitos.charAt(i)) * pesos1[i];
+        let resto1 = soma1 % 11;
+        let d1 = resto1 < 2 ? 0 : 11 - resto1;
+        if (parseInt(digitos.charAt(12)) !== d1) return false;
+
+        const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+        let soma2 = 0;
+        for (let i = 0; i < 13; i++) soma2 += parseInt(digitos.charAt(i)) * pesos2[i];
+        let resto2 = soma2 % 11;
+        let d2 = resto2 < 2 ? 0 : 11 - resto2;
+        return parseInt(digitos.charAt(13)) === d2;
+    }
+
+    function formatDoc(doc) {
+        const limpo = String(doc || '').replace(/\D/g, '');
+        if (limpo.length > 11) return formatCnpj(limpo);
+        return formatCpf(limpo);
+    }
+
+    function validarDoc(doc) {
+        const limpo = String(doc || '').replace(/\D/g, '');
+        if (limpo.length === 14) return validarCnpj(limpo);
+        if (limpo.length === 11) return validarCpf(limpo);
+        return false;
+    }
+
     function limparMemoriaCliente() {
-        const chaves = ['memoriaCliente', 'memoriaCpf', 'memoriaValor', 'memoriaInicio', 'memoriaBanco'];
+        const chaves = ['memoriaCliente', 'memoriaCpf', 'memoriaCnpj', 'memoriaTipoDoc', 'memoriaValor', 'memoriaInicio', 'memoriaFim', 'memoriaBanco'];
         chaves.forEach(chave => localStorage.removeItem(chave));
     }
 
@@ -257,6 +304,11 @@
         cleanCpf,
         formatCpf,
         validarCpf,
+        cleanCnpj,
+        formatCnpj,
+        validarCnpj,
+        formatDoc,
+        validarDoc,
         limparMemoriaCliente
     };
 

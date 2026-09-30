@@ -87,9 +87,24 @@
                 </div>
             </div>
 
-            <!-- Campo de CPF do cliente se não veio informado na URL -->
+            <!-- Campo de CNPJ se for PJ e não veio informado na URL -->
+            <div id="campo-cnpj-container" class="hidden">
+                <label for="cnpj-cliente-input" class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-1.5">
+                    CNPJ da Empresa (para autorização):
+                </label>
+                <input 
+                    type="text" 
+                    id="cnpj-cliente-input" 
+                    maxlength="18"
+                    oninput="this.value = MC_CONFIG.formatCnpj(this.value)"
+                    placeholder="00.000.000/0000-00" 
+                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition font-mono"
+                >
+            </div>
+
+            <!-- Campo de CPF do titular ou representante se não veio informado na URL -->
             <div id="campo-cpf-container" class="hidden">
-                <label for="cpf-cliente-input" class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-1.5">
+                <label id="label-cpf-input" for="cpf-cliente-input" class="block text-xs font-bold text-[#010157] uppercase tracking-wider mb-1.5">
                     Seu CPF (para validação no banco):
                 </label>
                 <input 
@@ -152,14 +167,24 @@
         let valor = parametrosUrl.get('valor');
         let bancoParam = parametrosUrl.get('banco');
         let cpfParam = parametrosUrl.get('cpf');
+        let cnpjParam = parametrosUrl.get('cnpj');
+        let tipoDocParam = (parametrosUrl.get('tipoDoc') || parametrosUrl.get('tipo') || '').toLowerCase();
         let inicioParam = parametrosUrl.get('inicio');
         let fimParam = parametrosUrl.get('fim');
+
+        if (cnpjParam || tipoDocParam === 'pj') {
+            tipoDocParam = 'pj';
+        } else {
+            tipoDocParam = 'pf';
+        }
 
         // Persistência resiliente de sessão para recargas de página
         if (clienteId) {
             localStorage.setItem('memoriaCliente', clienteId);
             if (valor) {
-                localStorage.setItem('memoriaCpf', cpfParam ? MC_CONFIG.cleanCpf(cpfParam) : '');
+                localStorage.setItem('memoriaTipoDoc', tipoDocParam);
+                if (cnpjParam) localStorage.setItem('memoriaCnpj', MC_CONFIG.cleanCnpj(cnpjParam));
+                if (cpfParam) localStorage.setItem('memoriaCpf', MC_CONFIG.cleanCpf(cpfParam));
                 localStorage.setItem('memoriaValor', valor);
                 localStorage.setItem('memoriaInicio', inicioParam || '');
                 if (fimParam) localStorage.setItem('memoriaFim', fimParam);
@@ -219,19 +244,43 @@
         // Customização da interface com base no tipo de operação
         if (clienteId && clienteId !== 'Atendimento') {
             const clienteSeguro = MC_CONFIG.escapeHtml(clienteId);
+            const tipoDocMemoria = localStorage.getItem('memoriaTipoDoc') || tipoDocParam || 'pf';
+            const isPJ = (tipoDocMemoria === 'pj');
 
             if (valor && valor !== "null" && valor !== "") {
                 const valorFormatado = MC_CONFIG.formatMoney(valor);
+                const cnpjSalvo = localStorage.getItem('memoriaCnpj');
+                const cpfSalvo = localStorage.getItem('memoriaCpf');
+
+                let badgeDoc = '';
+                if (isPJ) {
+                    const cnpjStr = cnpjSalvo ? MC_CONFIG.formatCnpj(cnpjSalvo) : '';
+                    const repStr = cpfSalvo ? ` • Rep: ${MC_CONFIG.formatCpf(cpfSalvo)}` : '';
+                    badgeDoc = cnpjStr ? `<div class="mt-1 text-[11px] text-slate-600 font-medium">CNPJ: <strong class="font-mono text-[#010157]">${cnpjStr}</strong>${repStr}</div>` : '';
+                } else if (cpfSalvo) {
+                    badgeDoc = `<div class="mt-1 text-[11px] text-slate-600 font-medium">CPF: <strong class="font-mono text-[#010157]">${MC_CONFIG.formatCpf(cpfSalvo)}</strong></div>`;
+                }
+
                 document.getElementById('texto-cliente').innerHTML = `
-                    Autorize o contrato de Pix Automático no valor de <strong class="text-[#010157] font-bold">${valorFormatado} mensais</strong> para o atendimento <strong class="text-[#0985ff] font-bold">#${clienteSeguro}</strong>.
+                    Autorize o contrato de Pix Automático no valor de <strong class="text-[#010157] font-bold">${valorFormatado} mensais</strong> para <strong class="text-[#0985ff] font-bold">#${clienteSeguro}</strong>.
+                    ${badgeDoc}
                 `;
                 document.getElementById('texto-btn-conectar').innerText = "Autorizar Pix Automático";
                 document.getElementById('area-seletor-banco').classList.remove('hidden');
 
-                // Se CPF não veio na URL nem em memória, exibe campo
-                const cpfSalvo = localStorage.getItem('memoriaCpf');
-                if (!cpfSalvo) {
-                    document.getElementById('campo-cpf-container').classList.remove('hidden');
+                if (isPJ) {
+                    if (!cnpjSalvo) {
+                        document.getElementById('campo-cnpj-container').classList.remove('hidden');
+                    }
+                    if (!cpfSalvo) {
+                        document.getElementById('label-cpf-input').innerText = "CPF do Titular / Representante Legal (no Banco):";
+                        document.getElementById('campo-cpf-container').classList.remove('hidden');
+                    }
+                } else {
+                    if (!cpfSalvo) {
+                        document.getElementById('label-cpf-input').innerText = "Seu CPF (para validação no banco):";
+                        document.getElementById('campo-cpf-container').classList.remove('hidden');
+                    }
                 }
 
                 carregarBancos();
@@ -291,9 +340,13 @@
             const msgErro = document.getElementById("mensagem-erro");
             msgErro.classList.add("hidden");
 
+            const tipoDocMemoria = localStorage.getItem('memoriaTipoDoc') || tipoDocParam || 'pf';
+            const isPJ = (tipoDocMemoria === 'pj');
+            let cnpjMemoria = localStorage.getItem('memoriaCnpj');
             let cpfMemoria = localStorage.getItem('memoriaCpf');
             const valorMemoria = localStorage.getItem('memoriaValor');
             let inicioMemoria = localStorage.getItem('memoriaInicio');
+            let fimMemoria = localStorage.getItem('memoriaFim');
             let bancoEscolhido = null;
 
             if (valorMemoria && valorMemoria !== "null" && valorMemoria !== "") {
@@ -303,15 +356,35 @@
                     return;
                 }
 
-                // Se o CPF não estiver na memória, busca do input
-                if (!cpfMemoria) {
-                    const inputCpf = document.getElementById('cpf-cliente-input');
-                    cpfMemoria = MC_CONFIG.cleanCpf(inputCpf ? inputCpf.value : '');
-                    if (!cpfMemoria || cpfMemoria.length !== 11) {
-                        MC_CONFIG.showToast("Informe um CPF válido com 11 dígitos para autorização.", "warning");
-                        return;
+                if (isPJ) {
+                    if (!cnpjMemoria) {
+                        const inputCnpj = document.getElementById('cnpj-cliente-input');
+                        cnpjMemoria = MC_CONFIG.cleanCnpj(inputCnpj ? inputCnpj.value : '');
+                        if (!cnpjMemoria || !MC_CONFIG.validarCnpj(cnpjMemoria)) {
+                            MC_CONFIG.showToast("Informe um CNPJ válido com 14 dígitos.", "warning");
+                            return;
+                        }
+                        localStorage.setItem('memoriaCnpj', cnpjMemoria);
                     }
-                    localStorage.setItem('memoriaCpf', cpfMemoria);
+                    if (!cpfMemoria) {
+                        const inputCpf = document.getElementById('cpf-cliente-input');
+                        cpfMemoria = MC_CONFIG.cleanCpf(inputCpf ? inputCpf.value : '');
+                        if (!cpfMemoria || !MC_CONFIG.validarCpf(cpfMemoria)) {
+                            MC_CONFIG.showToast("Informe o CPF do titular/representante legal para autorização no banco.", "warning");
+                            return;
+                        }
+                        localStorage.setItem('memoriaCpf', cpfMemoria);
+                    }
+                } else {
+                    if (!cpfMemoria) {
+                        const inputCpf = document.getElementById('cpf-cliente-input');
+                        cpfMemoria = MC_CONFIG.cleanCpf(inputCpf ? inputCpf.value : '');
+                        if (!cpfMemoria || !MC_CONFIG.validarCpf(cpfMemoria)) {
+                            MC_CONFIG.showToast("Informe um CPF válido com 11 dígitos para autorização.", "warning");
+                            return;
+                        }
+                        localStorage.setItem('memoriaCpf', cpfMemoria);
+                    }
                 }
 
                 if (!inicioMemoria) {
@@ -334,8 +407,12 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             valor: parseFloat(valorMemoria),
-                            cpf: cpfMemoria,
+                            tipo_doc: isPJ ? 'pj' : 'pf',
+                            cnpj: cnpjMemoria || '',
+                            cpf: cpfMemoria || '',
+                            cliente: clienteId,
                             data_inicio: inicioMemoria,
+                            data_fim: fimMemoria || '',
                             banco: parseInt(bancoEscolhido)
                         })
                     };
