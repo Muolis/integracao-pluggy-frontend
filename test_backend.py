@@ -196,7 +196,30 @@ def run_tests():
         assert "concluidos_texto" in detalhe_json, "concluidos_texto ausente em /consultar-pix"
         print(f" Teste 19 [/consultar-pix estilo Pluggy]: Sucesso! Detalhe da operação retornado com cliente: {detalhe_json['cliente'].get('nome') or 'N/A'}, {len(detalhe_json['pagamentos'])} pagamentos ({detalhe_json['concluidos_texto']}).")
 
-    print("\n TODOS OS 19 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 20. Teste rota estática /securitizadora.html
+    res_sec_html = client.get('/securitizadora.html')
+    assert res_sec_html.status_code == 200, f"Falha ao servir securitizadora.html: {res_sec_html.status_code}"
+    print(" Teste 20 [/securitizadora.html]: Sucesso! Tela corporativa da Securitizadora servida com HTTP 200.")
+
+    # 21. Teste /api/securitizadora/resumo com autenticação
+    res_sec_resumo = client.get('/api/securitizadora/resumo', headers={"Authorization": f"Bearer {token}"})
+    assert res_sec_resumo.status_code == 200, f"/api/securitizadora/resumo falhou: {res_sec_resumo.status_code}"
+    sec_data = res_sec_resumo.get_json()
+    assert sec_data.get("sucesso"), "sucesso não retornado como True"
+    assert "empresa" in sec_data, "empresa ausente em /api/securitizadora/resumo"
+    assert "kpis" in sec_data, "kpis ausente em /api/securitizadora/resumo"
+    assert len(sec_data.get("contas", [])) > 0, "Nenhuma conta da Securitizadora retornada"
+    print(f" Teste 21 [/api/securitizadora/resumo]: Sucesso! Retornou {len(sec_data['contas'])} conta(s) PJ (Saldo Consolidado: {sec_data['kpis']['saldo_consolidado_formatado']}).")
+
+    # 22. Teste /api/securitizadora/extrato com autenticação
+    res_sec_extrato = client.get('/api/securitizadora/extrato', headers={"Authorization": f"Bearer {token}"})
+    assert res_sec_extrato.status_code == 200, f"/api/securitizadora/extrato falhou: {res_sec_extrato.status_code}"
+    extrato_data = res_sec_extrato.get_json()
+    assert extrato_data.get("sucesso"), "sucesso não retornado no extrato"
+    assert "results" in extrato_data, "results ausente no extrato"
+    print(f" Teste 22 [/api/securitizadora/extrato]: Sucesso! {len(extrato_data['results'])} movimentações corporativas consultadas em tempo real.")
+
+    print("\n TODOS OS 22 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()

@@ -1476,6 +1476,296 @@ def consultar_pix(intent_id):
         return jsonify({'erro': f'Erro interno ao buscar Pix: {str(e)}'}), 500
 
 # ====================================================================
+# 5.1 AMBIENTE DA CONTA DA SECURITIZADORA (MC MINHACONTA PJ)
+# ====================================================================
+
+CNPJ_SECURITIZADORA = '62.455.954/0001-46'
+CNPJ_SECURITIZADORA_RAW = '62455954000146'
+
+CATEGORIAS_PT = {
+    'Transfer - PIX': 'Pix Transferência',
+    'Transfer - TED': 'TED Bancária',
+    'Third party transfer - TED': 'TED Terceiros',
+    'Transfers': 'Transferência entre Contas',
+    'Services': 'Pagamento de Boletos / Serviços',
+    'Loans': 'Empréstimos / Operações',
+    'Financing': 'Financiamentos',
+    'Proceeds interests and dividends': 'Rendimento Invest Fácil / Aplicação',
+    'Bank fees': 'Tarifas Bancárias',
+    'Credit card fees': 'Tarifa de Cartão',
+    'Taxes': 'Impostos e Tributos',
+    'Tax on financial operations': 'IOF',
+    'Automotive': 'Transporte / Automotivo',
+    'Electronics': 'Equipamentos / Tecnologia',
+    'Housing': 'Instalações / Imóvel'
+}
+
+def obter_contas_securitizadora(api_key):
+    """Localiza todas as contas bancárias atreladas à Securitizadora MC"""
+    item_ids = ['75cfdce4-cdf3-4050-9aac-a89238eef38a', '585b5487-608b-4f10-9e58-45c3cddb7501']
+    if supabase:
+        try:
+            res_sec = supabase.table('conexoes').select('*').eq('tipo', 'securitizadora').execute()
+            for r in (res_sec.data or []):
+                it = r.get('item_id')
+                if it and it not in item_ids:
+                    item_ids.append(it)
+        except Exception as e:
+            print(f'[AVISO SUPABASE SECURITIZADORA]: {e}')
+
+    contas_encontradas = []
+    itens_processados = set()
+
+    for it_id in item_ids:
+        if it_id in itens_processados:
+            continue
+        itens_processados.add(it_id)
+        try:
+            r_item = requests.get(f'https://api.pluggy.ai/items/{it_id}', headers={'X-API-KEY': api_key}, timeout=10)
+            if r_item.status_code != 200:
+                continue
+            item_data = r_item.json()
+            conector = item_data.get('connector', {})
+
+            r_acc = requests.get(f'https://api.pluggy.ai/accounts?itemId={it_id}', headers={'X-API-KEY': api_key}, timeout=10)
+            if r_acc.status_code != 200:
+                continue
+            acc_list = r_acc.json().get('results', [])
+
+            for acc in acc_list:
+                tax_num = clean_cnpj(acc.get('taxNumber') or '')
+                if tax_num == CNPJ_SECURITIZADORA_RAW or 'BRADESCO EMPRESAS' in str(conector.get('name', '')).upper() or 'MINHACONTA' in str(acc.get('owner', '')).upper():
+                    saldo_val = float(acc.get('balance') or 0.0)
+                    bank_data = acc.get('bankData') or {}
+                    transfer_num = str(bank_data.get('transferNumber') or '')
+                    agencia = transfer_num.split('/')[1] if '/' in transfer_num else (acc.get('agency') or '3201')
+                    conta_num = acc.get('number') or '0079613-1'
+
+                    contas_encontradas.append({
+                        'id': acc.get('id'),
+                        'item_id': it_id,
+                        'banco': conector.get('name', 'Bradesco Empresas'),
+                        'banco_codigo': conector.get('id', 609),
+                        'banco_logo': conector.get('imageUrl') or 'https://cdn.pluggy.ai/assets/connectors/bradesco.svg',
+                        'nome_conta': acc.get('name') or 'Conta Corrente com Invest Fácil',
+                        'tipo': 'Conta Corrente PJ',
+                        'agencia': agencia,
+                        'numero': conta_num,
+                        'tax_number': format_cnpj(CNPJ_SECURITIZADORA_RAW),
+                        'titular': 'MC MINHACONTA SECURITIZADORA SA',
+                        'saldo': saldo_val,
+                        'saldo_formatado': f"R$ {saldo_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                        'status_item': item_data.get('status', 'UPDATED'),
+                        'ultima_atualizacao': format_data_pluggy(acc.get('updatedAt') or item_data.get('updatedAt'))
+                    })
+        except Exception as e:
+            print(f'[ERRO CONSULTA CONTA MC {it_id}]: {e}')
+
+    return contas_encontradas
+
+@app.route('/api/securitizadora/resumo', methods=['GET'])
+@requer_autenticacao
+def api_securitizadora_resumo():
+    """Resumo executivo financeiro e lista de contas da MC Securitizadora"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
+
+    contas = obter_contas_securitizadora(api_key)
+    saldo_total = sum(c['saldo'] for c in contas)
+
+    total_tx = 0
+    total_entradas = 0.0
+    total_saidas = 0.0
+
+    if contas:
+        conta_principal_id = contas[0]['id']
+        try:
+            r_tx = requests.get(f'https://api.pluggy.ai/v2/transactions?accountId={conta_principal_id}', headers={'X-API-KEY': api_key}, timeout=15)
+            if r_tx.status_code == 200:
+                tx_list = r_tx.json().get('results', [])
+                total_tx = len(tx_list)
+                for t in tx_list:
+                    val = float(t.get('amount') or 0.0)
+                    if val > 0:
+                        total_entradas += val
+                    else:
+                        total_saidas += abs(val)
+        except Exception as e_tx:
+            print(f'[AVISO TX STATS]: {e_tx}')
+
+    return jsonify({
+        'sucesso': True,
+        'empresa': {
+            'razao_social': 'MC MINHACONTA SECURITIZADORA S/A',
+            'nome_fantasia': 'MC Minha Conta',
+            'cnpj': CNPJ_SECURITIZADORA,
+            'status': 'CONECTADO',
+            'ambiente': 'Open Finance Corporativo'
+        },
+        'kpis': {
+            'saldo_consolidado': round(saldo_total, 2),
+            'saldo_consolidado_formatado': f"R$ {saldo_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'total_contas': len(contas),
+            'total_transacoes': total_tx,
+            'total_entradas': round(total_entradas, 2),
+            'total_entradas_formatado': f"R$ {total_entradas:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'total_saidas': round(total_saidas, 2),
+            'total_saidas_formatado': f"R$ {total_saidas:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        },
+        'contas': contas
+    }), 200
+
+@app.route('/api/securitizadora/extrato', methods=['GET'])
+@requer_autenticacao
+def api_securitizadora_extrato():
+    """Retorna o extrato bancário detalhado das contas da Securitizadora com filtros"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
+
+    account_id = request.args.get('accountId') or request.args.get('account_id')
+    if not account_id:
+        contas = obter_contas_securitizadora(api_key)
+        if not contas:
+            return jsonify({'erro': 'Nenhuma conta da Securitizadora localizada'}), 404
+        account_id = contas[0]['id']
+
+    params = {}
+    date_from = request.args.get('dateFrom') or request.args.get('from')
+    date_to = request.args.get('dateTo') or request.args.get('to')
+    if date_from: params['dateFrom'] = date_from
+    if date_to: params['dateTo'] = date_to
+
+    try:
+        r = requests.get(
+            f'https://api.pluggy.ai/v2/transactions?accountId={account_id}',
+            params=params,
+            headers={'X-API-KEY': api_key},
+            timeout=15
+        )
+        if r.status_code != 200:
+            return jsonify({'erro': 'Falha ao buscar movimentações na Pluggy', 'detalhes': r.text}), r.status_code
+
+        dados_raw = r.json()
+        transacoes_raw = dados_raw.get('results', [])
+
+        filtro_tipo = (request.args.get('tipo') or 'ALL').upper()
+        filtro_busca = (request.args.get('busca') or '').strip().lower()
+        filtro_cat = request.args.get('categoria')
+
+        formatadas = []
+        tot_entradas_filtro = 0.0
+        tot_saidas_filtro = 0.0
+
+        for t in transacoes_raw:
+            val = float(t.get('amount') or 0.0)
+            tipo_mov = 'CREDIT' if val > 0 else 'DEBIT'
+
+            if filtro_tipo == 'CREDIT' and tipo_mov != 'CREDIT':
+                continue
+            if filtro_tipo == 'DEBIT' and tipo_mov != 'DEBIT':
+                continue
+
+            desc = t.get('description') or 'Movimentação Bancária'
+            desc_raw = t.get('descriptionRaw') or ''
+            cat_raw = t.get('category') or 'Outros'
+            cat_label = CATEGORIAS_PT.get(cat_raw, cat_raw)
+
+            if filtro_cat and filtro_cat != 'TODAS' and filtro_cat.lower() != cat_raw.lower() and filtro_cat.lower() != cat_label.lower():
+                continue
+
+            p_data = t.get('paymentData') or {}
+            payer = p_data.get('payer') or {}
+            receiver = p_data.get('receiver') or {}
+            contraparte = receiver.get('name') or payer.get('name') or ''
+            contraparte_doc = (receiver.get('documentNumber') or {}).get('value') or (payer.get('documentNumber') or {}).get('value') or ''
+
+            if filtro_busca:
+                texto_combinado = f"{desc} {desc_raw} {contraparte} {contraparte_doc} {cat_label}".lower()
+                if filtro_busca not in texto_combinado:
+                    continue
+
+            if val > 0:
+                tot_entradas_filtro += val
+            else:
+                tot_saidas_filtro += abs(val)
+
+            data_iso = t.get('date') or ''
+            data_fmt = format_data_pluggy(data_iso) if data_iso else '-'
+
+            formatadas.append({
+                'id': t.get('id'),
+                'data': data_fmt,
+                'data_iso': data_iso,
+                'descricao': desc,
+                'categoria': cat_label,
+                'categoria_codigo': cat_raw,
+                'tipo': tipo_mov,
+                'tipo_label': 'Entrada' if tipo_mov == 'CREDIT' else 'Saída',
+                'valor': val,
+                'valor_absoluto': abs(val),
+                'valor_formatado': f"{'+ ' if val > 0 else '- '}R$ {abs(val):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                'saldo_apos': t.get('balance'),
+                'contraparte': contraparte,
+                'contraparte_doc': format_cnpj(contraparte_doc) if len(clean_cnpj(contraparte_doc)) == 14 else (format_cpf(contraparte_doc) if len(clean_cpf(contraparte_doc)) == 11 else contraparte_doc),
+                'metodo_pagamento': p_data.get('paymentMethod'),
+                'boleto': p_data.get('boletoMetadata'),
+                'raw': t
+            })
+
+        return jsonify({
+            'sucesso': True,
+            'total': len(formatadas),
+            'total_entradas': round(tot_entradas_filtro, 2),
+            'total_entradas_formatado': f"R$ {tot_entradas_filtro:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'total_saidas': round(tot_saidas_filtro, 2),
+            'total_saidas_formatado': f"R$ {tot_saidas_filtro:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'results': formatadas
+        }), 200
+    except Exception as e:
+        return jsonify({'erro': f'Erro interno ao buscar extrato: {str(e)}'}), 500
+
+@app.route('/api/securitizadora/conectar-token', methods=['POST'])
+@requer_autenticacao
+def api_securitizadora_conectar_token():
+    """Gera token do Pluggy Connect para conectar novas contas da Securitizadora"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
+    try:
+        payload = {
+            'options': {
+                'clientName': 'MC Securitizadora - Contas Próprias',
+                'avoidDuplicates': True
+            }
+        }
+        res = requests.post('https://api.pluggy.ai/connect_token', json=payload, headers={'X-API-KEY': api_key}, timeout=12)
+        if res.status_code != 200:
+            return jsonify({'erro': 'Falha ao gerar token na Pluggy', 'detalhes': res.text}), res.status_code
+        return jsonify(res.json()), 200
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao gerar token da Securitizadora: {str(e)}'}), 500
+
+@app.route('/api/securitizadora/sincronizar', methods=['POST'])
+@requer_autenticacao
+def api_securitizadora_sincronizar():
+    """Dispara atualização forçada dos itens da Securitizadora na Pluggy"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
+    try:
+        contas = obter_contas_securitizadora(api_key)
+        itens = list(set(c['item_id'] for c in contas))
+        resultados = []
+        for it in itens:
+            r = requests.patch(f'https://api.pluggy.ai/items/{it}', headers={'X-API-KEY': api_key}, timeout=10)
+            resultados.append({'item_id': it, 'status_code': r.status_code})
+        return jsonify({'sucesso': True, 'itens': resultados, 'mensagem': 'Sincronização com o banco iniciada'}), 200
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao disparar sincronização: {str(e)}'}), 500
+
+# ====================================================================
 # 6. WEBHOOKS DA PLUGGY & SINCRONIZACAO RESILIENTE
 # ====================================================================
 
@@ -1625,6 +1915,11 @@ def rota_extratos():
 @app.route('/painel.html')
 def rota_painel():
     return send_from_directory(BASE_DIR, 'painel.html')
+
+@app.route('/securitizadora')
+@app.route('/securitizadora.html')
+def rota_securitizadora():
+    return send_from_directory(BASE_DIR, 'securitizadora.html')
 
 @app.route('/<path:filename>')
 def rota_estaticos(filename):

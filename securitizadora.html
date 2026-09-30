@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MC Minha Conta - Ambiente Securitizadora</title>
+    
+    <!-- Configuração Central e Segurança -->
+    <script src="config.js?v=20260930_sec"></script>
+    
+    <!-- Trava de Autenticação -->
+    <script>
+        if (!MC_CONFIG.isAuthenticated()) {
+            window.location.href = "gestor-login.html";
+        }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- SDK Oficial Pluggy Connect para conectar novas contas -->
+    <script src="https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js"></script>
+
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+        .btn-brand-primary {
+            background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
+            transition: all 0.2s ease;
+        }
+        .btn-brand-primary:hover {
+            background: linear-gradient(135deg, #1aa0ff 0%, #0985ff 100%);
+            box-shadow: 0 4px 14px 0 rgba(9, 133, 255, 0.35);
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 antialiased min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- HEADER CORPORATIVO SECURITIZADORA -->
+        <header class="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="flex items-center gap-5">
+                <div class="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-2.5 shadow-sm border border-slate-200/80 flex items-center justify-center">
+                    <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-12 w-auto object-contain">
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200/80">
+                            <i class="fa-solid fa-building-shield"></i> AMBIENTE CORPORATIVO PJ
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <i class="fa-solid fa-circle-check"></i> CONEXÃO ATIVA OPEN FINANCE
+                        </span>
+                    </div>
+                    <h1 class="text-xl md:text-2xl font-black text-[#010157] tracking-tight">
+                        MC MINHACONTA SECURITIZADORA S/A
+                    </h1>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-3">
+                        <span>CNPJ: <strong class="font-mono text-slate-700">62.455.954/0001-46</strong></span>
+                        <span class="text-slate-300">•</span>
+                        <span>Monitoramento e Extrato Integrado Pluggy</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2.5 flex-wrap w-full md:w-auto">
+                <button type="button" onclick="sincronizarContasSecuritizadora()" id="btn-sync-sec" class="text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl transition shadow-xs flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-rotate text-[#0985ff]"></i> Sincronizar com Banco
+                </button>
+                <button type="button" onclick="abrirConectarNovaContaMC()" class="btn-brand-primary text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-plus"></i> Conectar Outra Conta MC
+                </button>
+                <a href="gestor.html" class="text-xs font-semibold text-slate-600 hover:text-[#010157] flex items-center gap-2 bg-slate-100/80 hover:bg-slate-200/80 px-4 py-2.5 rounded-xl transition cursor-pointer">
+                    <i class="fa-solid fa-arrow-left"></i> Painel do Gestor
+                </a>
+            </div>
+        </header>
+
+        <!-- CARDS DE METRICAS CONSOLIDADAS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Saldo Consolidado -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Saldo em Caixa Disponível</span>
+                    <span class="w-8 h-8 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-vault"></i>
+                    </span>
+                </div>
+                <div>
+                    <h3 id="kpi-saldo" class="text-2xl font-black text-[#010157] tracking-tight">Carregando...</h3>
+                    <div class="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
+                        <i class="fa-solid fa-shield-halved text-xs"></i> Saldo atualizado via Open Finance
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Entradas -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Recebimentos / Entradas</span>
+                    <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-arrow-down-left"></i>
+                    </span>
+                </div>
+                <div>
+                    <h3 id="kpi-entradas" class="text-2xl font-black text-emerald-600 tracking-tight">---</h3>
+                    <div class="mt-2 text-[11px] text-slate-500 font-medium">
+                        Pix, TEDs e liquidação de créditos
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Saídas -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pagamentos / Saídas</span>
+                    <span class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-arrow-up-right"></i>
+                    </span>
+                </div>
+                <div>
+                    <h3 id="kpi-saidas" class="text-2xl font-black text-slate-800 tracking-tight">---</h3>
+                    <div class="mt-2 text-[11px] text-slate-500 font-medium">
+                        Boletos, despesas e transferências
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contas Vinculadas -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Contas Vinculadas</span>
+                    <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </span>
+                </div>
+                <div>
+                    <h3 id="kpi-contas" class="text-2xl font-black text-[#010157] tracking-tight">1 Conta Ativa</h3>
+                    <div id="kpi-total-tx" class="mt-2 text-[11px] text-slate-500 font-medium">
+                        Sincronizando movimentações...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO: CONTAS BANCÁRIAS DA SECURITIZADORA -->
+        <div class="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-8 shadow-sm">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 flex-wrap gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-[#010157] uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-landmark text-[#0985ff]"></i>
+                        Contas Bancárias da Securitizadora MC
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Contas corporativas integradas com consulta automática de extratos</p>
+                </div>
+                <button onclick="abrirConectarNovaContaMC()" class="text-xs font-bold text-[#0985ff] hover:text-[#0772dc] bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-plus text-xs"></i> Vincular Novo Banco (Itaú, BB, Santander...)
+                </button>
+            </div>
+
+            <div id="grid-contas-securitizadora" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="col-span-full py-8 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-circle-notch fa-spin text-lg text-[#0985ff] mb-2 block"></i>
+                    Carregando contas bancárias da Securitizadora...
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO: EXTRATO BANCÁRIO DETALHADO -->
+        <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+            <!-- Barra de Filtros e Ferramentas -->
+            <div class="p-6 md:p-8 border-b border-slate-100 space-y-5">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-base font-bold text-[#010157] uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-receipt text-emerald-600"></i>
+                            Extrato Bancário Detalhado em Tempo Real
+                        </h2>
+                        <p id="subtitulo-extrato" class="text-xs text-slate-400 mt-0.5">
+                            Exibindo movimentações de: <strong class="text-slate-700">Bradesco Empresas (Agência 3201 | Conta 0079613-1)</strong>
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button onclick="exportarExtratoCSV()" class="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-3.5 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar CSV
+                        </button>
+                        <button onclick="buscarExtratoSecuritizadora(true)" class="text-xs font-bold text-[#0985ff] bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate-right"></i> Atualizar Extrato
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros Interativos -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                    <!-- Busca Rápida -->
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-3 text-xs"></i>
+                        <input type="text" id="filtro-busca" oninput="debounceFiltrar()" placeholder="Buscar pagador, recebedor, valor..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff]">
+                    </div>
+
+                    <!-- Filtro Tipo -->
+                    <div>
+                        <select id="filtro-tipo" onchange="buscarExtratoSecuritizadora()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30">
+                            <option value="ALL">Todas as Movimentações</option>
+                            <option value="CREDIT">Apenas Entradas / Créditos (+)</option>
+                            <option value="DEBIT">Apenas Saídas / Débitos (-)</option>
+                        </select>
+                    </div>
+
+                    <!-- Filtro Categoria -->
+                    <div>
+                        <select id="filtro-categoria" onchange="buscarExtratoSecuritizadora()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30">
+                            <option value="TODAS">Todas as Categorias</option>
+                            <option value="Transfer - PIX">Pix Transferência</option>
+                            <option value="Transfer - TED">TED Bancária</option>
+                            <option value="Transfers">Transferência entre Contas</option>
+                            <option value="Services">Pagamento de Boletos / Serviços</option>
+                            <option value="Proceeds interests and dividends">Rendimentos Invest Fácil</option>
+                            <option value="Bank fees">Tarifas Bancárias</option>
+                            <option value="Loans">Empréstimos / Operações</option>
+                        </select>
+                    </div>
+
+                    <!-- Resumo das Linhas Filtradas -->
+                    <div class="flex items-center justify-between sm:justify-end gap-3 px-2 text-xs">
+                        <span id="badge-total-filtrado" class="font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+                            0 movimentações
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Movimentações -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-100 tracking-wider">
+                            <th class="py-3.5 px-6">Data / Horário</th>
+                            <th class="py-3.5 px-6">Descrição da Transação & Contraparte</th>
+                            <th class="py-3.5 px-6">Categoria</th>
+                            <th class="py-3.5 px-6 text-center">Tipo</th>
+                            <th class="py-3.5 px-6 text-right">Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-extrato-corpo">
+                        <tr>
+                            <td colspan="5" class="py-16 text-center text-slate-400 text-xs">
+                                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-[#0985ff] mb-3 block"></i>
+                                Carregando histórico bancário oficial da Securitizadora...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Rodapé da Tabela -->
+            <div class="px-6 py-4 bg-slate-50/60 border-t border-slate-100 flex flex-wrap justify-between items-center gap-3 text-xs">
+                <span class="text-slate-500 font-medium">
+                    Dados obtidos via API oficial Pluggy Connect v2 em conformidade com o Open Finance Brasil.
+                </span>
+                <div class="flex items-center gap-4">
+                    <span id="rodape-totais" class="font-bold text-slate-700">---</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL DE CONEXÃO DE NOVA CONTA MC -->
+    <div id="modal-conectar-mc" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-7 md:p-8 shadow-2xl border border-slate-200 text-center space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div class="w-14 h-14 rounded-2xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-2xl mx-auto shadow-xs">
+                <i class="fa-solid fa-building-columns"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-black text-[#010157]">Vincular Nova Conta da Securitizadora</h3>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Selecione o banco da Securitizadora MC (Itaú Empresas, Banco do Brasil PJ, Santander Empresarial, etc.) para conectar ao painel.
+                </p>
+            </div>
+
+            <div id="area-conectar-status" class="py-3 text-xs text-slate-500">
+                Ao clicar abaixo, a tela segura da Pluggy será aberta para você autorizar o acesso da conta PJ.
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+                <button type="button" onclick="fecharModalConectarMC()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-3 rounded-xl transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="button" onclick="iniciarConexaoPluggyMC()" id="btn-iniciar-conectar-mc" class="flex-1 btn-brand-primary text-white text-xs font-bold py-3 rounded-xl transition shadow-sm cursor-pointer flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-link"></i> Abrir Conexão
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let contasSecuritizadora = [];
+        let contaSelecionadaId = null;
+        let transacoesCache = [];
+        let debounceTimer = null;
+
+        async function carregarResumoSecuritizadora() {
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/resumo');
+                if (!res.ok) throw new Error('Falha ao obter dados da Securitizadora');
+                
+                const dados = await res.json();
+                const kpis = dados.kpis || {};
+                contasSecuritizadora = dados.contas || [];
+
+                // Atualiza KPIs
+                document.getElementById('kpi-saldo').textContent = kpis.saldo_consolidado_formatado || 'R$ 0,00';
+                document.getElementById('kpi-entradas').textContent = kpis.total_entradas_formatado || 'R$ 0,00';
+                document.getElementById('kpi-saidas').textContent = kpis.total_saidas_formatado || 'R$ 0,00';
+                document.getElementById('kpi-contas').textContent = `${contasSecuritizadora.length} ${contasSecuritizadora.length === 1 ? 'Conta Ativa' : 'Contas Ativas'}`;
+                document.getElementById('kpi-total-tx').textContent = `${kpis.total_transacoes || 0} movimentações registradas`;
+
+                // Renderiza Grid de Contas
+                renderizarContasSecuritizadora();
+
+                // Seleciona a primeira conta e busca o extrato
+                if (contasSecuritizadora.length > 0) {
+                    contaSelecionadaId = contasSecuritizadora[0].id;
+                    const c = contasSecuritizadora[0];
+                    document.getElementById('subtitulo-extrato').innerHTML = `
+                        Exibindo movimentações de: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(c.banco)} (Agência ${c.agencia} | Conta ${c.numero})</strong>
+                    `;
+                    buscarExtratoSecuritizadora();
+                } else {
+                    document.getElementById('tabela-extrato-corpo').innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-12 text-center text-slate-400 text-xs">
+                                Nenhuma conta corporativa encontrada vinculada à Securitizadora.
+                            </td>
+                        </tr>
+                    `;
+                }
+
+            } catch (err) {
+                console.error(err);
+                MC_CONFIG.showToast('Erro ao carregar ambiente da Securitizadora: ' + err.message, 'error');
+            }
+        }
+
+        function renderizarContasSecuritizadora() {
+            const grid = document.getElementById('grid-contas-securitizadora');
+            if (!contasSecuritizadora.length) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-slate-400 text-xs">
+                        Nenhuma conta bancária cadastrada. Clique em "Vincular Novo Banco" para adicionar.
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = contasSecuritizadora.map(c => {
+                const isSelected = c.id === contaSelecionadaId;
+                const bordaClass = isSelected ? 'border-[#0985ff] ring-2 ring-[#0985ff]/20 bg-blue-50/20' : 'border-slate-200/90 hover:border-slate-300 bg-white';
+                
+                return `
+                    <div class="rounded-2xl p-5 border ${bordaClass} transition shadow-xs flex flex-col justify-between cursor-pointer" onclick="selecionarContaSecuritizadora('${c.id}')">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-2.5">
+                                    <img src="${c.banco_logo}" alt="${c.banco}" class="w-8 h-8 object-contain rounded-lg border border-slate-100 p-0.5 bg-white shadow-2xs" onerror="this.src='https://cdn.pluggy.ai/assets/connectors/bradesco.svg'">
+                                    <div>
+                                        <h3 class="text-xs font-bold text-[#010157] leading-tight">${MC_CONFIG.escapeHtml(c.banco)}</h3>
+                                        <span class="text-[10px] text-slate-400 uppercase font-semibold">${MC_CONFIG.escapeHtml(c.tipo)}</span>
+                                    </div>
+                                </div>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <i class="fa-solid fa-check text-[9px]"></i> Ativa
+                                </span>
+                            </div>
+
+                            <div class="space-y-1.5 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400 text-[11px]">Agência:</span>
+                                    <span class="font-mono font-bold text-slate-700">${c.agencia}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400 text-[11px]">Conta Corrente:</span>
+                                    <span class="font-mono font-bold text-slate-700">${c.numero}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400 text-[11px]">Titular:</span>
+                                    <span class="font-bold text-slate-700 text-[11px] truncate max-w-[170px]" title="${c.titular}">${c.titular}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block">Saldo Disponível</span>
+                                <strong class="text-base font-black text-[#010157]">${c.saldo_formatado}</strong>
+                            </div>
+                            <button class="text-xs font-bold ${isSelected ? 'text-[#0985ff]' : 'text-slate-500'} flex items-center gap-1 hover:underline">
+                                <span>${isSelected ? 'Selecionada' : 'Ver Extrato'}</span>
+                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selecionarContaSecuritizadora(accId) {
+            contaSelecionadaId = accId;
+            renderizarContasSecuritizadora();
+            const c = contasSecuritizadora.find(x => x.id === accId);
+            if (c) {
+                document.getElementById('subtitulo-extrato').innerHTML = `
+                    Exibindo movimentações de: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(c.banco)} (Agência ${c.agencia} | Conta ${c.numero})</strong>
+                `;
+            }
+            buscarExtratoSecuritizadora();
+        }
+
+        async function buscarExtratoSecuritizadora(mostrarToast = false) {
+            const corpo = document.getElementById('tabela-extrato-corpo');
+            corpo.innerHTML = `
+                <tr>
+                    <td colspan="5" class="py-12 text-center text-slate-400 text-xs">
+                        <i class="fa-solid fa-circle-notch fa-spin text-xl text-[#0985ff] mb-2 block"></i>
+                        Atualizando movimentações do extrato...
+                    </td>
+                </tr>
+            `;
+
+            const tipoFiltro = document.getElementById('filtro-tipo').value;
+            const buscaFiltro = document.getElementById('filtro-busca').value;
+            const catFiltro = document.getElementById('filtro-categoria').value;
+
+            let url = `/api/securitizadora/extrato?accountId=${contaSelecionadaId || ''}&tipo=${tipoFiltro}&busca=${encodeURIComponent(buscaFiltro)}&categoria=${encodeURIComponent(catFiltro)}`;
+
+            try {
+                const res = await MC_CONFIG.authFetch(url);
+                if (!res.ok) throw new Error('Falha ao carregar extrato da conta');
+
+                const dados = await res.json();
+                transacoesCache = dados.results || [];
+
+                document.getElementById('badge-total-filtrado').textContent = `${dados.total || 0} movimentações`;
+                document.getElementById('rodape-totais').innerHTML = `
+                    Entradas: <span class="text-emerald-600 font-black mr-3">${dados.total_entradas_formatado}</span>
+                    Saídas: <span class="text-slate-800 font-black">${dados.total_saidas_formatado}</span>
+                `;
+
+                if (!transacoesCache.length) {
+                    corpo.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-12 text-center text-slate-400 text-xs">
+                                Nenhuma movimentação encontrada com os filtros selecionados.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                corpo.innerHTML = transacoesCache.map(t => {
+                    const isCredit = t.tipo === 'CREDIT';
+                    const corValor = isCredit ? 'text-emerald-600 font-bold' : 'text-slate-800 font-bold';
+                    const badgeTipo = isCredit 
+                        ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa-solid fa-arrow-down text-[9px]"></i> Crédito</span>'
+                        : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200"><i class="fa-solid fa-arrow-up text-[9px]"></i> Débito</span>';
+
+                    let contraparteHtml = '';
+                    if (t.contraparte) {
+                        contraparteHtml = `<span class="text-[11px] text-slate-500 block mt-0.5"><i class="fa-regular fa-user text-[10px] text-slate-400 mr-1"></i>${MC_CONFIG.escapeHtml(t.contraparte)} ${t.contraparte_doc ? `(${t.contraparte_doc})` : ''}</span>`;
+                    }
+
+                    return `
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition text-xs">
+                            <td class="py-3 px-6 whitespace-nowrap text-slate-600 font-mono text-[11px]">
+                                ${t.data}
+                            </td>
+                            <td class="py-3 px-6 text-slate-800 font-medium max-w-md">
+                                <div class="truncate" title="${MC_CONFIG.escapeHtml(t.descricao)}">${MC_CONFIG.escapeHtml(t.descricao)}</div>
+                                ${contraparteHtml}
+                            </td>
+                            <td class="py-3 px-6 whitespace-nowrap">
+                                <span class="bg-blue-50/80 text-[#0985ff] border border-blue-100 px-2 py-0.5 rounded-md text-[10px] font-semibold">
+                                    ${MC_CONFIG.escapeHtml(t.categoria)}
+                                </span>
+                            </td>
+                            <td class="py-3 px-6 text-center whitespace-nowrap">
+                                ${badgeTipo}
+                            </td>
+                            <td class="py-3 px-6 text-right whitespace-nowrap font-mono text-sm ${corValor}">
+                                ${t.valor_formatado}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                if (mostrarToast) {
+                    MC_CONFIG.showToast('Extrato atualizado com sucesso!', 'success');
+                }
+
+            } catch (err) {
+                console.error(err);
+                corpo.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-12 text-center text-rose-500 text-xs">
+                            Erro ao consultar extrato: ${MC_CONFIG.escapeHtml(err.message)}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function debounceFiltrar() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                buscarExtratoSecuritizadora();
+            }, 300);
+        }
+
+        async function sincronizarContasSecuritizadora() {
+            const btn = document.getElementById('btn-sync-sec');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i> Sincronizando...`;
+
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/sincronizar', { method: 'POST' });
+                const dados = await res.json();
+                if (dados.sucesso) {
+                    MC_CONFIG.showToast('Sincronização solicitada com o Bradesco! Atualizando em instantes...', 'success');
+                    setTimeout(() => {
+                        carregarResumoSecuritizadora();
+                    }, 4000);
+                } else {
+                    MC_CONFIG.showToast(dados.erro || 'Falha ao sincronizar', 'warning');
+                }
+            } catch (e) {
+                MC_CONFIG.showToast('Erro ao acionar sincronização bancária', 'error');
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-rotate text-[#0985ff]"></i> Sincronizar com Banco`;
+                }, 2000);
+            }
+        }
+
+        function abrirConectarNovaContaMC() {
+            document.getElementById('modal-conectar-mc').classList.remove('hidden');
+        }
+
+        function fecharModalConectarMC() {
+            document.getElementById('modal-conectar-mc').classList.add('hidden');
+        }
+
+        async function iniciarConexaoPluggyMC() {
+            const btn = document.getElementById('btn-iniciar-conectar-mc');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Gerando conexão...`;
+
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/conectar-token', { method: 'POST' });
+                const dados = await res.json();
+                if (!dados.accessToken) throw new Error('Não foi possível obter o token de conexão corporativa');
+
+                fecharModalConectarMC();
+
+                const pluggyConnect = new PluggyConnect({
+                    connectToken: dados.accessToken,
+                    name: 'Openfinance MC',
+                    title: 'Openfinance MC - Conta Própria',
+                    onSuccess: async (dadosRetorno) => {
+                        const itemId = (dadosRetorno && dadosRetorno.item && dadosRetorno.item.id) || (dadosRetorno && dadosRetorno.id);
+                        if (itemId) {
+                            await MC_CONFIG.authFetch('/salvar-conexao', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    cliente: 'MC MINHACONTA SECURITIZADORA SA',
+                                    item_id: itemId,
+                                    tipo: 'securitizadora',
+                                    status: 'ativo'
+                                })
+                            });
+                        }
+                        MC_CONFIG.showToast('Nova conta corporativa conectada com sucesso!', 'success');
+                        setTimeout(() => carregarResumoSecuritizadora(), 2000);
+                    },
+                    onError: (err) => {
+                        console.error('Erro ao conectar conta MC:', err);
+                        MC_CONFIG.showToast('Conexão não foi finalizada.', 'warning');
+                    }
+                });
+
+                pluggyConnect.init();
+
+            } catch (e) {
+                console.error(e);
+                MC_CONFIG.showToast(e.message || 'Erro ao iniciar conexão', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-link"></i> Abrir Conexão`;
+            }
+        }
+
+        function exportarExtratoCSV() {
+            if (!transacoesCache.length) {
+                MC_CONFIG.showToast('Nenhuma movimentação para exportar.', 'info');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Data;Descricao;Contraparte;Documento;Categoria;Tipo;Valor\n";
+
+            transacoesCache.forEach(t => {
+                const linha = [
+                    `"${t.data}"`,
+                    `"${(t.descricao || '').replace(/"/g, '""')}"`,
+                    `"${(t.contraparte || '').replace(/"/g, '""')}"`,
+                    `"${t.contraparte_doc || ''}"`,
+                    `"${t.categoria || ''}"`,
+                    `"${t.tipo_label || ''}"`,
+                    `"${t.valor}"`
+                ].join(";");
+                csvContent += linha + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `extrato_securitizadora_mc_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            MC_CONFIG.showToast('Extrato exportado em CSV com sucesso!', 'success');
+        }
+
+        window.onload = () => {
+            carregarResumoSecuritizadora();
+        };
+    </script>
+</body>
+</html>

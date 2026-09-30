@@ -61,6 +61,10 @@
             </div>
             
             <div class="flex flex-wrap items-center gap-3">
+                <a href="securitizadora.html" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 hover:text-white px-4 py-2 rounded-full text-xs font-bold border border-emerald-400/40 transition shadow-sm cursor-pointer" title="Acessar extrato corporativo, saldos e movimentações da conta MC (Bradesco Empresas)">
+                    <i class="fa-solid fa-building-columns text-emerald-400"></i> Conta Securitizadora MC
+                </a>
+
                 <div class="flex items-center gap-2 bg-[#0985ff]/20 text-sky-300 px-4 py-2 rounded-full text-xs font-bold border border-[#0985ff]/30 backdrop-blur-sm">
                     <span class="w-2.5 h-2.5 rounded-full bg-[#0985ff] animate-pulse"></span> Sistema Seguro Ativo
                 </div>
@@ -1221,7 +1225,7 @@
                 // RENDERIZACAO DE OPEN FINANCE (ALTA PERFORMANCE)
                 const ofFiltrados = todosOsClientes.filter(cliente => {
                     const matchTexto = (cliente.cliente || '').toLowerCase().includes(termoBusca);
-                    const matchTipo = (cliente.tipo === 'open_finance') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
+                    const matchTipo = (cliente.tipo === 'open_finance') || (cliente.tipo === 'securitizadora') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
                     return matchTexto && matchTipo;
                 });
 
@@ -1242,26 +1246,46 @@
                     const dataFormatada = MC_CONFIG.formatDate(cliente.data_conexao);
                     const nomeSeguro = MC_CONFIG.escapeHtml(cliente.cliente);
                     const clienteId = cliente.id || Math.random().toString(36).substring(7);
+                    const isSecuritizadora = cliente.tipo === 'securitizadora' || (cliente.cliente && cliente.cliente.toUpperCase().includes('SECURITIZADORA'));
+
+                    const badgeOf = isSecuritizadora
+                        ? `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase font-bold rounded-md border border-emerald-200 flex items-center gap-1"><i class="fa-solid fa-building-shield"></i> Conta Securitizadora MC</span>`
+                        : `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
+
+                    const botoesAcao = isSecuritizadora
+                        ? `
+                            <a href="securitizadora.html" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
+                                <i class="fa-solid fa-landmark"></i> Abrir Ambiente Securitizadora
+                            </a>
+                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia Rápida
+                            </button>
+                        `
+                        : `
+                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
+                                <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
+                            </button>
+                            <a href="extratos.html?item=${encodeURIComponent(cliente.item_id)}&cliente=${encodeURIComponent(cliente.cliente)}" target="_blank" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir extrato detalhado em tela cheia">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[#0985ff]"></i> Tela Cheia
+                            </a>
+                        `;
+
+                    const cardBg = isSecuritizadora ? 'bg-gradient-to-r from-emerald-50/30 via-white to-white border-emerald-300/80 shadow-md ring-1 ring-emerald-200/50' : 'bg-white border-slate-200/90 shadow-sm';
 
                     htmlOf += `
-                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
+                        <div class="${cardBg} border rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200">
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div>
-                                    <div class="flex items-center gap-2">
-                                        <h3 class="font-bold text-[#010157] text-sm">#${nomeSeguro}</h3>
-                                        <span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h3 class="font-bold text-[#010157] text-sm">${nomeSeguro}</h3>
+                                        ${badgeOf}
                                     </div>
                                     <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
                                         <i class="fa-regular fa-clock"></i> Conectado em: ${dataFormatada}
                                     </p>
                                 </div>
-                                <div class="flex items-center gap-2 w-full md:w-auto">
-                                    <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
-                                        <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
-                                    </button>
-                                    <a href="extratos.html?item=${encodeURIComponent(cliente.item_id)}&cliente=${encodeURIComponent(cliente.cliente)}" target="_blank" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir extrato detalhado em tela cheia">
-                                        <i class="fa-solid fa-arrow-up-right-from-square text-[#0985ff]"></i> Tela Cheia
-                                    </a>
+                                <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
+                                    ${botoesAcao}
                                 </div>
                             </div>
                             <div id="detalhe-of-${clienteId}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
