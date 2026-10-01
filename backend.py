@@ -661,10 +661,18 @@ def salvar_conexao():
                 print(f'[SALVAR-CONEXAO] Conexão já existente: {cliente} ({item_id})')
                 return jsonify({'sucesso': True, 'mensagem': 'Conexão já registrada'}), 200
 
+        tipo_informado = dados.get('tipo')
+        if tipo_informado in ['securitizadora', 'pix_automatico', 'open_finance']:
+            tipo_final = tipo_informado
+        elif 'SECURITIZADORA' in str(cliente).upper():
+            tipo_final = 'securitizadora'
+        else:
+            tipo_final = 'pix_automatico' if payment_intent_id else 'open_finance'
+
         registro = {
             'cliente': str(cliente)[:255],
             'item_id': item_id_seguro,
-            'tipo': 'pix_automatico' if payment_intent_id else 'open_finance'
+            'tipo': tipo_final
         }
         if payment_intent_id:
             registro['payment_intent_id'] = str(payment_intent_id)
@@ -678,8 +686,8 @@ def salvar_conexao():
             else:
                 raise e_tipo
 
-        print(f'[SALVAR-CONEXAO] Sucesso ao salvar: {cliente} | Item: {item_id_seguro}')
-        return jsonify({'sucesso': True}), 200
+        print(f'[SALVAR-CONEXAO] Sucesso ao salvar ({tipo_final}): {cliente} | Item: {item_id_seguro}')
+        return jsonify({'sucesso': True, 'tipo': tipo_final}), 200
     except Exception as e:
         print(f'[ERRO SUPABASE INSERT]: {e}')
         return jsonify({'erro': f'Falha ao persistir no banco: {str(e)}'}), 500
@@ -693,13 +701,27 @@ def format_data_pluggy(iso_str):
         return '---'
     try:
         from datetime import datetime, timezone, timedelta
+        iso_str_clean = str(iso_str).strip()
+        if len(iso_str_clean) == 10 and iso_str_clean.count('-') == 2:
+            return format_data_simples_pluggy(iso_str_clean)
+
         fuso_brasilia = timezone(timedelta(hours=-3))
-        dt = datetime.fromisoformat(str(iso_str).replace('Z', '+00:00'))
+        dt = datetime.fromisoformat(iso_str_clean.replace('Z', '+00:00'))
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
+            
+        # Se for exatamente meia-noite em UTC sem fração (data de calendário)
+        if dt.hour == 0 and dt.minute == 0 and dt.second == 0 and dt.microsecond == 0:
+            return format_data_simples_pluggy(iso_str_clean[:10])
+
         dt_local = dt.astimezone(fuso_brasilia)
         meses = ['', 'jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.']
         mes_nome = meses[dt_local.month] if 1 <= dt_local.month <= 12 else str(dt_local.month)
+        
+        # Se após ajuste de fuso resultou em 00:00:00 (comum quando a Pluggy armazena 03:00:00Z para data BRL)
+        if dt_local.hour == 0 and dt_local.minute == 0 and dt_local.second == 0:
+            return f"{dt_local.day:02d} de {mes_nome} de {dt_local.year}"
+
         return f"{dt_local.day:02d} de {mes_nome} de {dt_local.year}, {dt_local.strftime('%H:%M:%S')}"
     except Exception:
         return str(iso_str)
@@ -1316,7 +1338,8 @@ def listar_conexoes():
         res_of = supabase.table('conexoes').select('*').is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(100).execute()
         conexoes_of = res_of.data or []
         for c in conexoes_of:
-            c['tipo'] = 'open_finance'
+            if c.get('tipo') != 'securitizadora':
+                c['tipo'] = 'open_finance'
 
         # 2. Busca conexoes Pix Automatico (payment_intent_id IS NOT NULL)
         res_pix = supabase.table('conexoes').select('*').not_.is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(250).execute()
@@ -1455,26 +1478,6 @@ def consultar_transacoes(account_id):
     except Exception as e:
         return jsonify({'erro': f'Erro interno ao buscar transacoes: {str(e)}'}), 500
 
-@app.route('/consultar-pix/<intent_id>', methods=['GET'])
-@requer_autenticacao
-def consultar_pix(intent_id):
-    api_key = obter_api_key()
-    if not api_key:
-        return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
-    try:
-        response = requests.get(
-            f'https://api.pluggy.ai/payments/intents/{intent_id}',
-            headers={'X-API-KEY': api_key},
-            timeout=15
-        )
-        if response.status_code != 200:
-            return jsonify({'erro': 'Falha ao buscar intent', 'detalhes': response.text}), response.status_code
-        intent_data = response.json()
-        extrato_analitico = calcular_extrato_pix(intent_data)
-        return jsonify(extrato_analitico), 200
-    except Exception as e:
-        return jsonify({'erro': f'Erro interno ao buscar Pix: {str(e)}'}), 500
-
 # ====================================================================
 # 5.1 AMBIENTE DA CONTA DA SECURITIZADORA (MC MINHACONTA PJ)
 # ====================================================================
@@ -1500,9 +1503,16 @@ CATEGORIAS_PT = {
     'Housing': 'Instalações / Imóvel'
 }
 
+# Cache de alta performance para o ambiente corporativo da Securitizadora (TTL 60s)
+_sec_cache = {
+    'resumo_data': None,
+    'resumo_timestamp': 0,
+    'extrato_cache': {}  # chave: account_id -> { 'raw_list': ..., 'timestamp': ... }
+}
+
 def obter_contas_securitizadora(api_key):
-    """Localiza todas as contas bancárias atreladas à Securitizadora MC"""
-    item_ids = ['75cfdce4-cdf3-4050-9aac-a89238eef38a', '585b5487-608b-4f10-9e58-45c3cddb7501']
+    """Localiza e deduplica todas as contas bancárias atreladas à Securitizadora MC"""
+    item_ids = ['75cfdce4-cdf3-4050-9aac-a89238eef38a']
     if supabase:
         try:
             res_sec = supabase.table('conexoes').select('*').eq('tipo', 'securitizadora').execute()
@@ -1513,8 +1523,8 @@ def obter_contas_securitizadora(api_key):
         except Exception as e:
             print(f'[AVISO SUPABASE SECURITIZADORA]: {e}')
 
-    contas_encontradas = []
     itens_processados = set()
+    contas_unicas = {}  # chave: (banco_codigo, agencia_limpa, conta_limpa)
 
     for it_id in item_ids:
         if it_id in itens_processados:
@@ -1540,12 +1550,16 @@ def obter_contas_securitizadora(api_key):
                     transfer_num = str(bank_data.get('transferNumber') or '')
                     agencia = transfer_num.split('/')[1] if '/' in transfer_num else (acc.get('agency') or '3201')
                     conta_num = acc.get('number') or '0079613-1'
+                    banco_cod = conector.get('id', 609)
+                    
+                    chave_conta = (str(banco_cod), re.sub(r'\D', '', agencia), re.sub(r'\D', '', conta_num))
+                    updated_raw = acc.get('updatedAt') or item_data.get('updatedAt') or ''
 
-                    contas_encontradas.append({
+                    conta_info = {
                         'id': acc.get('id'),
                         'item_id': it_id,
                         'banco': conector.get('name', 'Bradesco Empresas'),
-                        'banco_codigo': conector.get('id', 609),
+                        'banco_codigo': banco_cod,
                         'banco_logo': conector.get('imageUrl') or 'https://cdn.pluggy.ai/assets/connectors/bradesco.svg',
                         'nome_conta': acc.get('name') or 'Conta Corrente com Invest Fácil',
                         'tipo': 'Conta Corrente PJ',
@@ -1556,17 +1570,29 @@ def obter_contas_securitizadora(api_key):
                         'saldo': saldo_val,
                         'saldo_formatado': f"R$ {saldo_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
                         'status_item': item_data.get('status', 'UPDATED'),
-                        'ultima_atualizacao': format_data_pluggy(acc.get('updatedAt') or item_data.get('updatedAt'))
-                    })
+                        'ultima_atualizacao': format_data_pluggy(updated_raw),
+                        'updated_at_raw': updated_raw
+                    }
+
+                    if chave_conta in contas_unicas:
+                        if str(updated_raw) > str(contas_unicas[chave_conta].get('updated_at_raw', '')):
+                            contas_unicas[chave_conta] = conta_info
+                    else:
+                        contas_unicas[chave_conta] = conta_info
         except Exception as e:
             print(f'[ERRO CONSULTA CONTA MC {it_id}]: {e}')
 
-    return contas_encontradas
+    return list(contas_unicas.values())
 
 @app.route('/api/securitizadora/resumo', methods=['GET'])
 @requer_autenticacao
 def api_securitizadora_resumo():
     """Resumo executivo financeiro e lista de contas da MC Securitizadora"""
+    forcar = request.args.get('force') in ['true', '1']
+    agora = time.time()
+    if not forcar and _sec_cache['resumo_timestamp'] > agora - 60 and _sec_cache['resumo_data']:
+        return jsonify(_sec_cache['resumo_data']), 200
+
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
@@ -1579,22 +1605,27 @@ def api_securitizadora_resumo():
     total_saidas = 0.0
 
     if contas:
-        conta_principal_id = contas[0]['id']
-        try:
-            r_tx = requests.get(f'https://api.pluggy.ai/v2/transactions?accountId={conta_principal_id}', headers={'X-API-KEY': api_key}, timeout=15)
-            if r_tx.status_code == 200:
-                tx_list = r_tx.json().get('results', [])
-                total_tx = len(tx_list)
-                for t in tx_list:
-                    val = float(t.get('amount') or 0.0)
-                    if val > 0:
-                        total_entradas += val
-                    else:
-                        total_saidas += abs(val)
-        except Exception as e_tx:
-            print(f'[AVISO TX STATS]: {e_tx}')
+        for c in contas:
+            acc_id = c['id']
+            try:
+                r_tx = requests.get(f'https://api.pluggy.ai/v2/transactions?accountId={acc_id}', headers={'X-API-KEY': api_key}, timeout=15)
+                if r_tx.status_code == 200:
+                    tx_list = r_tx.json().get('results', [])
+                    total_tx += len(tx_list)
+                    for t in tx_list:
+                        val = float(t.get('amount') or 0.0)
+                        if val > 0:
+                            total_entradas += val
+                        else:
+                            total_saidas += abs(val)
+                    _sec_cache['extrato_cache'][acc_id] = {
+                        'raw_list': tx_list,
+                        'timestamp': agora
+                    }
+            except Exception as e_tx:
+                print(f'[AVISO TX STATS {acc_id}]: {e_tx}')
 
-    return jsonify({
+    resposta_dados = {
         'sucesso': True,
         'empresa': {
             'razao_social': 'MC MINHACONTA SECURITIZADORA S/A',
@@ -1614,7 +1645,11 @@ def api_securitizadora_resumo():
             'total_saidas_formatado': f"R$ {total_saidas:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         },
         'contas': contas
-    }), 200
+    }
+
+    _sec_cache['resumo_data'] = resposta_dados
+    _sec_cache['resumo_timestamp'] = agora
+    return jsonify(resposta_dados), 200
 
 @app.route('/api/securitizadora/extrato', methods=['GET'])
 @requer_autenticacao
@@ -1637,18 +1672,32 @@ def api_securitizadora_extrato():
     if date_from: params['dateFrom'] = date_from
     if date_to: params['dateTo'] = date_to
 
-    try:
-        r = requests.get(
-            f'https://api.pluggy.ai/v2/transactions?accountId={account_id}',
-            params=params,
-            headers={'X-API-KEY': api_key},
-            timeout=15
-        )
-        if r.status_code != 200:
-            return jsonify({'erro': 'Falha ao buscar movimentações na Pluggy', 'detalhes': r.text}), r.status_code
+    forcar = request.args.get('force') in ['true', '1']
+    agora = time.time()
+    cache_item = _sec_cache['extrato_cache'].get(account_id)
+    transacoes_raw = None
 
-        dados_raw = r.json()
-        transacoes_raw = dados_raw.get('results', [])
+    if not forcar and not params and cache_item and (cache_item['timestamp'] > agora - 60):
+        transacoes_raw = cache_item['raw_list']
+
+    try:
+        if transacoes_raw is None:
+            r = requests.get(
+                f'https://api.pluggy.ai/v2/transactions?accountId={account_id}',
+                params=params,
+                headers={'X-API-KEY': api_key},
+                timeout=15
+            )
+            if r.status_code != 200:
+                return jsonify({'erro': 'Falha ao buscar movimentações na Pluggy', 'detalhes': r.text}), r.status_code
+
+            dados_raw = r.json()
+            transacoes_raw = dados_raw.get('results', [])
+            if not params:
+                _sec_cache['extrato_cache'][account_id] = {
+                    'raw_list': transacoes_raw,
+                    'timestamp': agora
+                }
 
         filtro_tipo = (request.args.get('tipo') or 'ALL').upper()
         filtro_busca = (request.args.get('busca') or '').strip().lower()
@@ -1755,6 +1804,8 @@ def api_securitizadora_sincronizar():
     if not api_key:
         return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
     try:
+        _sec_cache['resumo_timestamp'] = 0
+        _sec_cache['extrato_cache'].clear()
         contas = obter_contas_securitizadora(api_key)
         itens = list(set(c['item_id'] for c in contas))
         resultados = []

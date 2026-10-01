@@ -10,13 +10,14 @@
 
     // 1. Detecção Automática de Ambiente (Local vs Produção)
     const hostname = window.location.hostname;
-    const isLocalhost = (hostname === 'localhost' || hostname === '127.0.0.1') && window.location.port === '5000';
+    const isLocalhost = (hostname === 'localhost' || hostname === '127.0.0.1');
 
-    // Se estiver rodando localmente com o Flask na porta 5000, conecta local.
+    // Se estiver rodando localmente com o Flask, conecta local na porta ativa.
     // Em qualquer outro ambiente (incluindo file:/// ou Render), usa o backend na nuvem.
     let defaultApiUrl = 'https://motor-openfinance.onrender.com';
     if (isLocalhost) {
-        defaultApiUrl = 'http://127.0.0.1:5000';
+        const port = window.location.port ? `:${window.location.port}` : ':5000';
+        defaultApiUrl = `${window.location.protocol}//${hostname}${port}`;
     }
 
     // Permite override via variável global se necessário

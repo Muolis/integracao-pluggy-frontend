@@ -67,10 +67,10 @@ def run_tests():
     # 9. Teste /listar-conexoes com separação de tipos
     conexoes = res_auth.get_json()
     for c in conexoes:
-        assert c.get("tipo") in ["open_finance", "pix_automatico"], f"Tipo inválido: {c.get('tipo')}"
+        assert c.get("tipo") in ["open_finance", "pix_automatico", "securitizadora"], f"Tipo inválido: {c.get('tipo')}"
         if c.get("payment_intent_id"):
             assert c["tipo"] == "pix_automatico", "Cliente com intent ID não categorizado como pix_automatico"
-    print(f" Teste 9 [/listar-conexoes separação]: Sucesso! {len(conexoes)} conexões estritamente separadas por tipo.")
+    print(f" Teste 9 [/listar-conexoes separação]: Sucesso! {len(conexoes)} conexões estritamente separadas por tipo (Open Finance, Pix e Securitizadora).")
 
     # 10. Teste validação do /gerar-token-pix com CPF inválido e valor inválido
     res_pix_bad_cpf = client.post('/gerar-token-pix', json={
@@ -219,7 +219,31 @@ def run_tests():
     assert "results" in extrato_data, "results ausente no extrato"
     print(f" Teste 22 [/api/securitizadora/extrato]: Sucesso! {len(extrato_data['results'])} movimentações corporativas consultadas em tempo real.")
 
-    print("\n TODOS OS 22 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 23. Teste Deduplicação e Saldo Fiel da Conta Securitizadora
+    assert sec_data['kpis']['total_contas'] == 1, f"Esperado 1 conta única deduplicada, obteve {sec_data['kpis']['total_contas']}"
+    assert sec_data['kpis']['saldo_consolidado'] == 2815.47, f"Saldo consolidado incorreto: {sec_data['kpis']['saldo_consolidado']}"
+    assert sec_data['kpis']['saldo_consolidado_formatado'] == 'R$ 2.815,47', f"Formatação de saldo incorreta: {sec_data['kpis']['saldo_consolidado_formatado']}"
+    print(f" Teste 23 [Deduplicação e Saldo Fiel Securitizadora]: Sucesso! 1 conta única validada com saldo exato de {sec_data['kpis']['saldo_consolidado_formatado']}.")
+
+    # 24. Teste /salvar-conexao com tipo='securitizadora'
+    res_salvar_sec = client.post('/salvar-conexao', json={
+        "cliente": "MC MINHACONTA SECURITIZADORA SA",
+        "item_id": "item-teste-securitizadora-unit",
+        "tipo": "securitizadora"
+    })
+    assert res_salvar_sec.status_code == 200, f"Salvar securitizadora falhou: {res_salvar_sec.status_code}"
+    salvar_data = res_salvar_sec.get_json()
+    assert salvar_data.get("tipo") == "securitizadora", f"Tipo retornado não é securitizadora: {salvar_data.get('tipo')}"
+    print(" Teste 24 [Persistência de tipo 'securitizadora']: Sucesso! Nova conta corporativa classificada como securitizadora.")
+
+    # 25. Teste Cache Securitizadora e /api/securitizadora/sincronizar
+    res_sync_sec = client.post('/api/securitizadora/sincronizar', headers={"Authorization": f"Bearer {token}"})
+    assert res_sync_sec.status_code == 200, f"/api/securitizadora/sincronizar falhou: {res_sync_sec.status_code}"
+    sync_sec_data = res_sync_sec.get_json()
+    assert sync_sec_data.get("sucesso"), "sucesso não retornado em sincronizar securitizadora"
+    print(" Teste 25 [Cache e Sincronização Securitizadora]: Sucesso! Cache invalidado e sincronização disparada com sucesso.")
+
+    print("\n TODOS OS 25 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()
