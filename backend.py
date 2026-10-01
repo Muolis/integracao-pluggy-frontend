@@ -773,6 +773,159 @@ def obter_mapa_customers(api_key):
         print(f'[AVISO MAPA CUSTOMERS]: {e_c}')
     return _customers_cache.get('by_tax', {}), _customers_cache.get('by_id', {})
 
+# ====================================================================
+# DICIONÁRIO E EXTRATOR DE ERROS OFICIAIS DO OPEN FINANCE / PLUGGY
+# ====================================================================
+ERROS_PLUGGY_CANONICOS = {
+    'TEMPO_EXPIRADO_AUTORIZACAO': {
+        'titulo': 'Consentimento expirado',
+        'detalhe': 'Consentimento expirou antes que o usuário pudesse confirmá-lo no aplicativo do banco.',
+        'acao': 'Reenviar link de autorização ao cliente'
+    },
+    'TIMEOUT_CONSENTIMENTO': {
+        'titulo': 'Tempo esgotado',
+        'detalhe': 'O tempo limite para autorização do consentimento no banco expirou.',
+        'acao': 'Reenviar link de autorização ao cliente'
+    },
+    'REJEITADO_USUARIO': {
+        'titulo': 'Consentimento cancelado pelo usuário',
+        'detalhe': 'O usuário rejeitou a autorização do consentimento no aplicativo do banco.',
+        'acao': 'Contatar o cliente e reenviar link'
+    },
+    'REVOGADO_RECEBEDOR': {
+        'titulo': 'Consentimento cancelado / revogado',
+        'detalhe': 'O consentimento foi revogado pelo recebedor ou cancelado no canal bancário.',
+        'acao': 'Gerar nova solicitação de autorização'
+    },
+    'REVOGADO_USUARIO': {
+        'titulo': 'Consentimento revogado pelo usuário',
+        'detalhe': 'O usuário cancelou/revogou a autorização do Pix Automático no banco.',
+        'acao': 'Contatar o cliente e solicitar nova autorização'
+    },
+    'CONNECTION_ERROR': {
+        'titulo': 'Erro de Conexão com o Banco',
+        'detalhe': 'Falha temporária de comunicação com a instituição bancária no Open Finance.',
+        'acao': 'Tentar autorizar novamente em instantes'
+    },
+    'NOT_INFORMED': {
+        'titulo': 'Rejeitado pela detentora de conta',
+        'detalhe': 'A instituição bancária detentora da conta não concluiu a autorização e não informou detalhe específico.',
+        'acao': 'Solicitar ao cliente que verifique limites e permissões no app do banco'
+    },
+    'NAO_INFORMADO': {
+        'titulo': 'Rejeitado pela detentora de conta',
+        'detalhe': 'A instituição bancária detentora da conta não informou o motivo específico.',
+        'acao': 'Solicitar ao cliente que verifique o app do banco'
+    },
+    'INFRASTRUCTURE_FAILURE': {
+        'titulo': 'Falha na infraestrutura bancária',
+        'detalhe': 'Instabilidade temporária na comunicação dos serviços internos da instituição bancária.',
+        'acao': 'Aguardar alguns minutos e tentar novamente'
+    },
+    'FALHA_INFRAESTRUTURA': {
+        'titulo': 'Falha na infraestrutura bancária',
+        'detalhe': 'Instabilidade temporária nos servidores do banco detentor.',
+        'acao': 'Tentar novamente mais tarde'
+    },
+    'UNKNOWN_ERROR': {
+        'titulo': 'Falha de autenticação Open Finance',
+        'detalhe': 'Falha associada à troca de chaves de segurança (AuthCode pelo AccessToken) durante o fluxo bancário.',
+        'acao': 'Reenviar link para iniciar novo fluxo'
+    },
+    'ERRO_DESCONHECIDO': {
+        'titulo': 'Erro no fluxo bancário',
+        'detalhe': 'Instabilidade durante o fluxo de autorização bancária.',
+        'acao': 'Reenviar link ao cliente'
+    },
+    'AUTENTICACAO_DIVERGENTE': {
+        'titulo': 'Titularidade divergente',
+        'detalhe': 'O usuário autenticado no banco diverge do titular cadastrado na solicitação (CPF/CNPJ não confere).',
+        'acao': 'Verificar se o cliente utilizou a conta bancária correta correspondente ao seu CPF/CNPJ'
+    },
+    'SALDO_INSUFICIENTE': {
+        'titulo': 'Saldo insuficiente',
+        'detalhe': 'Saldo insuficiente na conta bancária do pagador.',
+        'acao': 'Solicitar ao cliente que regularize o saldo'
+    },
+    'INSUFFICIENT_FUNDS': {
+        'titulo': 'Saldo insuficiente',
+        'detalhe': 'Saldo insuficiente na conta bancária do pagador.',
+        'acao': 'Solicitar ao cliente que regularize o saldo'
+    }
+}
+
+def extrair_erro_pluggy(intent_data=None, pr_data=None):
+    """Extrai e normaliza com fidelidade os dados analíticos de erro e recusa do Dashboard da Pluggy"""
+    intent_data = intent_data or {}
+    pr_data = pr_data or {}
+    ed = intent_data.get('errorDetail') or pr_data.get('errorDetail') or {}
+    err = intent_data.get('error') or pr_data.get('error')
+    st_intent = intent_data.get('status')
+    st_pr = pr_data.get('status')
+
+    # Se não houver erro nem status anormal
+    if not ed and not err and st_intent not in ['ERROR', 'REJECTED', 'CONSENT_REJECTED', 'REVOKED'] and st_pr not in ['ERROR', 'REJECTED', 'EXPIRED', 'CANCELED']:
+        return None
+
+    code = ed.get('code') or ed.get('providerCode') or (err if isinstance(err, str) else None)
+    if not code:
+        if st_pr == 'EXPIRED':
+            code = 'TEMPO_EXPIRADO_AUTORIZACAO'
+        elif st_pr == 'CANCELED' or st_intent == 'REVOKED':
+            code = 'REVOGADO_RECEBEDOR'
+        elif st_intent in ['REJECTED', 'CONSENT_REJECTED']:
+            code = 'REJEITADO_USUARIO'
+        elif st_pr == 'ERROR' or st_intent == 'ERROR':
+            code = 'CONNECTION_ERROR'
+        else:
+            code = 'ERRO_DESCONHECIDO'
+
+    code_str = str(code).upper()
+    prov_code_str = str(ed.get('providerCode', '')).upper()
+    canon = ERROS_PLUGGY_CANONICOS.get(code_str) or ERROS_PLUGGY_CANONICOS.get(prov_code_str)
+
+    titulo = None
+    if ed.get('providerTitle'):
+        p_tit = str(ed.get('providerTitle'))
+        if '\ufffd' not in p_tit:
+            titulo = p_tit
+    if not titulo and canon:
+        titulo = canon['titulo']
+    if not titulo:
+        titulo = 'Falha na Autorização'
+
+    detalhe = None
+    if ed.get('providerDetail'):
+        p_det = str(ed.get('providerDetail'))
+        if '\ufffd' not in p_det:
+            detalhe = p_det
+    if not detalhe and canon:
+        detalhe = canon['detalhe']
+    if not detalhe:
+        if st_pr == 'EXPIRED':
+            detalhe = 'A solicitação expirou antes que o cliente confirmasse no aplicativo do banco.'
+        else:
+            detalhe = 'Ocorreu um erro no processo de autorização junto ao banco.'
+
+    acao = canon.get('acao') if canon else 'Reenviar link ao cliente'
+    connector = intent_data.get('connector') or {}
+    banco_nome = connector.get('name') or 'Instituição Bancária'
+    banco_logo = connector.get('imageUrl')
+
+    return {
+        'tem_erro': True,
+        'codigo': str(code),
+        'codigo_provedor': ed.get('providerCode') or str(code),
+        'titulo': titulo,
+        'detalhe': detalhe,
+        'acao': acao,
+        'banco_nome': banco_nome,
+        'banco_logo': banco_logo,
+        'status_intent': st_intent,
+        'status_pr': st_pr,
+        'raw_error_detail': ed
+    }
+
 def obter_todos_intents_pix(forcar_atualizacao=False):
     """Puxa TODAS as solicitacoes e intents de Pix da API da Pluggy (100% espelho fiel do dashboard Pluggy)"""
     agora = time.time()
@@ -889,7 +1042,7 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'cor': cor
             })
 
-        # 4. Formata a lista completa de solicitacoes fiéis à Imagem 1 da Pluggy
+        # 4. Formata a lista completa de solicitacoes fiéis ao Dashboard da Pluggy
         formatados = []
         ativos_count = 0
         pendentes_count = 0
@@ -912,7 +1065,18 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
             debtor = (matched_intent.get('debtor') or {}) if matched_intent else {}
             recipient = r.get('recipient') or {}
 
-            raw_status = (matched_intent.get('status') if matched_intent else None) or r.get('status', 'PENDING')
+            # Diagnóstico fiel de erros e recusas da Pluggy
+            info_erro = extrair_erro_pluggy(matched_intent, r)
+
+            pr_status = r.get('status')
+            it_status = matched_intent.get('status') if matched_intent else None
+
+            # Determinação precisa do status oficial do contrato de Pix
+            if auto_pix or schedule:
+                # Contrato recorrente / Pix Automático: status do paymentRequest é soberano
+                raw_status = pr_status or it_status or 'PENDING'
+            else:
+                raw_status = it_status or pr_status or 'PENDING'
 
             if raw_status in ['AUTHORIZED']:
                 status_label = 'Autorizado'
@@ -921,23 +1085,19 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 status_badge = 'bg-purple-100 text-purple-700 border-purple-200'
                 ativos_count += 1
             elif raw_status in ['PAYMENT_COMPLETED']:
-                status_label = 'Concluído'
-                status_classe = 'ativo'
-                status_cor = 'emerald'
-                status_badge = 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                ativos_count += 1
-            elif raw_status in ['CANCELED', 'CONSENT_REJECTED', 'REJECTED']:
-                status_label = 'Cancelado'
-                status_classe = 'rejeitado'
-                status_cor = 'slate'
-                status_badge = 'bg-slate-100 text-slate-600 border-slate-200'
-                rejeitados_count += 1
-            elif raw_status == 'ERROR':
-                status_label = 'Erro'
-                status_classe = 'erro'
-                status_cor = 'rose'
-                status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
-                rejeitados_count += 1
+                if pr_status == 'AUTHORIZED':
+                    raw_status = 'AUTHORIZED'
+                    status_label = 'Autorizado'
+                    status_classe = 'ativo'
+                    status_cor = 'purple'
+                    status_badge = 'bg-purple-100 text-purple-700 border-purple-200'
+                    ativos_count += 1
+                else:
+                    status_label = 'Concluído'
+                    status_classe = 'ativo'
+                    status_cor = 'emerald'
+                    status_badge = 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    ativos_count += 1
             elif raw_status in ['SCHEDULED']:
                 status_label = 'Agendado'
                 status_classe = 'pendente'
@@ -949,6 +1109,30 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 status_classe = 'rejeitado'
                 status_cor = 'slate'
                 status_badge = 'bg-slate-100 text-slate-600 border-slate-200'
+                rejeitados_count += 1
+            elif raw_status in ['CANCELED', 'REVOKED']:
+                status_label = 'Cancelado'
+                status_classe = 'rejeitado'
+                status_cor = 'slate'
+                status_badge = 'bg-slate-100 text-slate-600 border-slate-200'
+                rejeitados_count += 1
+            elif raw_status in ['REJECTED', 'CONSENT_REJECTED']:
+                status_label = 'Rejeitado'
+                status_classe = 'rejeitado'
+                status_cor = 'rose'
+                status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
+                rejeitados_count += 1
+            elif raw_status == 'ERROR':
+                # Verifica se o erro oficial no intent foi recusa do usuário ou expiração
+                if info_erro and info_erro.get('codigo') in ['REJEITADO_USUARIO', 'REVOGADO_RECEBEDOR', 'REVOGADO_USUARIO']:
+                    status_label = 'Rejeitado'
+                elif info_erro and info_erro.get('codigo') in ['TEMPO_EXPIRADO_AUTORIZACAO', 'TIMEOUT_CONSENTIMENTO']:
+                    status_label = 'Expirado'
+                else:
+                    status_label = 'Erro'
+                status_classe = 'erro'
+                status_cor = 'rose'
+                status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
                 rejeitados_count += 1
             else:
                 status_label = 'Aguardando'
@@ -965,7 +1149,7 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 try: valor_parcela = float(r.get('amount'))
                 except (ValueError, TypeError): pass
 
-            if raw_status in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+            if raw_status in ['AUTHORIZED', 'PAYMENT_COMPLETED', 'SCHEDULED']:
                 volume_recorrente_total += valor_parcela
 
             if auto_pix:
@@ -1055,6 +1239,12 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'criado_em': format_data_pluggy(r.get('createdAt')),
                 'payment_url': payment_url,
                 'consent_url': consent_url,
+                'erro': info_erro,
+                'tem_erro': bool(info_erro),
+                'erro_titulo': info_erro.get('titulo') if info_erro else None,
+                'erro_detalhe': info_erro.get('detalhe') if info_erro else None,
+                'erro_codigo': info_erro.get('codigo') if info_erro else None,
+                'erro_acao': info_erro.get('acao') if info_erro else None,
                 'raw': r
             })
 
@@ -1201,10 +1391,70 @@ def consultar_pix_detalhado(operacao_id):
         try: val_fixo = float(pr.get('amount'))
         except (ValueError, TypeError): pass
 
-    status_raw = intent.get('status') or pr.get('status', 'PENDING')
+    # Diagnóstico fiel de erro da Pluggy
+    info_erro = extrair_erro_pluggy(intent, pr)
+    pr_status = pr.get('status')
+    it_status = intent.get('status') if intent else None
+
+    # Status soberano do contrato de Pix Automático
+    if auto_pix or schedule:
+        status_raw = pr_status or it_status or 'PENDING'
+    else:
+        status_raw = it_status or pr_status or 'PENDING'
+
+    if status_raw == 'AUTHORIZED' or (pr_status == 'AUTHORIZED'):
+        status_raw = 'AUTHORIZED'
+        status_label = 'Autorizado'
+        status_classe = 'ativo'
+        status_cor = 'purple'
+        status_badge = 'bg-purple-100 text-purple-700 border-purple-200'
+    elif status_raw == 'PAYMENT_COMPLETED':
+        status_label = 'Concluído'
+        status_classe = 'ativo'
+        status_cor = 'emerald'
+        status_badge = 'bg-emerald-100 text-emerald-800 border-emerald-200'
+    elif status_raw == 'SCHEDULED':
+        status_label = 'Agendado'
+        status_classe = 'pendente'
+        status_cor = 'sky'
+        status_badge = 'bg-sky-100 text-sky-800 border-sky-200'
+    elif status_raw == 'EXPIRED':
+        status_label = 'Expirado'
+        status_classe = 'rejeitado'
+        status_cor = 'slate'
+        status_badge = 'bg-slate-100 text-slate-600 border-slate-200'
+    elif status_raw in ['CANCELED', 'REVOKED']:
+        status_label = 'Cancelado'
+        status_classe = 'rejeitado'
+        status_cor = 'slate'
+        status_badge = 'bg-slate-100 text-slate-600 border-slate-200'
+    elif status_raw in ['REJECTED', 'CONSENT_REJECTED']:
+        status_label = 'Rejeitado'
+        status_classe = 'rejeitado'
+        status_cor = 'rose'
+        status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
+    elif status_raw == 'ERROR':
+        if info_erro and info_erro.get('codigo') in ['REJEITADO_USUARIO', 'REVOGADO_RECEBEDOR', 'REVOGADO_USUARIO']:
+            status_label = 'Rejeitado'
+        elif info_erro and info_erro.get('codigo') in ['TEMPO_EXPIRADO_AUTORIZACAO', 'TIMEOUT_CONSENTIMENTO']:
+            status_label = 'Expirado'
+        else:
+            status_label = 'Erro'
+        status_classe = 'erro'
+        status_cor = 'rose'
+        status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
+    else:
+        status_label = 'Aguardando'
+        status_classe = 'pendente'
+        status_cor = 'amber'
+        status_badge = 'bg-amber-100 text-amber-800 border-amber-200'
+
     criado_em = format_data_pluggy(pr.get('createdAt'))
     autorizado_em = format_data_pluggy(intent.get('createdAt') or (pr.get('updatedAt') if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else None))
     atualizado_em = format_data_pluggy(pr.get('updatedAt') or intent.get('updatedAt'))
+
+    payment_url = pr.get('paymentUrl') or (intent.get('consentUrl') if intent else '')
+    consent_url = (intent.get('consentUrl') if intent else '') or payment_url
 
     retries_cfg = auto_pix.get('automaticRetriesConfiguration') or {}
     retry_days = retries_cfg.get('retryDays', [1, 2, 3])
@@ -1220,8 +1470,33 @@ def consultar_pix_detalhado(operacao_id):
     if first_payment:
         fp_amount = float(first_payment.get('amount') or 0.01)
         fp_date = first_payment.get('date') or (str(pr.get('createdAt'))[:10] if pr.get('createdAt') else '2026-09-22')
-        fp_status = 'CONCLUIDO' if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else 'PENDENTE'
-        if fp_status == 'CONCLUIDO': total_concluidos += 1
+        
+        if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+            fp_status = 'CONCLUIDO'
+            fp_status_label = 'Concluído'
+            fp_status_cor = 'emerald'
+            total_concluidos += 1
+        elif status_raw in ['REJECTED', 'CONSENT_REJECTED'] or (status_raw == 'ERROR' and status_label == 'Rejeitado'):
+            fp_status = 'REJEITADO'
+            fp_status_label = 'Rejeitado pelo Cliente'
+            fp_status_cor = 'rose'
+        elif status_raw == 'EXPIRED' or (status_raw == 'ERROR' and status_label == 'Expirado'):
+            fp_status = 'EXPIRADO'
+            fp_status_label = 'Expirado no Banco'
+            fp_status_cor = 'slate'
+        elif status_raw in ['CANCELED', 'REVOKED']:
+            fp_status = 'CANCELADO'
+            fp_status_label = 'Cancelado'
+            fp_status_cor = 'slate'
+        elif status_raw == 'ERROR':
+            fp_status = 'ERRO'
+            fp_status_label = 'Falha na Adesão'
+            fp_status_cor = 'rose'
+        else:
+            fp_status = 'PENDENTE'
+            fp_status_label = 'Aguardando Autorização'
+            fp_status_cor = 'amber'
+
         pagamentos_lista.append({
             'numero': 1,
             'titulo': 'Confirmação / Adesão do Pix Automático',
@@ -1230,17 +1505,32 @@ def consultar_pix_detalhado(operacao_id):
             'valor': fp_amount,
             'valor_formatado': f"R$ {fp_amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
             'status': fp_status,
-            'status_label': 'Concluído' if fp_status == 'CONCLUIDO' else 'Pendente',
-            'status_cor': 'emerald' if fp_status == 'CONCLUIDO' else 'amber'
+            'status_label': fp_status_label,
+            'status_cor': fp_status_cor
         })
 
     data_inicio_parcela = auto_pix.get('startDate') or schedule.get('startDate')
     data_inicio_fmt = format_data_simples_pluggy(data_inicio_parcela)
     expira_em_fmt = format_data_pluggy(auto_pix.get('expiresAt'))
 
-    p2_status = 'CONCLUIDO' if (status_raw == 'PAYMENT_COMPLETED' and not first_payment) else ('EM_PROCESSAMENTO' if status_raw == 'PAYMENT_COMPLETED' else 'AGENDADO')
-    if p2_status == 'CONCLUIDO': total_concluidos += 1
-    
+    if status_raw in ['AUTHORIZED', 'SCHEDULED']:
+        p2_status = 'AGENDADO'
+        p2_status_label = 'Agendado'
+        p2_status_cor = 'sky'
+    elif status_raw == 'PAYMENT_COMPLETED' and not first_payment:
+        p2_status = 'CONCLUIDO'
+        p2_status_label = 'Concluído'
+        p2_status_cor = 'emerald'
+        total_concluidos += 1
+    elif status_raw in ['ERROR', 'REJECTED', 'CONSENT_REJECTED', 'EXPIRED', 'CANCELED', 'REVOKED']:
+        p2_status = 'CANCELADO'
+        p2_status_label = 'Não Autorizado'
+        p2_status_cor = 'slate'
+    else:
+        p2_status = 'PENDENTE'
+        p2_status_label = 'Aguardando Autorização'
+        p2_status_cor = 'amber'
+
     pagamentos_lista.append({
         'numero': len(pagamentos_lista) + 1,
         'titulo': f'Mensalidade 1 ({intervalo_pt})',
@@ -1249,11 +1539,23 @@ def consultar_pix_detalhado(operacao_id):
         'valor': val_fixo,
         'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
         'status': p2_status,
-        'status_label': 'Agendado' if p2_status == 'AGENDADO' else ('Em Processamento' if p2_status == 'EM_PROCESSAMENTO' else 'Concluído'),
-        'status_cor': 'sky' if p2_status in ['AGENDADO', 'EM_PROCESSAMENTO'] else 'emerald'
+        'status_label': p2_status_label,
+        'status_cor': p2_status_cor
     })
 
     total_pagamentos = len(pagamentos_lista)
+    if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+        indicador_str = f"{total_concluidos} de {total_pagamentos} concluídos"
+    elif status_raw in ['REJECTED', 'CONSENT_REJECTED'] or (status_raw == 'ERROR' and status_label == 'Rejeitado'):
+        indicador_str = f"0 de {total_pagamentos} concluídos (Rejeitado)"
+    elif status_raw == 'EXPIRED' or (status_raw == 'ERROR' and status_label == 'Expirado'):
+        indicador_str = f"0 de {total_pagamentos} concluídos (Expirado)"
+    elif status_raw == 'ERROR':
+        indicador_str = f"0 de {total_pagamentos} concluídos (Falha)"
+    elif status_raw in ['CANCELED', 'REVOKED']:
+        indicador_str = f"0 de {total_pagamentos} concluídos (Cancelado)"
+    else:
+        indicador_str = f"0 de {total_pagamentos} concluídos (Pendente)"
 
     rec_tax = format_cnpj(recipient.get('taxNumber', '62455954000146'))
     rec_inst = (recipient.get('paymentInstitution') or {}).get('name') or 'Banco Bradesco S.A.'
@@ -1273,11 +1575,17 @@ def consultar_pix_detalhado(operacao_id):
         'id': req_id,
         'intent_id': intent.get('id') or req_id,
         'status': status_raw,
-        'status_label': 'Autorizado' if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else ('Concluído' if status_raw == 'PAYMENT_COMPLETED' else ('Cancelado' if status_raw in ['REJECTED', 'CANCELED'] else 'Pendente')),
-        'status_classe': 'ativo' if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else ('rejeitado' if status_raw in ['REJECTED', 'CANCELED'] else 'pendente'),
+        'status_label': status_label,
+        'status_classe': status_classe,
+        'status_cor': status_cor,
+        'status_badge': status_badge,
         'criado_em': criado_em,
         'autorizado_em': autorizado_em,
         'atualizado_em': atualizado_em,
+        'payment_url': payment_url,
+        'consent_url': consent_url,
+        'erro': info_erro,
+        'tem_erro': bool(info_erro),
         'configuracao_pix': {
             'intervalo': intervalo_pt,
             'valor_fixo': val_fixo,
@@ -1308,10 +1616,10 @@ def consultar_pix_detalhado(operacao_id):
         'pagamentos': {
             'total': total_pagamentos,
             'concluidos': total_concluidos,
-            'indicador': f"{total_concluidos} de {total_pagamentos} concluídos",
+            'indicador': indicador_str,
             'itens': pagamentos_lista
         },
-        'concluidos_texto': f"{total_concluidos} de {total_pagamentos} concluídos",
+        'concluidos_texto': indicador_str,
         # Campos de retrocompatibilidade com frontend anterior
         'valor_parcela': val_fixo,
         'total_pago': cronograma_calculado.get('total_pago', 0.0),
@@ -1319,7 +1627,7 @@ def consultar_pix_detalhado(operacao_id):
         'parcelas_total': cronograma_calculado.get('parcelas_total', 12),
         'parcelas_pagas': cronograma_calculado.get('parcelas_pagas', total_concluidos),
         'banco_nome': cli_inst,
-        'status_rotulo': cronograma_calculado.get('status_rotulo', 'Autorizado'),
+        'status_rotulo': status_label,
         'cronograma': cronograma_calculado.get('cronograma', []),
         'raw': pr or intent
     }), 200

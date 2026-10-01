@@ -243,7 +243,42 @@ def run_tests():
     assert sync_sec_data.get("sucesso"), "sucesso não retornado em sincronizar securitizadora"
     print(" Teste 25 [Cache e Sincronização Securitizadora]: Sucesso! Cache invalidado e sincronização disparada com sucesso.")
 
-    print("\n TODOS OS 25 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 26. Teste Status Fiel de Pix Automático (AUTHORIZED == 'Autorizado', não 'Concluído')
+    res_pix_auditoria = client.get('/api/pix-intents?force=true', headers={"Authorization": f"Bearer {token}"})
+    assert res_pix_auditoria.status_code == 200, f"/api/pix-intents falhou: {res_pix_auditoria.status_code}"
+    itens_pix = res_pix_auditoria.get_json().get("results", [])
+    
+    contratos_autorizados = [p for p in itens_pix if p.get("status") == "AUTHORIZED"]
+    assert len(contratos_autorizados) > 0, "Nenhum contrato AUTHORIZED encontrado"
+    for ca in contratos_autorizados:
+        assert ca.get("status_label") == "Autorizado", f"Contrato AUTHORIZED {ca['id']} não está com status_label 'Autorizado' (obteve '{ca.get('status_label')}')"
+    print(f" Teste 26 [Status Fiel Pix Automático]: Sucesso! {len(contratos_autorizados)} contratos AUTHORIZED validados como 'Autorizado' (não 'Concluído').")
+
+    # 27. Teste Diagnóstico Oficial de Erros e Recusas da Pluggy
+    itens_com_erro = [p for p in itens_pix if p.get("tem_erro")]
+    assert len(itens_com_erro) > 0, "Nenhum item com erro detectado no espelho da Pluggy"
+    primeiro_erro = itens_com_erro[0]
+    assert "erro" in primeiro_erro and primeiro_erro["erro"], "Objeto erro ausente em item com erro"
+    assert "codigo" in primeiro_erro["erro"], "Código ausente no objeto erro"
+    assert "titulo" in primeiro_erro["erro"], "Título ausente no objeto erro"
+    assert "detalhe" in primeiro_erro["erro"], "Detalhe explicativo ausente no objeto erro"
+    assert "acao" in primeiro_erro["erro"], "Ação recomendada ausente no objeto erro"
+    print(f" Teste 27 [Diagnóstico Oficial de Erros]: Sucesso! {len(itens_com_erro)} contratos com diagnóstico de erro oficial detalhados (Ex: '{primeiro_erro['erro']['titulo']}' - {primeiro_erro['erro']['codigo']}).")
+
+    # 28. Teste Detalhe de Operação /consultar-pix com Diagnóstico e Cobranças Fiéis
+    item_erro_id = primeiro_erro["id"]
+    res_det_erro = client.get(f'/consultar-pix/{item_erro_id}', headers={"Authorization": f"Bearer {token}"})
+    assert res_det_erro.status_code == 200, f"Falha ao consultar detalhe do item com erro: {res_det_erro.status_code}"
+    det_erro_json = res_det_erro.get_json()
+    assert det_erro_json.get("tem_erro"), "tem_erro não é True no detalhe da operação"
+    assert det_erro_json.get("erro"), "Objeto erro ausente no detalhe da operação"
+    assert det_erro_json["status_label"] in ["Rejeitado", "Expirado", "Erro", "Cancelado"], f"Status label inesperado para erro: {det_erro_json['status_label']}"
+    pagamentos_erro = det_erro_json.get("pagamentos", {}).get("itens", [])
+    assert len(pagamentos_erro) > 0, "Itens de pagamento vazios no detalhe com erro"
+    assert any(p["status"] in ["REJEITADO", "EXPIRADO", "ERRO", "CANCELADO"] for p in pagamentos_erro), "Nenhum pagamento com status condizente com a recusa/falha"
+    print(f" Teste 28 [Fidelidade de Cobranças em /consultar-pix]: Sucesso! Diagnóstico fiel e status de pagamentos condizentes ({det_erro_json['pagamentos'].get('indicador')}).")
+
+    print("\n TODOS OS 28 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()

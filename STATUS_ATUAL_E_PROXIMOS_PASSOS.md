@@ -72,9 +72,33 @@
 
 ---
 
-## 3. Bateria Completa de Testes Automatizados (25 Testes Aprovados)
+---
 
-O arquivo [test_backend.py](test_backend.py) foi expandido e executado contra o servidor, obtendo **100% de aprovação em todos os 25 testes**:
+### 2.7. Auditoria e Correção do Pix Automático (Status "Autorizado" & Diagnóstico Oficial de Erros Pluggy)
+- **Problemas Encontrados na Auditoria:**
+  1. **Status "Concluído" Incorreto:** Contratos recorrentes de Pix Automático estavam com status `AUTHORIZED` no `paymentRequest` da Pluggy, mas o backend priorizava o status `PAYMENT_COMPLETED` do intent de adesão (taxa de R$ 0,01). Com isso, 52 contratos ativos apareciam incorretamente como "Concluído" em vez de **"Autorizado"**.
+  2. **Ocultação dos Erros Oficiais da Pluggy:** O campo `errorDetail` dos intents da Pluggy era descartado. Motivos reais de recusa do Open Finance (`TEMPO_EXPIRADO_AUTORIZACAO`, `REJEITADO_USUARIO`, `REVOGADO_RECEBEDOR`, `CONNECTION_ERROR`, etc.) não eram informados nem na listagem nem no modal.
+  3. **Cobranças Fictícias no Modal:** Quando um consentimento era cancelado ou expirava, o modal exibia a mensalidade com status "Agendado" e a adesão como "Concluído", contrariando o painel oficial da Pluggy.
+- **Soluções Implementadas:**
+  - **Backend (`backend.py`):**
+    - Criada a tabela de erros canônicos `ERROS_PLUGGY_CANONICOS` e a função `extrair_erro_pluggy(intent, pr)` para extrair, traduzir e higienizar qualquer erro técnico da Pluggy (`code`, `providerCode`, `providerTitle`, `providerDetail`, `acao`).
+    - Determinação fiel de status: Em contratos recorrentes de Pix Automático, o status do `paymentRequest` é soberano. Se `AUTHORIZED`, o contrato recebe badge e etiqueta **"Autorizado"** (mandato ativo).
+    - Injeção do objeto `'erro'` em cada solicitação e no endpoint `/consultar-pix/<id>`.
+    - Mapeamento das cobranças/adesão: Se o contrato foi rejeitado ou expirou, a adesão reflete o status de recusa (`Rejeitado pelo Cliente` / `Falha`) e a mensalidade reflete `Não Autorizado` / `Cancelado`, com o indicador `0 de X concluídos`.
+  - **Frontend (`gestor.html`):**
+    - **Tabela de Solicitações:** Badges estilizados com ícones oficiais (`Autorizado`, `Agendado`, `Aguardando`, `Erro`, `Rejeitado`, `Expirado`, `Cancelado`).
+    - **Pills de Erro Visíveis:** Solicitações com falha exibem abaixo do status uma tag resumida do erro (`Consentimento expirado`, `Consentimento cancelado`, etc.) com tooltip do motivo completo.
+    - **Modal de Detalhes:**
+      - Cabeçalho superior com Badge Oficial de Status em destaque.
+      - **Banner de Diagnóstico de Falha (Pluggy Alert Card):** Fundo vermelho claro estilizado exibindo Título do Erro, Código Técnico da Pluggy, Instituição Emissora, Detalhe Completo, Ação Recomendada e botão para Copiar Link de Reenvio via WhatsApp.
+      - **Banner de Mandato Ativo:** Para contratos autorizados, confirmação de mandato ativo no Open Finance.
+      - Tabela de Pagamentos com status fiéis e condizentes com a situação da autorização.
+
+---
+
+## 3. Bateria Completa de Testes Automatizados (28 Testes Aprovados)
+
+O arquivo [test_backend.py](test_backend.py) foi expandido e executado contra o servidor, obtendo **100% de aprovação em todos os 28 testes**:
 
 ```
 Iniciando bateria completa de testes automatizados do Backend...
@@ -104,15 +128,18 @@ Iniciando bateria completa de testes automatizados do Backend...
  Teste 23 [Deduplicação e Saldo Fiel Securitizadora]: Sucesso! 1 conta única validada com saldo exato de R$ 2.815,47.
  Teste 24 [Persistência de tipo 'securitizadora']: Sucesso! Nova conta corporativa classificada como securitizadora.
  Teste 25 [Cache e Sincronização Securitizadora]: Sucesso! Cache invalidado e sincronização disparada com sucesso.
+ Teste 26 [Status Fiel Pix Automático]: Sucesso! 52 contratos AUTHORIZED validados como 'Autorizado' (não 'Concluído').
+ Teste 27 [Diagnóstico Oficial de Erros]: Sucesso! 132 contratos com diagnóstico de erro oficial detalhados (Ex: 'Consentimento expirado' - TEMPO_EXPIRADO_AUTORIZACAO).
+ Teste 28 [Fidelidade de Cobranças em /consultar-pix]: Sucesso! Diagnóstico fiel e status de pagamentos condizentes.
 
- TODOS OS 25 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!
+ TODOS OS 28 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!
 ```
 
 ---
 
 ## 4. Auditoria de Código e Sintaxe Frontend
 
-- **Validação de Sintaxe JavaScript:** Todos os scripts inline de [cliente.html](cliente.html), [gestor.html](gestor.html), [securitizadora.html](securitizadora.html), [extratos.html](extratos.html), [gestor-login.html](gestor-login.html) e [config.js](config.js) foram auditados via interpretador Node.js: **0 erros de sintaxe**.
+- **Validação de Sintaxe JavaScript:** Todos os scripts inline de [cliente.html](cliente.html), [gestor.html](gestor.html), [securitizadora.html](securitizadora.html), [extratos.html](extratos.html), [gestor-login.html](gestor-login.html) e [config.js](config.js) foram auditados: **0 erros de sintaxe**.
 - **Validação Python:** `py_compile backend.py` e `test_backend.py` executados com **0 erros de sintaxe ou tipos**.
 
 ---
@@ -134,11 +161,13 @@ Para colocar as correções e melhorias em produção:
    - Teste os filtros de entradas/saídas e o download do extrato via **"Exportar CSV"** (abrindo diretamente no Excel sem caracteres distorcidos).
 
 3. **Verificar os Detalhes das Operações de Pix Automático:**
-   - No painel do gestor, clique em qualquer linha de contrato na aba **Pix Automático** para abrir o modal estilo Pluggy (tríade de datas, parâmetros do Pix, dados do cliente e recebedor MC).
-
-4. **Ajustar Nome no Dashboard da Pluggy (Whitelabel Final):**
-   - Acesse `dashboard.pluggy.ai` ➔ Configurações / Whitelabel ➔ Altere de "Demo" para "Openfinance MC" para atualizar o título padrão no servidor da Pluggy.
+   - No painel do gestor, acesse a aba **Pix Automático**.
+   - Verifique que os contratos ativos exibem o badge **Autorizado** (em vez de "Concluído").
+   - Itens que falharam exibem o status exato (`Rejeitado`, `Expirado`, `Erro`) com a pill do motivo oficial da Pluggy.
+   - Clique em **"Detalhes"** em qualquer contrato para inspecionar o modal:
+     - Em contratos com recusa: exibe o Card de Diagnóstico Vermelho com o título oficial (`Consentimento expirado`), código da Pluggy (`TEMPO_EXPIRADO_AUTORIZACAO`), banco emissor e o botão para copiar o link e reenviar via WhatsApp.
+     - Em contratos autorizados: exibe a confirmação de mandato ativo no Open Finance.
 
 ---
 
-> **Status do Projeto:** 🟢 **100% Auditado, Corrigido, Otimizado e Aprovado nos 25 Testes Automatizados.**
+> **Status do Projeto:** 🟢 **100% Auditado, Corrigido, Otimizado e Aprovado nos 28 Testes Automatizados.**
