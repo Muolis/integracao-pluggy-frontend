@@ -651,16 +651,6 @@ def salvar_conexao():
 
         item_id_seguro = str(item_id) if item_id else str(payment_intent_id)
 
-        # Evita duplicatas em Open Finance e atualiza nome se antes era genérico
-        if item_id and not payment_intent_id:
-            existente = supabase.table('conexoes').select('id, cliente').eq('item_id', str(item_id)).execute().data
-            if existente:
-                cliente_antigo = existente[0].get('cliente', '')
-                if cliente and cliente != cliente_antigo and cliente_antigo.startswith(('Cliente-', 'Atendimento')):
-                    supabase.table('conexoes').update({'cliente': str(cliente)[:255]}).eq('id', existente[0]['id']).execute()
-                print(f'[SALVAR-CONEXAO] Conexão já existente: {cliente} ({item_id})')
-                return jsonify({'sucesso': True, 'mensagem': 'Conexão já registrada'}), 200
-
         tipo_informado = dados.get('tipo')
         if tipo_informado in ['securitizadora', 'pix_automatico', 'open_finance']:
             tipo_final = tipo_informado
@@ -668,6 +658,22 @@ def salvar_conexao():
             tipo_final = 'securitizadora'
         else:
             tipo_final = 'pix_automatico' if payment_intent_id else 'open_finance'
+
+        # Evita duplicatas em Open Finance e atualiza nome/tipo se antes era genérico
+        if item_id and not payment_intent_id:
+            existente = supabase.table('conexoes').select('id, cliente, tipo').eq('item_id', str(item_id)).execute().data
+            if existente:
+                cliente_antigo = existente[0].get('cliente', '')
+                tipo_antigo = existente[0].get('tipo')
+                updates = {}
+                if cliente and cliente != cliente_antigo and cliente_antigo.startswith(('Cliente-', 'Atendimento')):
+                    updates['cliente'] = str(cliente)[:255]
+                if tipo_final == 'securitizadora' and tipo_antigo != 'securitizadora':
+                    updates['tipo'] = 'securitizadora'
+                if updates:
+                    supabase.table('conexoes').update(updates).eq('id', existente[0]['id']).execute()
+                print(f'[SALVAR-CONEXAO] Conexão já existente ({tipo_final}): {cliente} ({item_id})')
+                return jsonify({'sucesso': True, 'tipo': tipo_final, 'mensagem': 'Conexão já registrada'}), 200
 
         registro = {
             'cliente': str(cliente)[:255],
