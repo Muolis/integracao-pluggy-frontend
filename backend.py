@@ -1234,6 +1234,7 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'valor_parcela': valor_parcela,
                 'valor': valor_parcela,
                 'data_inicio': auto_pix.get('startDate') or schedule.get('startDate') or '',
+                'data_inicio_formatada': format_data_simples_pluggy(auto_pix.get('startDate') or schedule.get('startDate')) if (auto_pix.get('startDate') or schedule.get('startDate')) else '',
                 'data_termino': auto_pix.get('expiresAt') or '',
                 'data_criacao': r.get('createdAt') or '',
                 'criado_em': format_data_pluggy(r.get('createdAt')),
@@ -1450,8 +1451,16 @@ def consultar_pix_detalhado(operacao_id):
         status_badge = 'bg-amber-100 text-amber-800 border-amber-200'
 
     criado_em = format_data_pluggy(pr.get('createdAt'))
-    autorizado_em = format_data_pluggy(intent.get('createdAt') or (pr.get('updatedAt') if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'] else None))
-    atualizado_em = format_data_pluggy(pr.get('updatedAt') or intent.get('updatedAt'))
+    # Autorizado em: apenas se foi efetivamente autorizado ou pago
+    if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+        data_auth_raw = (intent.get('updatedAt') if intent else None) or (intent.get('createdAt') if intent else None) or pr.get('updatedAt')
+        autorizado_em = format_data_pluggy(data_auth_raw)
+    else:
+        autorizado_em = '---'
+
+    # Atualizado em: data do último evento/alteração real
+    data_upd_raw = pr.get('updatedAt') or (intent.get('updatedAt') if intent else None) or pr.get('createdAt')
+    atualizado_em = format_data_pluggy(data_upd_raw)
 
     payment_url = pr.get('paymentUrl') or (intent.get('consentUrl') if intent else '')
     consent_url = (intent.get('consentUrl') if intent else '') or payment_url
@@ -1467,9 +1476,10 @@ def consultar_pix_detalhado(operacao_id):
     first_payment = auto_pix.get('firstPayment') or {}
     total_concluidos = 0
 
+    # 1. Se houver firstPayment (Taxa de confirmação/adesão R$ 0,01)
     if first_payment:
         fp_amount = float(first_payment.get('amount') or 0.01)
-        fp_date = first_payment.get('date') or (str(pr.get('createdAt'))[:10] if pr.get('createdAt') else '2026-09-22')
+        fp_date = first_payment.get('date') or (str(pr.get('createdAt'))[:10] if pr.get('createdAt') else None)
         
         if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
             fp_status = 'CONCLUIDO'
@@ -1501,7 +1511,7 @@ def consultar_pix_detalhado(operacao_id):
             'numero': 1,
             'titulo': 'Confirmação / Adesão do Pix Automático',
             'descricao': first_payment.get('description') or 'Adesão de Crédito',
-            'data': format_data_simples_pluggy(fp_date),
+            'data': format_data_simples_pluggy(fp_date) if fp_date else '---',
             'valor': fp_amount,
             'valor_formatado': f"R$ {fp_amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
             'status': fp_status,
@@ -1509,39 +1519,82 @@ def consultar_pix_detalhado(operacao_id):
             'status_cor': fp_status_cor
         })
 
+    # 2. Cronograma completo das cobranças mensais recorrentes com datas distintas
+    from datetime import date
+    import calendar
+
     data_inicio_parcela = auto_pix.get('startDate') or schedule.get('startDate')
-    data_inicio_fmt = format_data_simples_pluggy(data_inicio_parcela)
+    data_inicio_fmt = format_data_simples_pluggy(data_inicio_parcela) if data_inicio_parcela else '---'
     expira_em_fmt = format_data_pluggy(auto_pix.get('expiresAt'))
 
-    if status_raw in ['AUTHORIZED', 'SCHEDULED']:
-        p2_status = 'AGENDADO'
-        p2_status_label = 'Agendado'
-        p2_status_cor = 'sky'
-    elif status_raw == 'PAYMENT_COMPLETED' and not first_payment:
-        p2_status = 'CONCLUIDO'
-        p2_status_label = 'Concluído'
-        p2_status_cor = 'emerald'
-        total_concluidos += 1
-    elif status_raw in ['ERROR', 'REJECTED', 'CONSENT_REJECTED', 'EXPIRED', 'CANCELED', 'REVOKED']:
-        p2_status = 'CANCELADO'
-        p2_status_label = 'Não Autorizado'
-        p2_status_cor = 'slate'
+    occurrences = schedule.get('occurrences')
+    if not occurrences:
+        if auto_pix.get('expiresAt') and data_inicio_parcela:
+            try:
+                p_s = [int(x) for x in str(data_inicio_parcela)[:10].split('-')]
+                p_e = [int(x) for x in str(auto_pix.get('expiresAt'))[:10].split('-')]
+                occurrences = max((p_e[0] - p_s[0]) * 12 + (p_e[1] - p_s[1]) + 1, 1)
+            except Exception:
+                occurrences = 12
+        else:
+            occurrences = 12
     else:
-        p2_status = 'PENDENTE'
-        p2_status_label = 'Aguardando Autorização'
-        p2_status_cor = 'amber'
+        try:
+            occurrences = int(occurrences)
+        except (ValueError, TypeError):
+            occurrences = 12
 
-    pagamentos_lista.append({
-        'numero': len(pagamentos_lista) + 1,
-        'titulo': f'Mensalidade 1 ({intervalo_pt})',
-        'descricao': pr.get('description') or 'CREDITO PESSOAL MC MINHACONTA',
-        'data': data_inicio_fmt,
-        'valor': val_fixo,
-        'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-        'status': p2_status,
-        'status_label': p2_status_label,
-        'status_cor': p2_status_cor
-    })
+    occurrences = min(max(occurrences, 1), 36)
+
+    try:
+        if data_inicio_parcela:
+            p_ini = [int(x) for x in str(data_inicio_parcela)[:10].split('-')]
+            data_base_cron = date(p_ini[0], p_ini[1], p_ini[2])
+        else:
+            data_base_cron = date.today()
+    except Exception:
+        data_base_cron = date.today()
+
+    hoje_data = date.today()
+    for i in range(1, occurrences + 1):
+        m_total = (data_base_cron.month - 1) + (i - 1)
+        ano_c = data_base_cron.year + (m_total // 12)
+        mes_c = (m_total % 12) + 1
+        max_dias_mes = calendar.monthrange(ano_c, mes_c)[1]
+        dia_c = min(data_base_cron.day, max_dias_mes)
+        venc_data = date(ano_c, mes_c, dia_c)
+        venc_fmt = format_data_simples_pluggy(venc_data.strftime('%Y-%m-%d'))
+
+        if status_raw in ['REJECTED', 'CONSENT_REJECTED', 'ERROR', 'EXPIRED', 'CANCELED', 'REVOKED']:
+            p_status = 'CANCELADO'
+            p_status_label = 'Não Autorizado'
+            p_status_cor = 'slate'
+        elif status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+            if venc_data < hoje_data:
+                p_status = 'CONCLUIDO'
+                p_status_label = 'Concluído'
+                p_status_cor = 'emerald'
+                total_concluidos += 1
+            else:
+                p_status = 'AGENDADO'
+                p_status_label = 'Agendado'
+                p_status_cor = 'sky'
+        else:
+            p_status = 'PENDENTE'
+            p_status_label = 'Aguardando Autorização'
+            p_status_cor = 'amber'
+
+        pagamentos_lista.append({
+            'numero': len(pagamentos_lista) + 1,
+            'titulo': f'Mensalidade {i} ({intervalo_pt})',
+            'descricao': pr.get('description') or 'CREDITO PESSOAL MC MINHACONTA',
+            'data': venc_fmt,
+            'valor': val_fixo,
+            'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'status': p_status,
+            'status_label': p_status_label,
+            'status_cor': p_status_cor
+        })
 
     total_pagamentos = len(pagamentos_lista)
     if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:

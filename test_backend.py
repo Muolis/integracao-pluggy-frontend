@@ -276,9 +276,29 @@ def run_tests():
     pagamentos_erro = det_erro_json.get("pagamentos", {}).get("itens", [])
     assert len(pagamentos_erro) > 0, "Itens de pagamento vazios no detalhe com erro"
     assert any(p["status"] in ["REJEITADO", "EXPIRADO", "ERRO", "CANCELADO"] for p in pagamentos_erro), "Nenhum pagamento com status condizente com a recusa/falha"
-    print(f" Teste 28 [Fidelidade de Cobranças em /consultar-pix]: Sucesso! Diagnóstico fiel e status de pagamentos condizentes ({det_erro_json['pagamentos'].get('indicador')}).")
+    # 29. Teste de Fidelidade e Precisão das Datas das Solicitações e Cronograma
+    datas_criacao = [p.get("data_criacao") for p in itens_pix if p.get("data_criacao")]
+    assert len(set(datas_criacao)) > 10, "Datas de criação das solicitações estão idênticas"
+    
+    # Testa item autorizado com cronograma de pagamentos
+    primeiro_auth = contratos_autorizados[0]
+    res_det_auth = client.get(f'/consultar-pix/{primeiro_auth["id"]}', headers={"Authorization": f"Bearer {token}"})
+    assert res_det_auth.status_code == 200, "Falha ao consultar contrato autorizado"
+    det_auth_json = res_det_auth.get_json()
+    assert det_auth_json.get("criado_em") != "---", "Data de criação ausente"
+    assert det_auth_json.get("autorizado_em") != "---", "Contrato autorizado deve ter data de autorização"
+    
+    itens_cron = det_auth_json.get("pagamentos", {}).get("itens", [])
+    assert len(itens_cron) >= 2, f"Cronograma de parcelas deve conter múltiplos pagamentos, obteve {len(itens_cron)}"
+    datas_parcelas = [it["data"] for it in itens_cron if it.get("data") != "---"]
+    assert len(set(datas_parcelas)) == len(datas_parcelas), f"Existem parcelas com datas duplicadas no cronograma: {datas_parcelas}"
+    
+    # Testa item não-autorizado: autorizado_em deve ser '---'
+    assert det_erro_json.get("autorizado_em") == "---", f"Contrato rejeitado/com erro não pode ter data de autorização: obteve '{det_erro_json.get('autorizado_em')}'"
+    print(f" Teste 29 [Precisão e Cronograma de Datas]: Sucesso! Datas reais, {len(itens_cron)} parcelas distintas e bloqueio de autorização em recusas validados.")
 
-    print("\n TODOS OS 28 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    print("\n TODOS OS 29 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()
+

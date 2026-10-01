@@ -346,7 +346,7 @@
                             <div class="flex items-center gap-2">
                                 <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 shadow-2xs">
                                     <i class="fa-regular fa-calendar text-slate-400"></i>
-                                    <span id="periodo-pagamentos-texto">Set 1 – Set 29, 2026</span>
+                                    <span id="periodo-pagamentos-texto">Calculando período...</span>
                                 </div>
                                 <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs">
                                     PIX Automático
@@ -430,9 +430,23 @@
                             </div>
 
                             <div class="sm:col-span-3">
-                                <div class="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-700 shadow-2xs">
-                                    <i class="fa-regular fa-calendar text-slate-400"></i>
-                                    <span id="filtro-pluggy-periodo">Jun 29 – Sep 29, 2026</span>
+                                <div class="relative">
+                                    <select id="filtro-pluggy-periodo-select" onchange="aplicarFiltrosPluggy()" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-7 py-2 text-xs font-semibold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30">
+                                        <option value="todos" selected>Todo o Período</option>
+                                        <option value="7d">Últimos 7 dias</option>
+                                        <option value="30d">Últimos 30 dias</option>
+                                        <option value="90d">Últimos 90 dias</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                                        <i class="fa-regular fa-calendar text-xs text-[#0985ff]"></i>
+                                    </div>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    </div>
+                                </div>
+                                <div class="text-[10px] text-slate-500 mt-1 truncate px-1 flex items-center gap-1">
+                                    <i class="fa-regular fa-clock text-[9px] text-slate-400"></i>
+                                    <span id="filtro-pluggy-periodo" class="font-medium text-slate-600">Calculando período...</span>
                                 </div>
                             </div>
 
@@ -728,6 +742,7 @@
                         todosOsPix = dataPix.results || [];
                         kpisPix = dataPix.kpis || {};
                         atualizarRibbonKpisPix(kpisPix);
+                        atualizarPeriodosDinamicos(todosOsPix);
                     }
                 } catch (ePix) {
                     console.warn('[PIX INTENTS FETCH WARNING]:', ePix);
@@ -838,9 +853,28 @@
             debounceFiltrarClientes();
         }
 
+        function formatarDataSimplesPluggy(isoDate) {
+            if (!isoDate) return '---';
+            try {
+                const s = String(isoDate).trim();
+                const partes = s.slice(0, 10).split('-');
+                if (partes.length === 3) {
+                    const meses = ['', 'jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+                    const mIdx = parseInt(partes[1], 10);
+                    const mesNome = (mIdx >= 1 && mIdx <= 12) ? meses[mIdx] : partes[1];
+                    return `${parseInt(partes[2], 10)} de ${mesNome} de ${partes[0]}`;
+                }
+            } catch {}
+            return String(isoDate);
+        }
+
         function formatarDataPluggy(isoString) {
             if (!isoString) return '---';
             try {
+                const s = String(isoString).trim();
+                if (s.length === 10 && s.indexOf('-') === 4) {
+                    return formatarDataSimplesPluggy(s);
+                }
                 const d = new Date(isoString);
                 if (isNaN(d.getTime())) return isoString;
                 const meses = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
@@ -853,6 +887,36 @@
                 return `${dia} de ${mes} de ${ano}, ${hora}:${min}:${seg}`;
             } catch {
                 return isoString;
+            }
+        }
+
+        function atualizarPeriodosDinamicos(listaPix) {
+            if (!listaPix || listaPix.length === 0) return;
+            const datasValidas = listaPix
+                .map(p => p.data_criacao ? new Date(p.data_criacao) : null)
+                .filter(d => d && !isNaN(d.getTime()));
+
+            if (datasValidas.length > 0) {
+                const minData = new Date(Math.min(...datasValidas));
+                const maxData = new Date(Math.max(...datasValidas));
+                const meses = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+                
+                let rangeTexto = '';
+                if (minData.getFullYear() === maxData.getFullYear()) {
+                    if (minData.getMonth() === maxData.getMonth()) {
+                        rangeTexto = `${minData.getDate()} – ${maxData.getDate()} de ${meses[maxData.getMonth()]} de ${maxData.getFullYear()}`;
+                    } else {
+                        rangeTexto = `${minData.getDate()} de ${meses[minData.getMonth()]} – ${maxData.getDate()} de ${meses[maxData.getMonth()]} de ${maxData.getFullYear()}`;
+                    }
+                } else {
+                    rangeTexto = `${minData.getDate()} de ${meses[minData.getMonth()]} de ${minData.getFullYear()} – ${maxData.getDate()} de ${meses[maxData.getMonth()]} de ${maxData.getFullYear()}`;
+                }
+
+                const elPeriodoSol = document.getElementById('filtro-pluggy-periodo');
+                if (elPeriodoSol) elPeriodoSol.textContent = rangeTexto;
+
+                const elPeriodoPag = document.getElementById('periodo-pagamentos-texto');
+                if (elPeriodoPag) elPeriodoPag.textContent = rangeTexto;
             }
         }
 
@@ -994,6 +1058,13 @@
             if (filtroAba === 'pix') {
                 const buscaTexto = termoBusca;
                 const statusFiltro = (document.getElementById('filtro-pluggy-status')?.value || 'todos');
+                const periodoFiltro = (document.getElementById('filtro-pluggy-periodo-select')?.value || 'todos');
+                const agoraMs = Date.now();
+                const limitesDias = {
+                    '7d': 7 * 86400000,
+                    '30d': 30 * 86400000,
+                    '90d': 90 * 86400000
+                };
 
                 const pixFiltrados = todosOsPix.filter(p => {
                     const matchTexto = (
@@ -1010,8 +1081,19 @@
                     if (statusFiltro !== 'todos') {
                         matchStatus = (p.status_label === statusFiltro || p.status === statusFiltro);
                     }
-                    return matchTexto && matchStatus;
+                    let matchPeriodo = true;
+                    if (periodoFiltro !== 'todos' && limitesDias[periodoFiltro]) {
+                        if (p.data_criacao) {
+                            const t = new Date(p.data_criacao).getTime();
+                            matchPeriodo = !isNaN(t) && ((agoraMs - t) <= limitesDias[periodoFiltro]);
+                        } else {
+                            matchPeriodo = false;
+                        }
+                    }
+                    return matchTexto && matchStatus && matchPeriodo;
                 });
+
+                atualizarPeriodosDinamicos(pixFiltrados.length > 0 ? pixFiltrados : todosOsPix);
 
                 badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> solicitações Pix`;
 
@@ -1058,6 +1140,10 @@
                             const recDisplay = MC_CONFIG.escapeHtml(p.recebedor || 'MC Minhaconta Securitizadora C SA');
                             const valorDisplay = MC_CONFIG.formatMoney(p.valor || p.valor_parcela || 0);
                             const dataFmt = p.criado_em || formatarDataPluggy(p.data_criacao);
+                            const dataInicioFmt = p.data_inicio_formatada || (p.data_inicio ? formatarDataSimplesPluggy(p.data_inicio) : null);
+                            const badgeInicio = (dataInicioFmt && dataInicioFmt !== '---')
+                                ? `<div class="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-medium"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioFmt}</strong></div>`
+                                : '';
                             const nomeSeguro = MC_CONFIG.escapeHtml(p.cliente || 'Cliente');
 
                             const docDisplay = p.documento 
@@ -1153,7 +1239,10 @@
                                         </span>
                                         ${tagErroHtml}
                                     </td>
-                                    <td class="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">${dataFmt}</td>
+                                    <td class="py-3 px-3 text-slate-600 text-[11px] whitespace-nowrap">
+                                        <div class="font-medium text-slate-800">${dataFmt}</div>
+                                        ${badgeInicio}
+                                    </td>
                                     <td class="py-3 px-3 text-center">
                                         <div class="flex items-center justify-center gap-1.5">
                                             ${btnLink}
@@ -1187,6 +1276,10 @@
                     let htmlCards = '';
                     itensPaginados.forEach(pix => {
                         const dataCriacaoFormatada = pix.criado_em || formatarDataPluggy(pix.data_criacao);
+                        const dataInicioCard = pix.data_inicio_formatada || (pix.data_inicio ? formatarDataSimplesPluggy(pix.data_inicio) : null);
+                        const badgeInicioCard = (dataInicioCard && dataInicioCard !== '---')
+                            ? `<span class="text-slate-500 font-medium ml-1.5"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioCard}</strong></span>`
+                            : '';
                         const valorParcelaForm = MC_CONFIG.formatMoney(pix.valor || pix.valor_parcela || 0);
                         const nomeSeguro = MC_CONFIG.escapeHtml(pix.cliente);
                         const docDisplay = pix.documento 
@@ -1239,6 +1332,7 @@
                                                 <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco')}</span>
                                                 <span class="text-slate-300">•</span>
                                                 <span><i class="fa-regular fa-clock text-slate-400"></i> ${dataCriacaoFormatada}</span>
+                                                ${badgeInicioCard}
                                             </div>
                                         </div>
                                     </div>
@@ -2019,6 +2113,21 @@
             }
         }
 
+        function inicializarDatasFormularioPix() {
+            const elInicio = document.getElementById("dataInicio");
+            const elFim = document.getElementById("dataFim");
+            if (elInicio && !elInicio.value) {
+                const d = new Date();
+                d.setDate(d.getDate() + 1);
+                elInicio.value = d.toISOString().split('T')[0];
+            }
+            if (elFim && !elFim.value) {
+                const dFim = new Date();
+                dFim.setFullYear(dFim.getFullYear() + 1);
+                elFim.value = dFim.toISOString().split('T')[0];
+            }
+        }
+
         // Inicializacao com verificacao de autenticacao
         document.addEventListener('DOMContentLoaded', () => {
             if (!MC_CONFIG.isAuthenticated()) {
@@ -2032,6 +2141,7 @@
                 if (elNome) elNome.textContent = usuario.nome || usuario.username || 'Gestor';
             }
 
+            inicializarDatasFormularioPix();
             carregarClientes();
         });
     </script>
