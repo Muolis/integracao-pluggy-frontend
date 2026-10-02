@@ -45,3 +45,22 @@ COMMENT ON TABLE public.conexoes IS 'Armazena autorizações de Open Finance e c
 COMMENT ON COLUMN public.conexoes.cliente IS 'Identificador ou nome do cliente vinculado';
 COMMENT ON COLUMN public.conexoes.item_id IS 'ID da conexão de extrato Open Finance (Pluggy Item ID)';
 COMMENT ON COLUMN public.conexoes.payment_intent_id IS 'ID da intenção de pagamento do Pix Automático (Pluggy Payment Intent ID)';
+
+-- ====================================================================
+-- 5. SEGURANÇA E ROW LEVEL SECURITY (RLS)
+-- Impede acesso direto não autorizado de usuários anônimos via REST API
+-- ====================================================================
+ALTER TABLE public.conexoes ENABLE ROW LEVEL SECURITY;
+
+-- Revoga permissões diretas da role pública anônima
+REVOKE ALL ON public.conexoes FROM anon;
+
+-- Concede acesso pleno exclusivamente para a service_role (utilizada pelo backend Python seguro)
+DROP POLICY IF EXISTS "Acesso restrito service_role conexoes" ON public.conexoes;
+CREATE POLICY "Acesso restrito service_role conexoes"
+    ON public.conexoes
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+

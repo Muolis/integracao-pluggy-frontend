@@ -47,9 +47,15 @@ def run_tests():
     assert res_extratos.status_code == 200, "Falha ao servir extratos.html"
     res_config = client.get('/config.js')
     assert res_config.status_code == 200, "Falha ao servir config.js"
+    res_gestor_js = client.get('/gestor.js')
+    assert res_gestor_js.status_code == 200, "Falha ao servir gestor.js"
+    res_extratos_js = client.get('/extratos.js')
+    assert res_extratos_js.status_code == 200, "Falha ao servir extratos.js"
+    res_sec_js = client.get('/securitizadora.js')
+    assert res_sec_js.status_code == 200, "Falha ao servir securitizadora.js"
     res_logo = client.get('/logo-mc-minhaconta.png')
     assert res_logo.status_code == 200, "Falha ao servir logo-mc-minhaconta.png"
-    print(" Teste 6 [Servidor de arquivos estáticos]: Sucesso! HTMLs, config.js e logo servidos corretamente.")
+    print(" Teste 6 [Servidor de arquivos estáticos]: Sucesso! HTMLs, scripts desacoplados (gestor.js, extratos.js, securitizadora.js, config.js) e logo servidos corretamente.")
 
     # 7. Teste Headers de Segurança HTTP
     assert res_raiz.headers.get("X-Content-Type-Options") == "nosniff", "Header nosniff ausente"

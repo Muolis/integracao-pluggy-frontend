@@ -50,12 +50,19 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception as e:
         print(f'[ALERTA] Falha ao conectar no Supabase: {e}')
 
+from werkzeug.security import generate_password_hash, check_password_hash
+
 GESTOR_USERS_RAW = os.environ.get('GESTOR_USERS', 'admin:securitizadora2026,julianemc:MC@2026,gabriel:MC@2026')
 GESTOR_USERS = {}
 for par in GESTOR_USERS_RAW.split(','):
     if ':' in par:
         u, p = par.strip().split(':', 1)
-        GESTOR_USERS[u.strip()] = p.strip()
+        u_clean = u.strip()
+        p_clean = p.strip()
+        if p_clean.startswith(('pbkdf2:', 'scrypt:', 'argon2:')):
+            GESTOR_USERS[u_clean] = p_clean
+        else:
+            GESTOR_USERS[u_clean] = generate_password_hash(p_clean)
 
 # ====================================================================
 # 2. CACHES EM MEMORIA (API KEY & INTENTS)
@@ -241,7 +248,7 @@ def api_login():
     if not usuario or not senha:
         return jsonify({'erro': 'Usuario e senha sao obrigatorios'}), 400
     senha_esperada = GESTOR_USERS.get(usuario)
-    if senha_esperada and hmac.compare_digest(senha, senha_esperada):
+    if senha_esperada and check_password_hash(senha_esperada, senha):
         token = gerar_token_sessao(usuario)
         return jsonify({
             'sucesso': True,
@@ -962,39 +969,48 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
         return {'erro': 'Falha na autenticacao Pluggy', 'results': [], 'total': 0, 'kpis': {}}
 
     try:
-        # 1. Busca todas as solicitacoes de pagamento (/payments/requests)
-        raw_requests = []
-        page = 1
-        total_pages = 1
-        while page <= total_pages and page <= 5:
-            res_req = requests.get(
-                f'https://api.pluggy.ai/payments/requests?pageSize=100&page={page}',
-                headers={'X-API-KEY': api_key},
-                timeout=20
-            )
-            if res_req.status_code != 200:
-                break
-            page_data = res_req.json()
-            raw_requests.extend(page_data.get('results', []))
-            total_pages = page_data.get('totalPages', 1)
-            page += 1
+        # 1. Busca concorrente e paralela de solicitações e intenções da Pluggy (Alta Performance)
+        from concurrent.futures import ThreadPoolExecutor
 
-        # 2. Busca todas as intencoes de pagamento (/payments/intents)
-        raw_intents = []
-        page = 1
-        total_pages = 1
-        while page <= total_pages and page <= 5:
-            res_int = requests.get(
-                f'https://api.pluggy.ai/payments/intents?pageSize=100&page={page}',
-                headers={'X-API-KEY': api_key},
-                timeout=20
-            )
-            if res_int.status_code != 200:
-                break
-            page_data = res_int.json()
-            raw_intents.extend(page_data.get('results', []))
-            total_pages = page_data.get('totalPages', 1)
-            page += 1
+        def fetch_pluggy_page(endpoint, page_num):
+            try:
+                r = requests.get(
+                    f'https://api.pluggy.ai/{endpoint}?pageSize=100&page={page_num}',
+                    headers={'X-API-KEY': api_key},
+                    timeout=15
+                )
+                if r.status_code == 200:
+                    return r.json()
+            except Exception as e_p:
+                print(f'[AVISO FETCH {endpoint} p{page_num}]: {e_p}')
+            return {}
+
+        # Busca página 1 de requests e intents simultaneamente
+        with ThreadPoolExecutor(max_workers=2) as init_pool:
+            fut_req1 = init_pool.submit(fetch_pluggy_page, 'payments/requests', 1)
+            fut_int1 = init_pool.submit(fetch_pluggy_page, 'payments/intents', 1)
+            p1_req = fut_req1.result()
+            p1_int = fut_int1.result()
+
+        raw_requests = list(p1_req.get('results', []))
+        total_p_req = min(p1_req.get('totalPages', 1), 5)
+
+        raw_intents = list(p1_int.get('results', []))
+        total_p_int = min(p1_int.get('totalPages', 1), 5)
+
+        # Busca páginas restantes (2 a 5) em paralelo
+        if total_p_req > 1 or total_p_int > 1:
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                futs_req = [pool.submit(fetch_pluggy_page, 'payments/requests', p) for p in range(2, total_p_req + 1)]
+                futs_int = [pool.submit(fetch_pluggy_page, 'payments/intents', p) for p in range(2, total_p_int + 1)]
+
+                for f in futs_req:
+                    res = f.result()
+                    raw_requests.extend(res.get('results', []))
+
+                for f in futs_int:
+                    res = f.result()
+                    raw_intents.extend(res.get('results', []))
 
         # Mapeamento de intents pelo ID da paymentRequest
         intent_by_pr = {}
@@ -2448,8 +2464,17 @@ def api_securitizadora_sincronizar():
 # 6. WEBHOOKS DA PLUGGY & SINCRONIZACAO RESILIENTE
 # ====================================================================
 
+PLUGGY_WEBHOOK_SECRET = os.environ.get('PLUGGY_WEBHOOK_SECRET')
+
 @app.route('/api/webhook/pluggy', methods=['POST'])
 def webhook_pluggy():
+    # Validação de segurança criptográfica se segredo estiver configurado
+    if PLUGGY_WEBHOOK_SECRET:
+        token_webhook = request.headers.get('X-Webhook-Secret') or request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token_webhook or not hmac.compare_digest(token_webhook, PLUGGY_WEBHOOK_SECRET):
+            print('[AVISO SEGURANCA] Tentativa de disparo de Webhook com token invalido ou ausente')
+            return jsonify({'erro': 'Nao autorizado: Assinatura de webhook invalida'}), 401
+
     payload = request.get_json(silent=True) or {}
     event = payload.get('event') or ''
     item_id = payload.get('itemId') or payload.get('id') or (payload.get('data') or {}).get('id')
