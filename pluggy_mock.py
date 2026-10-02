@@ -392,6 +392,67 @@ def dispatch_mock_request(method: str, url: str, headers: Optional[Dict] = None,
     if clean_url.endswith('/payments/customers'):
         return MockResponse(200, MOCK_CUSTOMERS)
 
+    # GET /connectors
+    if clean_url.endswith('/connectors'):
+        mock_connectors = [
+            {'id': 678, 'name': '121 - Agibank (Agi)', 'code': '121', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg'},
+            {'id': 203, 'name': '237 - Bradesco', 'code': '237', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/203.svg'},
+            {'id': 211, 'name': '001 - Banco do Brasil', 'code': '001', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/211.svg'},
+            {'id': 201, 'name': '341 - Itaú', 'code': '341', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/201.svg'},
+            {'id': 212, 'name': '260 - Nubank', 'code': '260', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/212.svg'}
+        ]
+        return MockResponse(200, {'total': len(mock_connectors), 'results': mock_connectors})
+
+    # GET /connectors/678 (Agibank)
+    if clean_url.endswith('/connectors/678'):
+        return MockResponse(200, {
+            'id': 678,
+            'name': '121 - Agibank (Agi)',
+            'code': '121',
+            'primaryColor': 'ef294b',
+            'country': 'BR',
+            'type': 'PERSONAL_BANK',
+            'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg',
+            'isOpenFinance': True,
+            'supportsPaymentInitiation': True,
+            'supportsAutomaticPix': True,
+            'status': 'ONLINE'
+        })
+
+    # GET /items/{id} - Simulação de Item Conectado Agibank
+    if '/items/item-mock-agibank-121' in clean_url or '/items/demo-agibank' in clean_url:
+        return MockResponse(200, {
+            'id': 'item-mock-agibank-121',
+            'status': 'UPDATED',
+            'executionStatus': 'SUCCESS',
+            'connector': {
+                'id': 678,
+                'name': 'Agibank',
+                'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg'
+            },
+            'createdAt': '2026-09-28T14:20:00.000Z',
+            'updatedAt': '2026-10-02T10:00:00.000Z'
+        })
+
+    # GET /accounts?itemId=... - Simulação de Conta do Agibank
+    if clean_url.endswith('/accounts'):
+        return MockResponse(200, {
+            'total': 1,
+            'results': [
+                {
+                    'id': 'acc-mock-agibank-001',
+                    'type': 'BANK',
+                    'subtype': 'CHECKING_ACCOUNT',
+                    'name': 'Conta Corrente Agibank',
+                    'balance': 4850.20,
+                    'currencyCode': 'BRL',
+                    'itemId': 'item-mock-agibank-121',
+                    'number': '123456-7',
+                    'agency': '0001'
+                }
+            ]
+        })
+
     # POST /connect_token
     if clean_url.endswith('/connect_token'):
         return MockResponse(200, {

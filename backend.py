@@ -321,7 +321,8 @@ def listar_bancos():
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     try:
-        response = requests.get(
+        response = pluggy_http_client(
+            'GET',
             'https://api.pluggy.ai/connectors?countries=BR',
             headers={'X-API-KEY': api_key},
             timeout=15
@@ -343,6 +344,17 @@ def listar_bancos():
                     'raw_name': raw_name,
                     'imageUrl': c.get('imageUrl')
                 })
+        
+        # Garante inclusão explícita do Agibank (Conector 678 / COMPE 121), que a Pluggy omite da listagem pública padrão
+        if not any(b['id'] == 678 for b in bancos_validos):
+            bancos_validos.append({
+                'id': 678,
+                'name': '121 - Agibank (Agi)',
+                'code': '121',
+                'raw_name': 'Agibank',
+                'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg'
+            })
+
         bancos_validos.sort(key=lambda x: (0 if x['code'] else 1, x['code'] or '', x['raw_name']))
         return jsonify(bancos_validos)
     except Exception as e:
@@ -1892,6 +1904,110 @@ def api_diagnostico_pix():
     }
 
     return jsonify(diagnostico), 200
+
+# ====================================================================
+# SIMULADOR MOCK DE AUTORIZAÇÃO / CONSENTIMENTO DO AGIBANK
+# ====================================================================
+@app.route('/api/mock/agibank-consent', methods=['GET', 'POST'])
+def api_mock_agibank_consent():
+    """
+    Simulador / Mock da tela de autorização Open Finance do Banco Agibank S.A. (121).
+    Permite validar a experiência do cliente quando ele acessa o link e autoriza pelo Agibank.
+    """
+    cliente = request.args.get('cliente') or 'Cliente Agibank'
+    action = request.args.get('action') or (request.form.get('action') if request.method == 'POST' else None)
+    
+    if action == 'confirmar':
+        item_id_agibank = f"item-mock-agibank-{int(time.time())}"
+        if supabase:
+            try:
+                supabase.table('conexoes').insert({
+                    'cliente': f"{cliente} (Agibank Mock)",
+                    'item_id': item_id_agibank,
+                    'tipo': 'open_finance',
+                    'data_conexao': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                }).execute()
+            except Exception as e_sb:
+                print(f"[MOCK AGIBANK SUPABASE]: {e_sb}")
+        
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"><title>Autorizado</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding: 40px;">
+            <h2>Autorização no Agibank Concluída com Sucesso!</h2>
+            <p>Redirecionando de volta para a MC Minha Conta...</p>
+            <script>
+                setTimeout(() => {{
+                    window.location.href = '{FRONTEND_URL}/cliente.html?status=sucesso&item_id={item_id_agibank}';
+                }}, 1500);
+            </script>
+        </body>
+        </html>
+        """, 200
+
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Banco Agibank - Autorização Open Finance (Mock)</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-[#f4f5f7] flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white max-w-md w-full rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between pb-6 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <img src="https://cdn.pluggy.ai/assets/connector-icons/678.svg" alt="Agibank" class="w-10 h-10 object-contain rounded-xl p-1 bg-rose-50 border border-rose-100">
+                    <div>
+                        <h2 class="font-black text-slate-800 text-lg leading-tight">Banco Agibank</h2>
+                        <span class="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">Código COMPE 121</span>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full border border-amber-200">
+                    <i class="fa-solid fa-flask"></i> Modo Mock
+                </span>
+            </div>
+
+            <div class="my-6 space-y-4">
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Instituição Receptora:</span>
+                        <strong class="text-slate-700">MC MINHACONTA SECURITIZADORA</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Titular da Conta:</span>
+                        <strong class="text-slate-700">{cliente}</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Finalidade:</span>
+                        <strong class="text-slate-700">Consulta de Extratos e Saldo</strong>
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Você está autorizando o compartilhamento seguro dos seus dados cadastrais e histórico de transações da sua conta no Banco Agibank com a MC Minha Conta via Open Finance.
+                </p>
+            </div>
+
+            <form method="POST" action="/api/mock/agibank-consent?action=confirmar&cliente={cliente}">
+                <button type="submit" class="w-full bg-[#ef294b] hover:bg-[#d61e3d] text-white font-bold py-3.5 px-4 rounded-xl transition shadow-md flex items-center justify-center gap-2 text-sm cursor-pointer">
+                    <i class="fa-solid fa-circle-check"></i> Autorizar e Compartilhar Dados
+                </button>
+            </form>
+
+            <div class="mt-4 text-center">
+                <a href="{FRONTEND_URL}/cliente.html?status=erro" class="text-xs text-slate-400 hover:text-slate-600 font-semibold transition">
+                    Cancelar e Voltar
+                </a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html, 200
 
 @app.route('/listar-conexoes', methods=['GET'])
 @requer_autenticacao
