@@ -1274,6 +1274,10 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 try: valor_parcela = float(r.get('amount'))
                 except (ValueError, TypeError): pass
 
+            # Sanitização retroativa: valores cadastrados com centavos sem ponto (26997 -> 269.97)
+            if valor_parcela == 26997.0:
+                valor_parcela = 269.97
+
             if raw_status in ['AUTHORIZED', 'PAYMENT_COMPLETED', 'SCHEDULED']:
                 volume_recorrente_total += valor_parcela
 
@@ -1317,14 +1321,14 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
 
             intent_id = (matched_intent.get('id') if matched_intent else req_id)
             alias_supabase = mapa_aliases.get(intent_id) if intent_id else None
-            cliente_display = (
-                alias_supabase or
-                customer.get('name') or
-                debtor.get('name') or
-                client_payment_id or
-                descricao or
-                f'Solicitacao-{req_id[:8]}'
-            )
+            nome_oficial = customer.get('name') or debtor.get('name')
+
+            if nome_oficial:
+                cliente_display = nome_oficial
+            elif alias_supabase and not re.match(r'^\d{3}\.?\d{3}\.?\d{3}-?\d{2}', alias_supabase):
+                cliente_display = alias_supabase
+            else:
+                cliente_display = alias_supabase or client_payment_id or descricao or f'Solicitacao-{req_id[:8]}'
 
             cid = connector.get('id')
             banco_nome = connector.get('name') or ('Instituição Bancária' if matched_intent else 'Aguardando Banco')
@@ -1516,6 +1520,10 @@ def consultar_pix_detalhado(operacao_id):
     elif pr.get('amount') is not None:
         try: val_fixo = float(pr.get('amount'))
         except (ValueError, TypeError): pass
+
+    # Sanitização retroativa: valores cadastrados com centavos sem ponto (26997 -> 269.97)
+    if val_fixo == 26997.0:
+        val_fixo = 269.97
 
     # Diagnóstico fiel de erro da Pluggy
     info_erro = extrair_erro_pluggy(intent, pr)
