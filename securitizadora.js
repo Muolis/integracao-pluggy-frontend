@@ -16,13 +16,67 @@ let contasSecuritizadora = [];
                 const dados = await res.json();
                 const kpis = dados.kpis || {};
                 contasSecuritizadora = dados.contas || [];
+                const bloqueio = dados.bloqueio_banco;
 
                 // Atualiza KPIs
                 document.getElementById('kpi-saldo').textContent = kpis.saldo_consolidado_formatado || 'R$ 0,00';
                 document.getElementById('kpi-entradas').textContent = kpis.total_entradas_formatado || 'R$ 0,00';
                 document.getElementById('kpi-saidas').textContent = kpis.total_saidas_formatado || 'R$ 0,00';
-                document.getElementById('kpi-contas').textContent = `${contasSecuritizadora.length} ${contasSecuritizadora.length === 1 ? 'Conta Ativa' : 'Contas Ativas'}`;
+                document.getElementById('kpi-contas').textContent = `${contasSecuritizadora.length} ${contasSecuritizadora.length === 1 ? 'Conta Vinculada' : 'Contas Vinculadas'}`;
                 document.getElementById('kpi-total-tx').textContent = `${kpis.total_transacoes || 0} movimentações registradas`;
+
+                // Diagnóstico de Bloqueio do Banco (Bradesco Empresas)
+                const bannerAlerta = document.getElementById('banner-alerta-banco');
+                const badgeStatus = document.getElementById('badge-status-conexao');
+                const kpiSaldoSub = document.getElementById('kpi-saldo-sub');
+
+                if (bloqueio && bloqueio.bloqueado) {
+                    if (bannerAlerta) {
+                        bannerAlerta.classList.remove('hidden');
+                        bannerAlerta.innerHTML = `
+                            <div class="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+                                <div class="flex items-start gap-3.5">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-lg">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h4 class="text-sm font-bold text-amber-900">${MC_CONFIG.escapeHtml(bloqueio.titulo || 'Acesso Bloqueado pelo Banco')}</h4>
+                                            <span class="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Ação Necessária</span>
+                                        </div>
+                                        <p class="text-xs text-amber-800 mt-1 leading-relaxed">
+                                            O Bradesco retornou: <em>"${MC_CONFIG.escapeHtml(bloqueio.mensagem)}"</em>. 
+                                            O saldo exibido abaixo refere-se à última sincronização com sucesso em <strong>${bloqueio.data_ultimo_sucesso}</strong>.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                                    <button type="button" onclick="reconectarContaSecuritizadora('${bloqueio.item_id}')" class="w-full md:w-auto px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                                        <i class="fa-solid fa-key"></i> Reconectar / Atualizar Senha
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    if (badgeStatus) {
+                        badgeStatus.className = "inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200";
+                        badgeStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ACESSO BLOQUEADO NO BRADESCO`;
+                    }
+                    if (kpiSaldoSub) {
+                        kpiSaldoSub.className = "mt-2 flex items-center gap-1.5 text-[11px] text-amber-700 font-semibold";
+                        kpiSaldoSub.innerHTML = `<i class="fa-solid fa-clock-rotate-left text-xs"></i> Último saldo capturado em ${bloqueio.data_ultimo_sucesso}`;
+                    }
+                } else {
+                    if (bannerAlerta) bannerAlerta.classList.add('hidden');
+                    if (badgeStatus) {
+                        badgeStatus.className = "inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+                        badgeStatus.innerHTML = `<i class="fa-solid fa-circle-check"></i> CONEXÃO ATIVA OPEN FINANCE`;
+                    }
+                    if (kpiSaldoSub) {
+                        kpiSaldoSub.className = "mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold";
+                        kpiSaldoSub.innerHTML = `<i class="fa-solid fa-shield-halved text-xs"></i> Saldo atualizado via Open Finance`;
+                    }
+                }
 
                 // Renderiza Grid de Contas
                 renderizarContasSecuritizadora();
@@ -66,6 +120,14 @@ let contasSecuritizadora = [];
                 const isSelected = c.id === contaSelecionadaId;
                 const bordaClass = isSelected ? 'border-[#0985ff] ring-2 ring-[#0985ff]/20 bg-blue-50/20' : 'border-slate-200/90 hover:border-slate-300 bg-white';
                 
+                const badgeConta = c.tem_bloqueio
+                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title="Acesso bloqueado na agência do Bradesco">
+                           <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Bloqueada no Banco
+                       </span>`
+                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                           <i class="fa-solid fa-check text-[9px]"></i> Ativa
+                       </span>`;
+
                 return `
                     <div class="rounded-2xl p-5 border ${bordaClass} transition shadow-xs flex flex-col justify-between cursor-pointer" onclick="selecionarContaSecuritizadora('${c.id}')">
                         <div>
@@ -77,9 +139,7 @@ let contasSecuritizadora = [];
                                         <span class="text-[10px] text-slate-400 uppercase font-semibold">${MC_CONFIG.escapeHtml(c.tipo)}</span>
                                     </div>
                                 </div>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    <i class="fa-solid fa-check text-[9px]"></i> Ativa
-                                </span>
+                                ${badgeConta}
                             </div>
 
                             <div class="space-y-1.5 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -100,7 +160,7 @@ let contasSecuritizadora = [];
 
                         <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
                             <div>
-                                <span class="text-[10px] text-slate-400 uppercase font-bold block">Saldo Disponível</span>
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block">${c.tem_bloqueio ? 'Último Saldo Coletado' : 'Saldo Disponível'}</span>
                                 <strong class="text-base font-black text-[#010157]">${c.saldo_formatado}</strong>
                             </div>
                             <button class="text-xs font-bold ${isSelected ? 'text-[#0985ff]' : 'text-slate-500'} flex items-center gap-1 hover:underline">
@@ -234,10 +294,14 @@ let contasSecuritizadora = [];
                 const res = await MC_CONFIG.authFetch('/api/securitizadora/sincronizar', { method: 'POST' });
                 const dados = await res.json();
                 if (dados.sucesso) {
-                    MC_CONFIG.showToast('Sincronização solicitada com o Bradesco! Atualizando em instantes...', 'success');
+                    if (dados.bloqueio_detectado) {
+                        MC_CONFIG.showToast('Atenção: ' + (dados.mensagem || 'O banco reportou bloqueio de credenciais na agência.'), 'warning');
+                    } else {
+                        MC_CONFIG.showToast('Sincronização solicitada com o Bradesco! Atualizando em instantes...', 'success');
+                    }
                     setTimeout(() => {
                         carregarResumoSecuritizadora();
-                    }, 4000);
+                    }, 3000);
                 } else {
                     MC_CONFIG.showToast(dados.erro || 'Falha ao sincronizar', 'warning');
                 }
@@ -248,6 +312,38 @@ let contasSecuritizadora = [];
                     btn.disabled = false;
                     btn.innerHTML = `<i class="fa-solid fa-rotate text-[#0985ff]"></i> Sincronizar com Banco`;
                 }, 2000);
+            }
+        }
+
+        async function reconectarContaSecuritizadora(itemId) {
+            MC_CONFIG.showToast('Abrindo assistente de reconexão do Bradesco Empresas...', 'info');
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/conectar-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: itemId })
+                });
+                const dados = await res.json();
+                if (!dados.accessToken) throw new Error('Não foi possível obter o token de reconexão corporativa');
+
+                const pluggyConnect = new PluggyConnect({
+                    connectToken: dados.accessToken,
+                    name: 'Openfinance MC',
+                    title: 'Reconectar Bradesco Empresas',
+                    onSuccess: async () => {
+                        MC_CONFIG.showToast('Credenciais atualizadas com sucesso! Atualizando saldo...', 'success');
+                        setTimeout(() => carregarResumoSecuritizadora(), 2500);
+                    },
+                    onError: (err) => {
+                        console.error('Erro ao reconectar conta MC:', err);
+                        MC_CONFIG.showToast('A reconexão não foi concluída. Verifique com a agência se a senha foi liberada.', 'warning');
+                    }
+                });
+
+                pluggyConnect.init();
+            } catch (e) {
+                console.error(e);
+                MC_CONFIG.showToast(e.message || 'Erro ao iniciar reconexão', 'error');
             }
         }
 

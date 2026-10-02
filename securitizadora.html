@@ -53,7 +53,7 @@
                         <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200/80">
                             <i class="fa-solid fa-building-shield"></i> AMBIENTE CORPORATIVO PJ
                         </span>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span id="badge-status-conexao" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <i class="fa-solid fa-circle-check"></i> CONEXÃO ATIVA OPEN FINANCE
                         </span>
                     </div>
@@ -81,6 +81,9 @@
             </div>
         </header>
 
+        <!-- BANNER DE ALERTA DE STATUS BANCÁRIO / DESCONEXÃO -->
+        <div id="banner-alerta-banco" class="hidden"></div>
+
         <!-- CARDS DE METRICAS CONSOLIDADAS -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Saldo Consolidado -->
@@ -93,7 +96,7 @@
                 </div>
                 <div>
                     <h3 id="kpi-saldo" class="text-2xl font-black text-[#010157] tracking-tight">Carregando...</h3>
-                    <div class="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
+                    <div id="kpi-saldo-sub" class="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
                         <i class="fa-solid fa-shield-halved text-xs"></i> Saldo atualizado via Open Finance
                     </div>
                 </div>

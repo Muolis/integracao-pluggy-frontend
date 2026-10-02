@@ -2199,6 +2199,12 @@ def obter_contas_securitizadora(api_key):
                     chave_conta = (str(banco_cod), re.sub(r'\D', '', agencia), re.sub(r'\D', '', conta_num))
                     updated_raw = acc.get('updatedAt') or item_data.get('updatedAt') or ''
 
+                    st_it = item_data.get('status', 'UPDATED')
+                    exec_st = item_data.get('executionStatus')
+                    err_obj = item_data.get('error') or {}
+                    msg_banco = err_obj.get('providerMessage') or err_obj.get('message') or ''
+                    tem_bloq = bool(st_it == 'LOGIN_ERROR' or exec_st in ['ACCOUNT_LOCKED', 'LOGIN_ERROR'] or err_obj.get('code') == 'ACCOUNT_LOCKED')
+
                     conta_info = {
                         'id': acc.get('id'),
                         'item_id': it_id,
@@ -2213,7 +2219,10 @@ def obter_contas_securitizadora(api_key):
                         'titular': 'MC MINHACONTA SECURITIZADORA SA',
                         'saldo': saldo_val,
                         'saldo_formatado': f"R$ {saldo_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-                        'status_item': item_data.get('status', 'UPDATED'),
+                        'status_item': st_it,
+                        'execution_status': exec_st,
+                        'tem_bloqueio': tem_bloq,
+                        'mensagem_bloqueio': msg_banco or ('Acesso bloqueado na agência do banco.' if tem_bloq else ''),
                         'ultima_atualizacao': format_data_pluggy(updated_raw),
                         'updated_at_raw': updated_raw
                     }
@@ -2269,15 +2278,29 @@ def api_securitizadora_resumo():
             except Exception as e_tx:
                 print(f'[AVISO TX STATS {acc_id}]: {e_tx}')
 
+    bloqueio_banco = None
+    conta_bloqueada = next((c for c in contas if c.get('tem_bloqueio')), None)
+    if conta_bloqueada:
+        bloqueio_banco = {
+            'bloqueado': True,
+            'item_id': conta_bloqueada.get('item_id'),
+            'banco': conta_bloqueada.get('banco'),
+            'titulo': 'Acesso Bloqueado pelo Banco Bradesco',
+            'mensagem': conta_bloqueada.get('mensagem_bloqueio') or 'Por segurança, seu acesso foi bloqueado. Para desbloquear, por favor, contate sua agência.',
+            'data_ultimo_sucesso': conta_bloqueada.get('ultima_atualizacao', '30/09/2026'),
+            'saldo_congelado': True
+        }
+
     resposta_dados = {
         'sucesso': True,
         'empresa': {
             'razao_social': 'MC MINHACONTA SECURITIZADORA S/A',
             'nome_fantasia': 'MC Minha Conta',
             'cnpj': CNPJ_SECURITIZADORA,
-            'status': 'CONECTADO',
+            'status': 'BLOQUEADO_NO_BANCO' if bloqueio_banco else 'CONECTADO',
             'ambiente': 'Open Finance Corporativo'
         },
+        'bloqueio_banco': bloqueio_banco,
         'kpis': {
             'saldo_consolidado': round(saldo_total, 2),
             'saldo_consolidado_formatado': f"R$ {saldo_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
@@ -2422,17 +2445,23 @@ def api_securitizadora_extrato():
 @app.route('/api/securitizadora/conectar-token', methods=['POST'])
 @requer_autenticacao
 def api_securitizadora_conectar_token():
-    """Gera token do Pluggy Connect para conectar novas contas da Securitizadora"""
+    """Gera token do Pluggy Connect para conectar ou reconectar contas da Securitizadora"""
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
+    dados = request.get_json(silent=True) or {}
+    item_id_update = dados.get('item_id') or dados.get('itemId')
+
     try:
         payload = {
             'options': {
-                'clientName': 'MC Securitizadora - Contas Próprias',
+                'clientName': 'MC Securitizadora - Atualizar Conta' if item_id_update else 'MC Securitizadora - Contas Próprias',
                 'avoidDuplicates': True
             }
         }
+        if item_id_update:
+            payload['itemId'] = str(item_id_update)
+
         res = requests.post('https://api.pluggy.ai/connect_token', json=payload, headers={'X-API-KEY': api_key}, timeout=12)
         if res.status_code != 200:
             return jsonify({'erro': 'Falha ao gerar token na Pluggy', 'detalhes': res.text}), res.status_code
@@ -2443,7 +2472,7 @@ def api_securitizadora_conectar_token():
 @app.route('/api/securitizadora/sincronizar', methods=['POST'])
 @requer_autenticacao
 def api_securitizadora_sincronizar():
-    """Dispara atualização forçada dos itens da Securitizadora na Pluggy"""
+    """Dispara atualização forçada dos itens da Securitizadora na Pluggy com diagnóstico de bloqueio"""
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Falha na autenticação Pluggy'}), 500
@@ -2451,12 +2480,30 @@ def api_securitizadora_sincronizar():
         _sec_cache['resumo_timestamp'] = 0
         _sec_cache['extrato_cache'].clear()
         contas = obter_contas_securitizadora(api_key)
-        itens = list(set(c['item_id'] for c in contas))
+        itens = list(set(c['item_id'] for c in contas if c.get('item_id') and not str(c.get('item_id')).startswith(('item-teste', 'dummy-'))))
         resultados = []
+        bloqueado_no_banco = False
+        msg_bloqueio = ''
+
         for it in itens:
             r = requests.patch(f'https://api.pluggy.ai/items/{it}', headers={'X-API-KEY': api_key}, timeout=10)
-            resultados.append({'item_id': it, 'status_code': r.status_code})
-        return jsonify({'sucesso': True, 'itens': resultados, 'mensagem': 'Sincronização com o banco iniciada'}), 200
+            status_code = r.status_code
+            if status_code != 200:
+                try:
+                    err_data = r.json()
+                    if err_data.get('codeDescription') == 'LAST_EXECUTION_HAD_LOGIN_ERROR' or 'login error' in str(err_data.get('message', '')).lower():
+                        bloqueado_no_banco = True
+                        msg_bloqueio = 'Acesso bloqueado pelo Bradesco Empresas. Por favor, contate sua agência bancária ou atualize suas credenciais.'
+                except Exception:
+                    pass
+            resultados.append({'item_id': it, 'status_code': status_code})
+
+        return jsonify({
+            'sucesso': True,
+            'itens': resultados,
+            'bloqueio_detectado': bloqueado_no_banco,
+            'mensagem': msg_bloqueio if bloqueado_no_banco else 'Sincronização com o banco iniciada'
+        }), 200
     except Exception as e:
         return jsonify({'erro': f'Erro ao disparar sincronização: {str(e)}'}), 500
 
