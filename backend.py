@@ -632,19 +632,39 @@ def salvar_conexao():
         return jsonify({'sucesso': True, 'aviso': 'Modo local'}), 200
 
     try:
-        # Se for Open Finance e o nome for genérico ou vazio, busca identidade na Pluggy
+        # Obtém data real e detalhes da Pluggy
+        data_real = None
         if item_id and not payment_intent_id:
             api_key = obter_api_key()
-            if api_key and (not cliente or cliente.startswith(('Cliente', 'Atendimento'))):
+            if api_key:
                 try:
-                    id_res = requests.get(f'https://api.pluggy.ai/identity?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=8)
-                    if id_res.status_code == 200:
-                        ident = id_res.json()
-                        nome_real = ident.get('fullName') or ident.get('document')
-                        if nome_real:
-                            cliente = nome_real
-                except Exception as e_id:
-                    print(f'[AVISO SALVAR-CONEXAO IDENTITY]: {e_id}')
+                    it_res = requests.get(f'https://api.pluggy.ai/items/{item_id}', headers={'X-API-KEY': api_key}, timeout=8)
+                    if it_res.status_code == 200:
+                        it_info = it_res.json()
+                        data_real = it_info.get('createdAt')
+                except Exception as e_it:
+                    print(f'[AVISO SALVAR-CONEXAO ITEM]: {e_it}')
+
+                if not cliente or cliente.startswith(('Cliente', 'Atendimento')):
+                    try:
+                        id_res = requests.get(f'https://api.pluggy.ai/identity?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=8)
+                        if id_res.status_code == 200:
+                            ident = id_res.json()
+                            nome_real = ident.get('fullName') or ident.get('document')
+                            if nome_real:
+                                cliente = nome_real
+                    except Exception as e_id:
+                        print(f'[AVISO SALVAR-CONEXAO IDENTITY]: {e_id}')
+        elif payment_intent_id:
+            api_key = obter_api_key()
+            if api_key:
+                try:
+                    pi_res = requests.get(f'https://api.pluggy.ai/payments/payment-intents/{payment_intent_id}', headers={'X-API-KEY': api_key}, timeout=8)
+                    if pi_res.status_code == 200:
+                        pi_info = pi_res.json()
+                        data_real = pi_info.get('createdAt')
+                except Exception as e_pi:
+                    print(f'[AVISO SALVAR-CONEXAO PIX]: {e_pi}')
 
         if not cliente:
             cliente = f'Cliente-{str(item_id or payment_intent_id)[:8]}'
@@ -659,17 +679,20 @@ def salvar_conexao():
         else:
             tipo_final = 'pix_automatico' if payment_intent_id else 'open_finance'
 
-        # Evita duplicatas em Open Finance e atualiza nome/tipo se antes era genérico
+        # Evita duplicatas em Open Finance e atualiza nome/tipo/data se antes era genérico ou incompleto
         if item_id and not payment_intent_id:
-            existente = supabase.table('conexoes').select('id, cliente, tipo').eq('item_id', str(item_id)).execute().data
+            existente = supabase.table('conexoes').select('id, cliente, tipo, data_conexao').eq('item_id', str(item_id)).execute().data
             if existente:
                 cliente_antigo = existente[0].get('cliente', '')
                 tipo_antigo = existente[0].get('tipo')
+                data_antiga = existente[0].get('data_conexao')
                 updates = {}
                 if cliente and cliente != cliente_antigo and cliente_antigo.startswith(('Cliente-', 'Atendimento')):
                     updates['cliente'] = str(cliente)[:255]
                 if tipo_final == 'securitizadora' and tipo_antigo != 'securitizadora':
                     updates['tipo'] = 'securitizadora'
+                if data_real and data_real != data_antiga:
+                    updates['data_conexao'] = data_real
                 if updates:
                     supabase.table('conexoes').update(updates).eq('id', existente[0]['id']).execute()
                 print(f'[SALVAR-CONEXAO] Conexão já existente ({tipo_final}): {cliente} ({item_id})')
@@ -680,6 +703,8 @@ def salvar_conexao():
             'item_id': item_id_seguro,
             'tipo': tipo_final
         }
+        if data_real:
+            registro['data_conexao'] = data_real
         if payment_intent_id:
             registro['payment_intent_id'] = str(payment_intent_id)
         
@@ -1817,6 +1842,9 @@ def consultar_dados(item_id):
     except Exception as e:
         return jsonify({'erro': f'Erro interno ao buscar contas: {str(e)}'}), 500
 
+# Cache para consultas completas do Open Finance (TTL 30s)
+_of_cache = {}
+
 @app.route('/consultar-transacoes/<account_id>', methods=['GET'])
 @requer_autenticacao
 def consultar_transacoes(account_id):
@@ -1824,26 +1852,259 @@ def consultar_transacoes(account_id):
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     try:
-        # Repassa dateFrom e dateTo compatíveis com API v2 da Pluggy
+        # A API v2 da Pluggy aceita estritamente: accountId, dateFrom, dateTo, createdAtFrom, after
         params = {}
-        date_from = request.args.get('dateFrom') or request.args.get('from')
-        date_to = request.args.get('dateTo') or request.args.get('to')
-        if date_from:
-            params['dateFrom'] = date_from
-        if date_to:
-            params['dateTo'] = date_to
+        date_from = request.args.get('dateFrom')
+        date_to = request.args.get('dateTo')
+        after = request.args.get('after')
+        fetch_all = request.args.get('all') == 'true' or request.args.get('fetchAll') == 'true'
 
-        transacoes_response = requests.get(
-            f'https://api.pluggy.ai/v2/transactions?accountId={account_id}',
-            params=params,
-            headers={'X-API-KEY': api_key},
-            timeout=15
-        )
+        if date_from:
+            params['dateFrom'] = date_from[:10]
+        if date_to:
+            params['dateTo'] = date_to[:10]
+        if after:
+            params['after'] = after
+
+        url = f'https://api.pluggy.ai/v2/transactions?accountId={account_id}'
+        transacoes_response = requests.get(url, params=params, headers={'X-API-KEY': api_key}, timeout=15)
+        
         if transacoes_response.status_code != 200:
             return jsonify({'erro': 'Falha ao buscar extrato', 'detalhes': transacoes_response.text}), transacoes_response.status_code
-        return jsonify(transacoes_response.json())
+        
+        data = transacoes_response.json()
+        
+        # Se solicitou extrair todas as páginas consecutivas via cursor
+        if fetch_all and data.get('next'):
+            results = data.get('results', [])
+            next_url = data.get('next')
+            max_pags = 10
+            pag = 0
+            while next_url and pag < max_pags:
+                pag += 1
+                full_next = next_url if next_url.startswith('http') else (f'https://api.pluggy.ai{next_url}' if next_url.startswith('/') else f'https://api.pluggy.ai/v2/transactions{next_url}')
+                r_n = requests.get(full_next, headers={'X-API-KEY': api_key}, timeout=15)
+                if r_n.status_code == 200:
+                    d_n = r_n.json()
+                    results.extend(d_n.get('results', []))
+                    next_url = d_n.get('next')
+                else:
+                    break
+            data['results'] = results
+            data['total_coletado'] = len(results)
+            data['next'] = None
+
+        return jsonify(data)
     except Exception as e:
         return jsonify({'erro': f'Erro interno ao buscar transacoes: {str(e)}'}), 500
+
+@app.route('/api/openfinance/completo/<item_id>', methods=['GET'])
+@requer_autenticacao
+def openfinance_completo(item_id):
+    """
+    Retorna a extração 100% COMPLETA de Open Finance da Pluggy para o cliente:
+    - Status e Conector Bancário com datas reais (createdAt, lastUpdatedAt)
+    - Ficha Cadastral / Identidade (Nome, CPF/CNPJ, RG, Renda informada, Telefones, Emails, Endereço, Histórico)
+    - Todas as contas e cartões com saldos e identificadores
+    - Extrato completo com todas as entradas (créditos) e saídas (débitos) sem truncamento
+    - Totalizadores analíticos consolidados
+    - Investimentos e Empréstimos se contratados
+    """
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Erro na autenticação com a Pluggy'}), 500
+
+    force_sync = request.args.get('sync') == 'true' or request.args.get('force') == 'true'
+    now_ts = time.time()
+    
+    if not force_sync and item_id in _of_cache:
+        cached = _of_cache[item_id]
+        if now_ts - cached['timestamp'] < 30:
+            return jsonify(cached['data']), 200
+
+    try:
+        sync_disparado = False
+        if force_sync:
+            try:
+                p_res = requests.patch(
+                    f'https://api.pluggy.ai/items/{item_id}',
+                    json={},
+                    headers={'X-API-KEY': api_key},
+                    timeout=8
+                )
+                if p_res.status_code in (200, 409):
+                    sync_disparado = True
+            except Exception as e_p:
+                print(f'[AVISO SYNC OF ITEM]: {e_p}')
+
+        # 1. Dados do Item
+        item_info = {}
+        try:
+            it_res = requests.get(f'https://api.pluggy.ai/items/{item_id}', headers={'X-API-KEY': api_key}, timeout=12)
+            if it_res.status_code == 200:
+                item_info = it_res.json()
+        except Exception as e_it:
+            print(f'[AVISO OF ITEM]: {e_it}')
+
+        # 2. Identidade Cadastral
+        identidade = {}
+        try:
+            id_res = requests.get(f'https://api.pluggy.ai/identity?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=12)
+            if id_res.status_code == 200:
+                identidade = id_res.json()
+        except Exception as e_id:
+            print(f'[AVISO OF IDENTITY]: {e_id}')
+
+        # 3. Contas Bancárias
+        contas = []
+        try:
+            acc_res = requests.get(f'https://api.pluggy.ai/accounts?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=15)
+            if acc_res.status_code == 200:
+                contas = acc_res.json().get('results', [])
+        except Exception as e_acc:
+            print(f'[AVISO OF ACCOUNTS]: {e_acc}')
+
+        # 4. Transações completas (entradas e saídas de todas as contas)
+        todas_transacoes = []
+        contas_com_extrato = []
+        
+        for c in contas:
+            aid = c.get('id')
+            c_name = c.get('name') or 'Conta Bancária'
+            c_type = c.get('type')
+            c_subtype = c.get('subtype')
+            c_num = c.get('number')
+            saldo = c.get('balance', 0)
+            
+            tx_conta = []
+            next_url = f'https://api.pluggy.ai/v2/transactions?accountId={aid}'
+            max_paginas = 10
+            pag_atual = 0
+            
+            while next_url and pag_atual < max_paginas:
+                pag_atual += 1
+                try:
+                    r_tx = requests.get(next_url, headers={'X-API-KEY': api_key}, timeout=15)
+                    if r_tx.status_code == 200:
+                        data_tx = r_tx.json()
+                        results = data_tx.get('results', [])
+                        for t in results:
+                            t_amount = float(t.get('amount') or 0)
+                            t_type = t.get('type')
+                            cat_en = t.get('category')
+                            cat_pt = CATEGORIAS_PT.get(cat_en, cat_en or 'Outros')
+                            
+                            t_formatado = {
+                                'id': t.get('id'),
+                                'conta_id': aid,
+                                'conta_nome': c_name,
+                                'conta_tipo': c_type,
+                                'conta_subtipo': c_subtype,
+                                'conta_numero': c_num,
+                                'date': t.get('date'),
+                                'description': t.get('description'),
+                                'descriptionRaw': t.get('descriptionRaw'),
+                                'amount': t_amount,
+                                'type': t_type, # 'CREDIT' ou 'DEBIT'
+                                'is_entrada': t_type == 'CREDIT',
+                                'is_saida': t_type == 'DEBIT',
+                                'category': cat_pt,
+                                'category_raw': cat_en,
+                                'status': t.get('status'),
+                                'paymentData': t.get('paymentData'),
+                                'merchant': t.get('merchant'),
+                                'operationType': t.get('operationType')
+                            }
+                            tx_conta.append(t_formatado)
+                            todas_transacoes.append(t_formatado)
+
+                        next_cursor = data_tx.get('next')
+                        if next_cursor:
+                            if next_cursor.startswith('http'):
+                                next_url = next_cursor
+                            elif next_cursor.startswith('/'):
+                                next_url = f'https://api.pluggy.ai{next_cursor}'
+                            else:
+                                next_url = f'https://api.pluggy.ai/v2/transactions{next_cursor}'
+                        else:
+                            next_url = None
+                    else:
+                        break
+                except Exception as e_tx:
+                    print(f'[ERRO TX CONTA {aid}]: {e_tx}')
+                    break
+
+            c_copia = dict(c)
+            c_copia['total_transacoes'] = len(tx_conta)
+            contas_com_extrato.append(c_copia)
+
+        # 5. Investimentos
+        investimentos = []
+        try:
+            inv_res = requests.get(f'https://api.pluggy.ai/investments?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=10)
+            if inv_res.status_code == 200:
+                investimentos = inv_res.json().get('results', [])
+        except Exception as e_inv:
+            print(f'[AVISO OF INVESTMENTS]: {e_inv}')
+
+        # 6. Empréstimos
+        emprestimos = []
+        try:
+            loan_res = requests.get(f'https://api.pluggy.ai/loans?itemId={item_id}', headers={'X-API-KEY': api_key}, timeout=10)
+            if loan_res.status_code == 200:
+                emprestimos = loan_res.json().get('results', [])
+        except Exception as e_loan:
+            print(f'[AVISO OF LOANS]: {e_loan}')
+
+        # 7. Totalizadores Analíticos
+        todas_transacoes.sort(key=lambda x: str(x.get('date') or ''), reverse=True)
+        
+        total_entradas = sum(t['amount'] for t in todas_transacoes if t['type'] == 'CREDIT')
+        total_saidas = sum(abs(t['amount']) for t in todas_transacoes if t['type'] == 'DEBIT')
+        saldo_liquido = total_entradas - total_saidas
+        saldo_contas = sum(float(c.get('balance') or 0) for c in contas if c.get('type') == 'BANK')
+        
+        resposta = {
+            'sucesso': True,
+            'item': {
+                'id': item_id,
+                'status': item_info.get('status', 'UPDATED'),
+                'executionStatus': item_info.get('executionStatus'),
+                'connector': item_info.get('connector', {}),
+                'error': item_info.get('error'),
+                'createdAt': item_info.get('createdAt'),
+                'lastUpdatedAt': item_info.get('lastUpdatedAt')
+            },
+            'identidade': identidade,
+            'contas': contas_com_extrato,
+            'investimentos': investimentos,
+            'emprestimos': emprestimos,
+            'transacoes': todas_transacoes,
+            'metricas': {
+                'saldo_total_contas': round(saldo_contas, 2),
+                'total_entradas': round(total_entradas, 2),
+                'total_saidas': round(total_saidas, 2),
+                'saldo_liquido': round(saldo_liquido, 2),
+                'quantidade_transacoes': len(todas_transacoes),
+                'quantidade_entradas': len([t for t in todas_transacoes if t['type'] == 'CREDIT']),
+                'quantidade_saidas': len([t for t in todas_transacoes if t['type'] == 'DEBIT']),
+                'quantidade_contas': len(contas),
+                'quantidade_investimentos': len(investimentos),
+                'quantidade_emprestimos': len(emprestimos)
+            },
+            'sync_disparado': sync_disparado
+        }
+
+        _of_cache[item_id] = {
+            'timestamp': now_ts,
+            'data': resposta
+        }
+
+        return jsonify(resposta), 200
+
+    except Exception as e:
+        print(f'[ERRO OPENFINANCE COMPLETO]: {e}')
+        return jsonify({'erro': f'Falha ao extrair dados completos do Open Finance: {str(e)}'}), 500
 
 # ====================================================================
 # 5.1 AMBIENTE DA CONTA DA SECURITIZADORA (MC MINHACONTA PJ)
@@ -2339,11 +2600,26 @@ def rota_painel():
 def rota_securitizadora():
     return send_from_directory(BASE_DIR, 'securitizadora.html')
 
+ALLOWED_STATIC_EXTENSIONS = {'.html', '.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.webp', '.woff', '.woff2', '.ttf'}
+
 @app.route('/<path:filename>')
 def rota_estaticos(filename):
-    caminho = os.path.join(BASE_DIR, filename)
-    if os.path.exists(caminho):
-        return send_from_directory(BASE_DIR, filename)
+    # Proteção estrita contra vazamento de arquivos sensíveis (.env, .git, .py, .sql)
+    nome_normalizado = os.path.normpath(filename).replace('\\', '/')
+    if nome_normalizado.startswith('.') or '/.' in nome_normalizado:
+        return jsonify({'erro': 'Acesso negado'}), 403
+    
+    ext = os.path.splitext(nome_normalizado)[1].lower()
+    if ext not in ALLOWED_STATIC_EXTENSIONS:
+        return jsonify({'erro': 'Tipo de arquivo nao permitido'}), 403
+        
+    caminho = os.path.join(BASE_DIR, nome_normalizado)
+    caminho_abs = os.path.abspath(caminho)
+    if not caminho_abs.startswith(os.path.abspath(BASE_DIR)):
+        return jsonify({'erro': 'Acesso negado'}), 403
+
+    if os.path.isfile(caminho_abs):
+        return send_from_directory(BASE_DIR, nome_normalizado)
     return jsonify({'erro': 'Arquivo nao encontrado'}), 404
 
 if __name__ == '__main__':

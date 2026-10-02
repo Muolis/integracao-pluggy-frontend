@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Minha Conta - Extrato Open Finance</title>
+    <title>MC Minha Conta - Dossiê & Extrato Open Finance</title>
     
     <!-- Configuração Central e Segurança -->
-    <script src="config.js?v=20260925_v2"></script>
+    <script src="config.js?v=20261001"></script>
     
     <!-- Trava de Autenticação -->
     <script>
@@ -21,49 +21,69 @@
     
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            .print-border { border: 1px solid #e2e8f0 !important; }
+        }
     </style>
 </head>
 <body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen p-4 md:p-8">
 
-    <div class="max-w-4xl mx-auto space-y-6">
+    <div class="max-w-6xl mx-auto space-y-6">
         
-        <!-- HEADER DO EXTRATO -->
-        <header class="bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <!-- HEADER DO DOSSIÊ E EXTRATO -->
+        <header class="bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div class="flex items-center gap-4">
-                <div class="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 flex items-center justify-center">
+                <div class="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 flex items-center justify-center">
                     <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-12 w-auto object-contain">
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold text-[#010157] tracking-tight">Extrato Bancário Detalhado</h1>
-                    <p id="info-cliente" class="text-xs text-slate-500 mt-0.5">Cliente: Carregando identificador...</p>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl md:text-2xl font-black text-[#010157] tracking-tight">Dossiê & Extrato Open Finance</h1>
+                        <span id="badge-status-item" class="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Conectado</span>
+                    </div>
+                    <p id="info-cliente" class="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                        <span>Cliente: <strong class="text-slate-700" id="header-nome-cliente">Carregando...</strong></span>
+                        <span class="text-slate-300">•</span>
+                        <span>Instituição: <strong class="text-[#0985ff]" id="header-banco-nome">---</strong></span>
+                        <span class="text-slate-300">•</span>
+                        <span>Conexão Real: <strong class="text-slate-700" id="header-data-conexao">---</strong></span>
+                    </p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 flex-wrap">
-                <button type="button" onclick="forcarSincronizacaoExtratoTelaCheia()" id="btn-sync-extrato" class="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-2.5 rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Dispara sincronização direta do extrato atual no banco">
-                    <i class="fa-solid fa-rotate"></i> Sincronizar com Banco Agora
+            <div class="flex items-center gap-2 flex-wrap no-print">
+                <button type="button" onclick="forcarSincronizacaoExtratoTelaCheia()" id="btn-sync-extrato" class="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-2.5 rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Dispara sincronização imediata no banco">
+                    <i class="fa-solid fa-rotate"></i> Sincronizar com Banco
                 </button>
-                <a href="gestor.html" class="text-xs font-semibold text-[#0985ff] hover:text-[#0772dc] flex items-center gap-1.5 bg-blue-50/80 px-4 py-2.5 rounded-xl border border-blue-100 transition shadow-sm cursor-pointer">
-                    <i class="fa-solid fa-arrow-left"></i> Voltar ao Painel do Gestor
+                <button type="button" onclick="exportarCSVCompleto()" id="btn-export-csv" class="text-xs font-bold text-[#010157] hover:text-blue-900 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 px-3.5 py-2.5 rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Baixar extrato completo em Excel (CSV UTF-8)">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar CSV
+                </button>
+                <button type="button" onclick="window.print()" class="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300/70 px-3 py-2.5 rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Imprimir dossiê e extrato financeiro">
+                    <i class="fa-solid fa-print"></i> Imprimir
+                </button>
+                <a href="gestor.html" class="text-xs font-semibold text-[#0985ff] hover:text-[#0772dc] flex items-center gap-1.5 bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 hover:border-blue-200 transition shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-arrow-left"></i> Painel do Gestor
                 </a>
             </div>
         </header>
 
         <!-- STATUS BOX -->
         <div id="status-box" class="bg-blue-50 border border-blue-200 text-[#010157] text-xs font-semibold p-4 rounded-xl flex items-center justify-center gap-2">
-            <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i> Buscando dados bancários seguros e extratos na Pluggy...
+            <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i> Extraindo informações completas do Open Finance (Extratos, Entradas, Saídas, Identidade, Contas)...
         </div>
 
         <!-- BANNER DE SINCRONIZAÇÃO EM ANDAMENTO -->
-        <div id="banner-updating" class="hidden bg-blue-50 border border-blue-200 rounded-2xl p-4 text-blue-900 flex items-center justify-between flex-wrap gap-2">
+        <div id="banner-updating" class="hidden bg-blue-50 border border-blue-200 rounded-2xl p-4 text-blue-900 flex items-center justify-between flex-wrap gap-2 no-print">
             <div class="flex items-center gap-2.5">
                 <i class="fa-solid fa-circle-notch fa-spin text-lg text-[#0985ff]"></i>
                 <div>
                     <strong class="text-xs block text-[#010157]">Sincronização com o banco em andamento...</strong>
-                    <span class="text-[11px] text-slate-500">As movimentações recentes estão sendo baixadas com segurança. A tela atualizará automaticamente.</span>
+                    <span class="text-[11px] text-slate-500">As movimentações recentes estão sendo sincronizadas na Pluggy. A tela atualizará em breve.</span>
                 </div>
             </div>
             <button onclick="buscarDados(true)" class="px-3 py-1 bg-white border border-blue-200 rounded-lg text-xs font-bold text-[#0985ff] hover:bg-blue-50 shadow-2xs cursor-pointer">
@@ -71,11 +91,206 @@
             </button>
         </div>
 
-        <!-- RESUMO FINANCEIRO (Renderizado dinamicamente) -->
-        <div id="cards-resumo" class="hidden grid grid-cols-1 sm:grid-cols-4 gap-4"></div>
+        <!-- CARDS DE RESUMO FINANCEIRO ANALÍTICO -->
+        <div id="cards-resumo" class="hidden grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Saldo em Caixa</span>
+                <strong id="card-saldo-total" class="text-lg md:text-xl font-black text-[#010157]">R$ 0,00</strong>
+                <span class="text-[10px] text-slate-500 block mt-0.5" id="card-qtd-contas">0 contas ativas</span>
+            </div>
+            <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] uppercase font-bold text-emerald-600 block mb-1 flex items-center gap-1">
+                    <i class="fa-solid fa-arrow-down"></i> Total Entradas
+                </span>
+                <strong id="card-total-entradas" class="text-lg md:text-xl font-black text-emerald-600">R$ 0,00</strong>
+                <span class="text-[10px] text-slate-500 block mt-0.5" id="card-qtd-entradas">0 créditos</span>
+            </div>
+            <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] uppercase font-bold text-rose-600 block mb-1 flex items-center gap-1">
+                    <i class="fa-solid fa-arrow-up"></i> Total Saídas
+                </span>
+                <strong id="card-total-saidas" class="text-lg md:text-xl font-black text-rose-600">R$ 0,00</strong>
+                <span class="text-[10px] text-slate-500 block mt-0.5" id="card-qtd-saidas">0 débitos</span>
+            </div>
+            <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Saldo Líquido</span>
+                <strong id="card-saldo-liquido" class="text-lg md:text-xl font-black text-[#0985ff]">R$ 0,00</strong>
+                <span class="text-[10px] text-slate-500 block mt-0.5">Entradas - Saídas</span>
+            </div>
+            <div class="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Lançamentos</span>
+                <strong id="card-total-tx" class="text-lg md:text-xl font-black text-slate-800">0</strong>
+                <span class="text-[10px] text-slate-500 block mt-0.5">Extrato Consolidado</span>
+            </div>
+        </div>
 
-        <!-- LISTA DE CONTAS E TRANSAÇÕES -->
-        <div id="lista-contas" class="space-y-6"></div>
+        <!-- FICHA CADASTRAL / IDENTIDADE DO OPEN FINANCE -->
+        <div id="secao-identidade" class="hidden bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-address-card"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-[#010157]">Ficha Cadastral e Dados de Identidade do Cliente</h2>
+                        <p class="text-xs text-slate-500">Dados oficiais autorizados e extraídos diretamente da instituição bancária</p>
+                    </div>
+                </div>
+                <div id="badge-renda-declarada" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-money-bill-wave text-emerald-600"></i> Renda Declarada: <span id="val-renda-declarada">---</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Nome Completo / Razão Social</span>
+                    <strong id="id-nome" class="text-slate-800 text-sm font-bold block truncate">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">CPF / CNPJ</span>
+                    <strong id="id-documento" class="text-slate-800 text-sm font-mono font-bold block">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Outros Documentos / RG</span>
+                    <strong id="id-outros-docs" class="text-slate-800 font-medium block">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Data Nascimento / Fundação</span>
+                    <strong id="id-nascimento" class="text-slate-800 font-medium block">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Ocupação / Profissão</span>
+                    <strong id="id-ocupacao" class="text-slate-800 font-medium block truncate">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Telefone(s) de Contato</span>
+                    <strong id="id-telefones" class="text-slate-800 font-medium block truncate">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">E-mail(s)</span>
+                    <strong id="id-emails" class="text-slate-800 font-medium block truncate">---</strong>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Relacionamento Bancário</span>
+                    <strong id="id-relacionamento" class="text-slate-800 font-medium block truncate">---</strong>
+                </div>
+                <div class="sm:col-span-2 lg:col-span-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Endereço Completo Registrado</span>
+                    <strong id="id-endereco" class="text-slate-800 font-medium block">---</strong>
+                </div>
+                <div id="div-filiacao" class="hidden sm:col-span-2 lg:col-span-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Filiação (Pais)</span>
+                    <strong id="id-filiacao" class="text-slate-800 font-medium block">---</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTAS BANCÁRIAS CONECTADAS -->
+        <div id="secao-contas" class="hidden bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#010157] flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-[#010157]">Contas Bancárias & Saldos Conectados</h2>
+                        <p class="text-xs text-slate-500">Contas correntes, poupanças e cartões autorizados</p>
+                    </div>
+                </div>
+            </div>
+            <div id="grid-contas-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- EXTRATO COMPLETO DE TRANSAÇÕES -->
+        <div id="secao-extrato" class="hidden bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm space-y-6">
+            
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-[#010157]">Extrato Bancário Detalhado & Lançamentos</h2>
+                        <p class="text-xs text-slate-500">Todas as entradas, saídas, transferências Pix e tarifas extraídas</p>
+                    </div>
+                </div>
+
+                <!-- FILTROS RÁPIDOS DE ENTRADAS / SAÍDAS -->
+                <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold self-stretch lg:self-auto flex-wrap no-print">
+                    <button type="button" onclick="filtrarTipoTransacao('TODOS')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-2xs transition cursor-pointer">
+                        Todas (<span id="cont-filtro-todos">0</span>)
+                    </button>
+                    <button type="button" onclick="filtrarTipoTransacao('ENTRADA')" id="btn-filtro-entradas" class="px-3 py-1.5 rounded-lg text-emerald-700 hover:text-emerald-900 transition cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-down"></i> Entradas (<span id="cont-filtro-entradas">0</span>)
+                    </button>
+                    <button type="button" onclick="filtrarTipoTransacao('SAIDA')" id="btn-filtro-saidas" class="px-3 py-1.5 rounded-lg text-rose-700 hover:text-rose-900 transition cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-up"></i> Saídas (<span id="cont-filtro-saidas">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- BARRA DE PESQUISA E FILTRO POR CONTA -->
+            <div class="flex flex-col sm:flex-row gap-3 no-print">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input 
+                        type="text" 
+                        id="input-busca-tx" 
+                        oninput="filtrarTransacoesTexto()"
+                        placeholder="Buscar por descrição, valor, pagador, recebedor ou categoria..." 
+                        class="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#0985ff] focus:ring-2 focus:ring-[#0985ff]/20 transition outline-none"
+                    >
+                </div>
+                <div class="sm:w-64">
+                    <select 
+                        id="select-conta-filtro" 
+                        onchange="filtrarTransacoesTexto()" 
+                        class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-[#0985ff] transition outline-none cursor-pointer"
+                    >
+                        <option value="">Todas as Contas</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- TABELA DE MOVIMENTAÇÕES -->
+            <div class="overflow-x-auto rounded-2xl border border-slate-200/80 custom-scrollbar">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-[11px] uppercase font-bold text-slate-400 border-b border-slate-200/80">
+                            <th class="py-3 px-4">Data / Hora</th>
+                            <th class="py-3 px-4">Descrição do Lançamento</th>
+                            <th class="py-3 px-4">Categoria</th>
+                            <th class="py-3 px-4">Conta de Origem</th>
+                            <th class="py-3 px-4">Origem / Destino</th>
+                            <th class="py-3 px-4 text-right">Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-transacoes-corpo" class="divide-y divide-slate-100 bg-white">
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-slate-400">
+                                <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] mr-1.5"></i> Carregando lançamentos...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINAÇÃO OU RESUMO DE ITENS MOSTRADOS -->
+            <div class="flex items-center justify-between text-xs text-slate-500 pt-2 flex-wrap gap-2">
+                <span id="label-contagem-tabela">Exibindo 0 movimentações</span>
+                <span class="text-[11px] text-slate-400 font-mono">Dados consolidados via Open Finance Pluggy</span>
+            </div>
+
+        </div>
+
+        <!-- SEÇÃO DE INVESTIMENTOS OU EMPRÉSTIMOS SE HOUVER -->
+        <div id="secao-extras" class="hidden bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm space-y-4">
+            <h2 class="text-base font-bold text-[#010157] flex items-center gap-2">
+                <i class="fa-solid fa-chart-pie text-[#0985ff]"></i> Investimentos & Operações de Crédito Contratadas
+            </h2>
+            <div id="conteudo-extras" class="text-xs text-slate-600"></div>
+        </div>
+
     </div>
 
     <script>
@@ -84,12 +299,19 @@
         const clienteId = parametrosUrl.get('cliente');
 
         const statusBox = document.getElementById('status-box');
-        const listaContas = document.getElementById('lista-contas');
-        const cardsResumo = document.getElementById('cards-resumo');
         const bannerUpdating = document.getElementById('banner-updating');
+        const cardsResumo = document.getElementById('cards-resumo');
+        const secaoIdentidade = document.getElementById('secao-identidade');
+        const secaoContas = document.getElementById('secao-contas');
+        const secaoExtrato = document.getElementById('secao-extrato');
+        const secaoExtras = document.getElementById('secao-extras');
+
+        // Estado global de dados em memória
+        let DADOS_OF = null;
+        let FILTRO_TIPO_ATUAL = 'TODOS'; // 'TODOS', 'ENTRADA', 'SAIDA'
 
         if (clienteId) {
-            document.getElementById('info-cliente').innerText = `Atendimento: #${MC_CONFIG.escapeHtml(clienteId)}`;
+            document.getElementById('header-nome-cliente').textContent = MC_CONFIG.escapeHtml(clienteId);
         }
 
         async function forcarSincronizacaoExtratoTelaCheia() {
@@ -100,23 +322,20 @@
                 btnSync.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Sincronizando...`;
             }
             try {
-                const res = await MC_CONFIG.authFetch(`/sincronizar-item/${itemId}`, { method: 'POST' });
+                const res = await MC_CONFIG.authFetch(`/api/openfinance/completo/${itemId}?sync=true`);
                 const data = await res.json();
                 if (data.sucesso) {
-                    MC_CONFIG.showToast(data.mensagem || "Sincronização iniciada com o banco!", "success");
-                    setTimeout(() => buscarDados(true), 3000);
+                    MC_CONFIG.showToast("Sincronização com o banco solicitada com sucesso!", "success");
+                    renderizarTelaCompleta(data);
                 } else {
                     MC_CONFIG.showToast(data.erro || "Não foi possível sincronizar agora.", "warning");
-                    if (btnSync) {
-                        btnSync.disabled = false;
-                        btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> Sincronizar com Banco Agora`;
-                    }
                 }
             } catch (e) {
                 MC_CONFIG.showToast("Erro ao conectar ao servidor de sincronização.", "error");
+            } finally {
                 if (btnSync) {
                     btnSync.disabled = false;
-                    btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> Sincronizar com Banco Agora`;
+                    btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> Sincronizar com Banco`;
                 }
             }
         }
@@ -130,206 +349,401 @@
             if (!silencioso) {
                 statusBox.style.display = 'flex';
                 statusBox.className = 'bg-blue-50 border border-blue-200 text-[#010157] text-xs font-semibold p-4 rounded-xl flex items-center justify-center gap-2';
-                statusBox.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i> Buscando dados bancários seguros e extratos na Pluggy...';
+                statusBox.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i> Extraindo informações completas do Open Finance (Extratos, Entradas, Saídas, Identidade, Contas)...';
             }
 
             try {
-                const resposta = await MC_CONFIG.authFetch(`/consultar-dados/${itemId}`);
+                // Chama a rota consolidada de extração 100% completa
+                const resposta = await MC_CONFIG.authFetch(`/api/openfinance/completo/${itemId}`);
                 if (!resposta.ok) {
-                    throw new Error('Falha ao consultar API bancária da Pluggy.');
+                    throw new Error('Falha ao consultar API de Open Finance.');
                 }
 
                 const dados = await resposta.json();
-                renderizarContas(dados);
+                DADOS_OF = dados;
+                renderizarTelaCompleta(dados);
 
             } catch (erro) {
-                mostrarErro(erro.message || "Erro ao consultar contas bancárias.");
-            } finally {
-                const btnSync = document.getElementById('btn-sync-extrato');
-                if (btnSync) {
-                    btnSync.disabled = false;
-                    btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> Sincronizar com Banco Agora`;
-                }
+                console.error('[ERRO BUSCAR DADOS OF]:', erro);
+                mostrarErro(erro.message || "Erro ao consultar dados completos do Open Finance.");
             }
         }
 
-        function renderizarContas(dados) {
-            statusBox.style.display = 'none'; 
+        function renderizarTelaCompleta(dados) {
+            statusBox.style.display = 'none';
             const item = dados.item || {};
-            const contas = dados.results || [];
-            const bancoNome = MC_CONFIG.escapeHtml(item.connector?.name || 'Instituição Bancária');
-            const ultimaAtualizacao = item.lastUpdatedAt ? MC_CONFIG.formatDate(item.lastUpdatedAt) : 'Hoje';
+            const ident = dados.identidade || {};
+            const contas = dados.contas || [];
+            const transacoes = dados.transacoes || [];
+            const metricas = dados.metricas || {};
 
-            // Tratamento de Sincronização Ativa
+            // 1. Header & Status
+            const bancoNome = item.connector?.name || 'Instituição Bancária';
+            document.getElementById('header-banco-nome').textContent = bancoNome;
+            
+            const nomeCliente = ident.fullName || ident.document || clienteId || 'Cliente Open Finance';
+            document.getElementById('header-nome-cliente').textContent = nomeCliente;
+
+            // Formatação correta da data real de conexão
+            const dataConexaoReal = item.createdAt ? MC_CONFIG.formatDate(item.createdAt) : '---';
+            document.getElementById('header-data-conexao').textContent = dataConexaoReal;
+
+            const badgeStatus = document.getElementById('badge-status-item');
             if (item.status === 'UPDATING') {
+                badgeStatus.className = 'text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 animate-pulse';
+                badgeStatus.textContent = 'Sincronizando';
                 bannerUpdating.classList.remove('hidden');
-                setTimeout(() => buscarDados(true), 4000);
+            } else if (item.status === 'LOGIN_ERROR') {
+                badgeStatus.className = 'text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800';
+                badgeStatus.textContent = 'Requer Nova Senha';
+                bannerUpdating.classList.add('hidden');
             } else {
+                badgeStatus.className = 'text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+                badgeStatus.textContent = 'Conectado';
                 bannerUpdating.classList.add('hidden');
             }
 
-            // CASO 1: Erro de login ou autorização revogada no banco
-            if (item.status === 'LOGIN_ERROR' || (contas.length === 0 && item.error)) {
-                const motivo = item.error?.providerMessage || item.error?.message || 'A autorização expirou ou foi revogada no aplicativo do banco.';
-                listaContas.innerHTML = `
-                    <div class="bg-amber-50/90 border border-amber-200 rounded-3xl p-6 md:p-8 text-amber-900 shadow-sm">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl flex-shrink-0">
-                                <i class="fa-solid fa-triangle-exclamation"></i>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="font-bold text-base text-[#010157]">Autorização Expirada ou Revogada no Banco</h3>
-                                <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                                    Instituição: <strong>${bancoNome}</strong><br>
-                                    Diagnóstico Técnico: <span class="font-mono text-[11px]">${MC_CONFIG.escapeHtml(motivo)}</span>
-                                </p>
-                                <div class="mt-4 pt-4 border-t border-amber-200/60 flex flex-wrap gap-3">
-                                    <a href="gestor.html" class="bg-[#010157] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#080868] transition">
-                                        Gerar Novo Link para o Cliente
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            // CASO 2: Nenhuma conta encontrada
-            if (contas.length === 0) {
-                listaContas.innerHTML = `
-                    <div class="bg-white rounded-3xl border border-slate-200/80 p-12 text-center text-xs text-slate-500 shadow-sm">
-                        <i class="fa-solid fa-building-columns text-3xl text-slate-300 mb-2 block"></i>
-                        Nenhuma conta bancária ativa encontrada para esta conexão no banco <strong>${bancoNome}</strong>.
-                        <div class="mt-4">
-                            <button onclick="forcarSincronizacaoExtratoTelaCheia()" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 cursor-pointer">
-                                <i class="fa-solid fa-rotate mr-1"></i> Tentar Sincronizar com Banco Agora
-                            </button>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            // Renderiza Cards de Resumo Financeiro
-            let saldoTotalGeral = 0;
-            contas.forEach(c => {
-                if (!isNaN(c.balance)) saldoTotalGeral += Number(c.balance);
-            });
-
+            // 2. Cards de Resumo Financeiro
             cardsResumo.classList.remove('hidden');
-            cardsResumo.innerHTML = `
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Saldo Total Disponível</span>
-                    <strong class="text-xl font-extrabold text-[#0985ff]">${MC_CONFIG.formatMoney(saldoTotalGeral)}</strong>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Contas Conectadas</span>
-                    <strong class="text-xl font-extrabold text-[#010157]">${contas.length}</strong>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Instituição Bancária</span>
-                    <strong class="text-base font-bold text-slate-700 truncate block">${bancoNome}</strong>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Última Sincronização</span>
-                    <strong class="text-xs font-bold text-slate-700 truncate block">${ultimaAtualizacao}</strong>
-                </div>
-            `;
+            document.getElementById('card-saldo-total').textContent = MC_CONFIG.formatMoney(metricas.saldo_total_contas || 0);
+            document.getElementById('card-qtd-contas').textContent = `${metricas.quantidade_contas || 0} conta(s) conectada(s)`;
+            
+            document.getElementById('card-total-entradas').textContent = MC_CONFIG.formatMoney(metricas.total_entradas || 0);
+            document.getElementById('card-qtd-entradas').textContent = `${metricas.quantidade_entradas || 0} créditos recebidos`;
+            
+            document.getElementById('card-total-saidas').textContent = MC_CONFIG.formatMoney(metricas.total_saidas || 0);
+            document.getElementById('card-qtd-saidas').textContent = `${metricas.quantidade_saidas || 0} débitos realizados`;
 
-            listaContas.innerHTML = ''; 
+            const saldoLiq = metricas.saldo_liquido || 0;
+            const elSaldoLiq = document.getElementById('card-saldo-liquido');
+            elSaldoLiq.textContent = MC_CONFIG.formatMoney(saldoLiq);
+            elSaldoLiq.className = `text-lg md:text-xl font-black ${saldoLiq >= 0 ? 'text-[#0985ff]' : 'text-rose-600'}`;
 
-            contas.forEach(conta => {
-                const saldoFormatado = MC_CONFIG.formatMoney(conta.balance);
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm space-y-5';
-                card.innerHTML = `
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100">
+            document.getElementById('card-total-tx').textContent = String(metricas.quantidade_transacoes || 0);
+
+            // 3. Ficha Cadastral / Identidade
+            secaoIdentidade.classList.remove('hidden');
+            document.getElementById('id-nome').textContent = ident.fullName || 'Não informado';
+            document.getElementById('id-documento').textContent = ident.document || 'Não informado';
+            
+            let outrosDocsTexto = 'Nenhum outro doc';
+            if (ident.otherDocuments && ident.otherDocuments.length > 0) {
+                outrosDocsTexto = ident.otherDocuments.map(d => `${d.type || 'Doc'}: ${d.number || ''}`).join(', ');
+            }
+            document.getElementById('id-outros-docs').textContent = outrosDocsTexto;
+
+            let dtNasc = '---';
+            if (ident.birthDate) {
+                dtNasc = MC_CONFIG.formatDate(ident.birthDate).split(' às ')[0];
+            }
+            document.getElementById('id-nascimento').textContent = dtNasc;
+
+            const ocupacao = ident.jobTitle || (ident.qualifications?.occupationDescription) || 'Não especificada';
+            document.getElementById('id-ocupacao').textContent = ocupacao;
+
+            // Renda Declarada
+            const rendaObj = ident.qualifications?.informedIncome;
+            const badgeRenda = document.getElementById('badge-renda-declarada');
+            if (rendaObj && rendaObj.amount) {
+                badgeRenda.classList.remove('hidden');
+                const freq = rendaObj.frequency ? ` (${rendaObj.frequency.toLowerCase()})` : '';
+                document.getElementById('val-renda-declarada').textContent = `${MC_CONFIG.formatMoney(rendaObj.amount)}${freq}`;
+            } else {
+                badgeRenda.classList.add('hidden');
+            }
+
+            // Telefones
+            const telefones = (ident.phoneNumbers || []).map(p => p.value || `${p.areaCode || ''} ${p.number || ''}`).filter(Boolean);
+            document.getElementById('id-telefones').textContent = telefones.join(', ') || 'Nenhum telefone registrado';
+
+            // Emails
+            const emails = (ident.emails || []).map(e => e.value).filter(Boolean);
+            document.getElementById('id-emails').textContent = emails.join(', ') || 'Nenhum e-mail registrado';
+
+            // Relacionamento Bancário
+            let relac = '---';
+            if (ident.financialRelationships?.startDate) {
+                relac = `Cliente desde ${MC_CONFIG.formatDate(ident.financialRelationships.startDate).split(' às ')[0]}`;
+            }
+            document.getElementById('id-relacionamento').textContent = relac;
+
+            // Endereço
+            let enderecoCompleto = 'Não informado';
+            if (ident.addresses && ident.addresses.length > 0) {
+                const adr = ident.addresses[0];
+                enderecoCompleto = [
+                    adr.primaryAddress || adr.fullAddress,
+                    adr.district,
+                    adr.city,
+                    adr.state,
+                    adr.postalCode ? `CEP: ${adr.postalCode}` : null
+                ].filter(Boolean).join(' - ');
+            }
+            document.getElementById('id-endereco').textContent = enderecoCompleto;
+
+            // Filiação
+            if (ident.relations && ident.relations.length > 0) {
+                document.getElementById('div-filiacao').classList.remove('hidden');
+                document.getElementById('id-filiacao').textContent = ident.relations.map(r => `${r.name} (${r.type || 'Parente'})`).join(' | ');
+            }
+
+            // 4. Seção de Contas Conectadas
+            secaoContas.classList.remove('hidden');
+            const gridContas = document.getElementById('grid-contas-cards');
+            const selectConta = document.getElementById('select-conta-filtro');
+            gridContas.innerHTML = '';
+            selectConta.innerHTML = '<option value="">Todas as Contas</option>';
+
+            contas.forEach(c => {
+                const cardC = document.createElement('div');
+                cardC.className = 'p-5 bg-slate-50 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2';
+                const subTipoFormatado = (c.subtype || c.type || 'Conta').toUpperCase();
+                const saldoContaFormatado = MC_CONFIG.formatMoney(c.balance || 0);
+
+                cardC.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
                         <div>
-                            <h3 class="font-bold text-[#010157] text-base mb-1">${MC_CONFIG.escapeHtml(conta.name || 'Conta Bancária')}</h3>
-                            <p class="text-xs text-slate-500">
-                                Agência: <span class="font-mono">${MC_CONFIG.escapeHtml(conta.agency || '---')}</span> | 
-                                Conta: <span class="font-mono">${MC_CONFIG.escapeHtml(conta.number || '---')}</span> | 
-                                <span class="text-[#0985ff] font-semibold uppercase">${MC_CONFIG.escapeHtml(conta.subtype || 'Corrente')}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-[#0985ff] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                                ${MC_CONFIG.escapeHtml(subTipoFormatado)}
+                            </span>
+                            <h3 class="text-xs font-bold text-[#010157] mt-1 truncate">${MC_CONFIG.escapeHtml(c.name || 'Conta')}</h3>
+                            <p class="text-[11px] text-slate-500 font-mono mt-0.5">
+                                Ag: ${MC_CONFIG.escapeHtml(c.agency || '---')} | C/C: ${MC_CONFIG.escapeHtml(c.number || '---')}
                             </p>
                         </div>
-                        <div class="text-left sm:text-right">
-                            <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Saldo Disponível</span>
-                            <strong class="text-[#0985ff] font-extrabold text-2xl">${saldoFormatado}</strong>
+                        <div class="text-right">
+                            <span class="text-[9px] uppercase font-bold text-slate-400 block">Saldo</span>
+                            <strong class="text-base font-extrabold text-slate-800">${saldoContaFormatado}</strong>
                         </div>
                     </div>
-
-                    <!-- Área de Transações da Conta -->
-                    <div id="transacoes-container-${conta.id}" class="space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-[#010157] uppercase tracking-wider flex items-center gap-1.5">
-                                <i class="fa-solid fa-list-check text-[#0985ff]"></i> Movimentações Recentes
-                            </span>
-                            <span id="badge-tx-qtd-${conta.id}" class="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-bold">
-                                Carregando...
-                            </span>
-                        </div>
-                        <div id="transacoes-lista-${conta.id}" class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 text-center text-xs text-slate-400">
-                            <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] mr-1.5"></i> Buscando histórico no extrato bancário...
-                        </div>
+                    <div class="pt-2 border-t border-slate-200/60 flex justify-between items-center text-[10px] text-slate-500">
+                        <span>${c.total_transacoes || 0} lançamentos</span>
+                        <span class="font-bold text-[#0985ff]">${c.currencyCode || 'BRL'}</span>
                     </div>
                 `;
-                listaContas.appendChild(card);
+                gridContas.appendChild(cardC);
 
-                // Dispara busca das transações da conta
-                buscarTransacoesConta(conta.id);
+                // Preenche select de filtro
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.name || 'Conta'} (${c.number || '---'})`;
+                selectConta.appendChild(opt);
             });
+
+            // 5. Seção de Extrato de Transações
+            secaoExtrato.classList.remove('hidden');
+            document.getElementById('cont-filtro-todos').textContent = String(transacoes.length);
+            document.getElementById('cont-filtro-entradas').textContent = String(metricas.quantidade_entradas || 0);
+            document.getElementById('cont-filtro-saidas').textContent = String(metricas.quantidade_saidas || 0);
+
+            renderizarTabelaTransacoes();
+
+            // 6. Investimentos / Extras
+            const invs = dados.investimentos || [];
+            const loans = dados.emprestimos || [];
+            if (invs.length > 0 || loans.length > 0) {
+                secaoExtras.classList.remove('hidden');
+                let extrasHtml = '';
+                if (invs.length > 0) {
+                    extrasHtml += `<h4 class="font-bold text-slate-700 mb-2">Investimentos (${invs.length})</h4><ul class="list-disc pl-5 space-y-1 mb-4">`;
+                    invs.forEach(iv => {
+                        extrasHtml += `<li><strong>${MC_CONFIG.escapeHtml(iv.name || 'Ativo')}</strong> - Saldo: ${MC_CONFIG.formatMoney(iv.balance || 0)} (${iv.type || ''})</li>`;
+                    });
+                    extrasHtml += `</ul>`;
+                }
+                if (loans.length > 0) {
+                    extrasHtml += `<h4 class="font-bold text-slate-700 mb-2">Operações de Empréstimo / Financiamento (${loans.length})</h4><ul class="list-disc pl-5 space-y-1">`;
+                    loans.forEach(ln => {
+                        extrasHtml += `<li>Contrato <strong>${ln.contractNumber || ''}</strong> - Valor Contratado: ${MC_CONFIG.formatMoney(ln.contractAmount || 0)} | Saldo Devedor: ${MC_CONFIG.formatMoney(ln.totalDebt || 0)}</li>`;
+                    });
+                    extrasHtml += `</ul>`;
+                }
+                document.getElementById('conteudo-extras').innerHTML = extrasHtml;
+            } else {
+                secaoExtras.classList.add('hidden');
+            }
         }
 
-        async function buscarTransacoesConta(accountId) {
-            const listaDiv = document.getElementById(`transacoes-lista-${accountId}`);
-            const badgeQtd = document.getElementById(`badge-tx-qtd-${accountId}`);
+        function filtrarTipoTransacao(tipo) {
+            FILTRO_TIPO_ATUAL = tipo;
+            const btnTodos = document.getElementById('btn-filtro-todos');
+            const btnEntradas = document.getElementById('btn-filtro-entradas');
+            const btnSaidas = document.getElementById('btn-filtro-saidas');
 
-            try {
-                const resposta = await MC_CONFIG.authFetch(`/consultar-transacoes/${accountId}`);
-                const payload = await resposta.json();
+            btnTodos.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition cursor-pointer';
+            btnEntradas.className = 'px-3 py-1.5 rounded-lg text-emerald-700 hover:text-emerald-900 transition cursor-pointer flex items-center gap-1';
+            btnSaidas.className = 'px-3 py-1.5 rounded-lg text-rose-700 hover:text-rose-900 transition cursor-pointer flex items-center gap-1';
 
-                if (!resposta.ok) throw new Error(payload.erro || 'Falha ao consultar transações');
+            if (tipo === 'TODOS') {
+                btnTodos.className = 'px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-2xs transition cursor-pointer';
+            } else if (tipo === 'ENTRADA') {
+                btnEntradas.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white shadow-2xs transition cursor-pointer flex items-center gap-1';
+            } else if (tipo === 'SAIDA') {
+                btnSaidas.className = 'px-3 py-1.5 rounded-lg bg-rose-600 text-white shadow-2xs transition cursor-pointer flex items-center gap-1';
+            }
 
-                const transacoes = payload.results || payload.data || [];
+            renderizarTabelaTransacoes();
+        }
 
-                if (transacoes.length === 0) {
-                    badgeQtd.textContent = '0 movimentações';
-                    listaDiv.innerHTML = '<p class="py-2 text-slate-400">Nenhuma movimentação registrada no período recente.</p>';
-                    return;
+        function filtrarTransacoesTexto() {
+            renderizarTabelaTransacoes();
+        }
+
+        function renderizarTabelaTransacoes() {
+            if (!DADOS_OF || !DADOS_OF.transacoes) return;
+
+            const tbody = document.getElementById('tabela-transacoes-corpo');
+            const textoBusca = (document.getElementById('input-busca-tx').value || '').trim().toLowerCase();
+            const contaIdFiltro = document.getElementById('select-conta-filtro').value;
+
+            let lista = DADOS_OF.transacoes;
+
+            // Filtro por tipo
+            if (FILTRO_TIPO_ATUAL === 'ENTRADA') {
+                lista = lista.filter(t => t.type === 'CREDIT' || t.is_entrada);
+            } else if (FILTRO_TIPO_ATUAL === 'SAIDA') {
+                lista = lista.filter(t => t.type === 'DEBIT' || t.is_saida);
+            }
+
+            // Filtro por conta
+            if (contaIdFiltro) {
+                lista = lista.filter(t => t.conta_id === contaIdFiltro);
+            }
+
+            // Filtro por texto
+            if (textoBusca) {
+                lista = lista.filter(t => {
+                    const desc = (t.description || '').toLowerCase();
+                    const descRaw = (t.descriptionRaw || '').toLowerCase();
+                    const cat = (t.category || '').toLowerCase();
+                    const val = String(t.amount || '');
+                    const payerName = (t.paymentData?.payer?.name || '').toLowerCase();
+                    const receiverName = (t.paymentData?.receiver?.name || '').toLowerCase();
+                    return desc.includes(textoBusca) || 
+                           descRaw.includes(textoBusca) || 
+                           cat.includes(textoBusca) || 
+                           val.includes(textoBusca) ||
+                           payerName.includes(textoBusca) ||
+                           receiverName.includes(textoBusca);
+                });
+            }
+
+            document.getElementById('label-contagem-tabela').textContent = `Exibindo ${lista.length} de ${DADOS_OF.transacoes.length} movimentações`;
+
+            if (lista.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-10 text-center text-slate-400">
+                            <i class="fa-solid fa-filter text-2xl text-slate-300 block mb-2"></i>
+                            Nenhuma movimentação corresponde aos filtros selecionados.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let htmlRows = '';
+            lista.forEach(tx => {
+                const isEntrada = tx.type === 'CREDIT' || tx.is_entrada;
+                const corValor = isEntrada ? 'text-emerald-600 font-extrabold' : 'text-rose-600 font-bold';
+                const sinal = isEntrada ? '+ ' : '- ';
+                const badgeTipo = isEntrada 
+                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">ENTRADA</span>' 
+                    : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">SAÍDA</span>';
+
+                const dataFormatada = tx.date ? MC_CONFIG.formatDate(tx.date) : '---';
+                const desc = MC_CONFIG.escapeHtml(tx.description || tx.descriptionRaw || 'Transação');
+                const cat = MC_CONFIG.escapeHtml(tx.category || 'Outros');
+                const contaNome = MC_CONFIG.escapeHtml(tx.conta_nome || 'Conta');
+                const contaNum = MC_CONFIG.escapeHtml(tx.conta_numero || '');
+                const valorFormatado = MC_CONFIG.formatMoney(Math.abs(tx.amount || 0));
+
+                // Detalhe de pagador / recebedor se houver
+                let contraparte = '---';
+                if (tx.paymentData) {
+                    if (isEntrada && tx.paymentData.payer?.name) {
+                        contraparte = `De: ${MC_CONFIG.escapeHtml(tx.paymentData.payer.name)}`;
+                    } else if (!isEntrada && tx.paymentData.receiver?.name) {
+                        contraparte = `Para: ${MC_CONFIG.escapeHtml(tx.paymentData.receiver.name)}`;
+                    } else if (tx.paymentData.paymentMethod) {
+                        contraparte = `Via: ${MC_CONFIG.escapeHtml(tx.paymentData.paymentMethod)}`;
+                    }
                 }
 
-                badgeQtd.textContent = `${transacoes.length} transações`;
-                let htmlTx = '<div class="space-y-1.5 max-h-72 overflow-y-auto pr-1 custom-scrollbar text-left">';
-
-                transacoes.forEach(tx => {
-                    if (tx.amount == null) return;
-
-                    const valorFormatado = MC_CONFIG.formatMoney(Math.abs(tx.amount));
-                    const isNegativo = tx.amount < 0;
-                    const corValor = isNegativo ? 'text-slate-800' : 'text-[#0985ff] font-bold';
-                    const sinal = isNegativo ? '-' : '+';
-                    const dataFormatada = tx.date ? new Date(tx.date).toLocaleDateString('pt-BR') : '---';
-                    const descricao = MC_CONFIG.escapeHtml(tx.description || 'Transação');
-
-                    htmlTx += `
-                        <div class="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition">
-                            <span class="text-slate-700 truncate max-w-xs md:max-w-lg">
-                                <span class="text-slate-400 font-mono text-[11px] mr-2">${dataFormatada}</span>
-                                ${descricao}
+                htmlRows += `
+                    <tr class="hover:bg-slate-50/80 transition group">
+                        <td class="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            ${dataFormatada}
+                        </td>
+                        <td class="py-3 px-4 text-slate-800 font-medium">
+                            <div class="flex items-center gap-2">
+                                ${badgeTipo}
+                                <span class="truncate max-w-xs md:max-w-sm" title="${desc}">${desc}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-slate-600">
+                            <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[10px] font-medium border border-slate-200/60">
+                                ${cat}
                             </span>
-                            <span class="${corValor} font-mono whitespace-nowrap ml-2">${sinal} ${valorFormatado}</span>
-                        </div>
-                    `;
-                });
+                        </td>
+                        <td class="py-3 px-4 text-slate-500 text-[11px]">
+                            ${contaNome} <span class="font-mono text-slate-400">(${contaNum})</span>
+                        </td>
+                        <td class="py-3 px-4 text-slate-500 text-[11px] truncate max-w-xs">
+                            ${contraparte}
+                        </td>
+                        <td class="py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${corValor}">
+                            ${sinal}${valorFormatado}
+                        </td>
+                    </tr>
+                `;
+            });
 
-                htmlTx += '</div>';
-                listaDiv.innerHTML = htmlTx;
+            tbody.innerHTML = htmlRows;
+        }
 
-            } catch (e) {
-                badgeQtd.textContent = 'Erro';
-                listaDiv.innerHTML = `<p class="py-2 text-rose-500">Erro ao carregar movimentações: ${MC_CONFIG.escapeHtml(e.message)}</p>`;
+        function exportarCSVCompleto() {
+            if (!DADOS_OF || !DADOS_OF.transacoes || DADOS_OF.transacoes.length === 0) {
+                MC_CONFIG.showToast("Nenhuma transação disponível para exportação.", "warning");
+                return;
             }
+
+            const nomeCliente = (DADOS_OF.identidade?.fullName || clienteId || 'cliente').replace(/[^a-zA-Z0-9]/g, '_');
+            const dataHoje = new Date().toISOString().slice(0, 10);
+            const nomeArquivo = `extrato_openfinance_${nomeCliente}_${dataHoje}.csv`;
+
+            // Cabeçalho CSV
+            let csv = '\uFEFF'; // UTF-8 BOM para abrir com acentos perfeitos no Microsoft Excel
+            csv += 'Data;Tipo;Descricao;Categoria;Conta;Numero Conta;Contraparte;Valor (R$)\n';
+
+            DADOS_OF.transacoes.forEach(t => {
+                const dataFmt = t.date ? MC_CONFIG.formatDate(t.date).replace(';', ' ') : '';
+                const tipo = t.type === 'CREDIT' ? 'ENTRADA' : 'SAIDA';
+                const desc = (t.description || t.descriptionRaw || '').replace(/;/g, ' ');
+                const cat = (t.category || '').replace(/;/g, ' ');
+                const conta = (t.conta_nome || '').replace(/;/g, ' ');
+                const cnum = (t.conta_numero || '').replace(/;/g, ' ');
+                
+                let contraparte = '';
+                if (t.paymentData?.payer?.name) contraparte = t.paymentData.payer.name;
+                else if (t.paymentData?.receiver?.name) contraparte = t.paymentData.receiver.name;
+                contraparte = contraparte.replace(/;/g, ' ');
+
+                const valor = (t.amount || 0).toFixed(2).replace('.', ',');
+
+                csv += `"${dataFmt}";"${tipo}";"${desc}";"${cat}";"${conta}";"${cnum}";"${contraparte}";"${valor}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', nomeArquivo);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            MC_CONFIG.showToast("Extrato exportado em formato CSV com sucesso!", "success");
         }
 
         function mostrarErro(mensagem) {

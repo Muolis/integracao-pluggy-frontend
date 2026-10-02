@@ -19,6 +19,9 @@
 | **8. Exportação CSV com UTF-8 BOM no Extrato** | Uso de Blob com BOM (`\uFEFF`) para compatibilidade nativa no Excel | 🟢 **Auditado e Corrigido** | [securitizadora.html](securitizadora.html) |
 | **9. Precisão de Calendário Bancário e Fusos** | Ajuste para lançamentos bancários não retrocederem de dia | 🟢 **Auditado e Corrigido** | [backend.py](backend.py) |
 | **10. Flexibilidade de Ambiente Local em `config.js`** | Suporte a qualquer porta localhost/127.0.0.1 | 🟢 **Auditado e Corrigido** | [config.js](config.js) |
+| **11. Auditoria e Extração Completa Open Finance** | Ficha Cadastral (CPF, RG, Renda informada, Telefones, Endereço), Contas, Extrato com Entradas e Saídas paginadas por cursor | 🟢 **Auditado e Implementado** | [backend.py](backend.py), [extratos.html](extratos.html), [test_backend.py](test_backend.py) |
+| **12. Correção de Datas Reais (Supabase vs Pluggy)** | Sincronização de 13 conexões com `createdAt` real da Pluggy (eliminado bug da data 30/10/2026 / 30/09/2026) | 🟢 **Auditado e Sincronizado** | [backend.py](backend.py), Supabase DB |
+| **13. Menu Lateral Moderno em Cascata (Sidebar)** | Navegação lateral retrátil com accordions em cascata em Branco e Azul (#010157 / #0985ff) | 🟢 **Auditado e Implementado** | [gestor.html](gestor.html) |
 
 ---
 
@@ -149,6 +152,54 @@ Iniciando bateria completa de testes automatizados do Backend...
   6. **Formulário de Criação com Datas Válidas:** O gerador de solicitações Pix agora inicializa automaticamente com `dataInicio` = próximo dia e `dataFim` = +1 ano, impedindo criação de solicitações com datas retroativas ou nulas.
 
 ---
+
+## 4.1. Auditoria da Lógica de Open Finance e Extração Total de Dados
+
+- **Causa Raiz da Ausência de Informações Bancárias:**
+  - A API `/v2/transactions` da Pluggy rejeita estritamente parâmetros não declarados em seu esquema com erro `HTTP 400 Bad Request` (`"property pageSize should not exist"`, `"property from should not exist"`).
+  - Como o backend e chamadas antigas tentavam passar `pageSize=500` ou parâmetros de datas inválidos, a API da Pluggy retornava erro e o extrato ficava zerado ou limitado ao corte default.
+  - Além disso, a ferramenta não consultava a Ficha Cadastral (`/identity`), nem paginava as contas ou calculava métricas consolidadas.
+- **Solução Implementada:**
+  1. **Novo Endpoint Consolidado `@app.route('/api/openfinance/completo/<item_id>')`:**
+     - Extrai em paralelo ou sequência segura:
+       - **Identidade / Ficha Cadastral (`/identity`):** Nome Completo, CPF/CNPJ, RG e outros documentos, data de nascimento, filiação (Pai e Mãe), renda declarada informada pelo cliente com periodicidade, telefones com DDD, e-mails, endereço residencial/comercial completo e histórico de tempo com o banco.
+       - **Contas Bancárias (`/accounts`):** Todas as contas correntes, poupanças e cartões com saldos e agência/conta.
+       - **Extrato Total (`/v2/transactions`):** Itera via cursor pagination (`next` / `after`) trazendo todas as transações, sem truncamento.
+       - **Investimentos (`/investments`) e Empréstimos (`/loans`):** Se disponíveis na conta do cliente.
+       - **Métricas Analíticas:** Saldo total em contas, total de entradas (créditos), total de saídas (débitos), saldo líquido do período e quantidade de movimentações.
+  2. **Modernização Completa de `extratos.html`:**
+     - Exibe a Ficha Cadastral completa do cliente com badge de renda informada.
+     - Cards de métricas analíticas (Entradas, Saídas, Saldo em Caixa, Saldo Líquido).
+     - Abas de visualização rápida: Todas, Apenas Entradas (Créditos), Apenas Saídas (Débitos).
+     - Busca por texto instantânea e filtro por conta bancária.
+     - Botão "Exportar Extrato Completo (CSV)" com codificação UTF-8 BOM para abrir com acentuação perfeita no Microsoft Excel.
+     - Botão "Imprimir Relatório de Extrato" para dossiê formal.
+
+---
+
+## 4.2. Auditoria e Correção Definitiva das Datas de Conexão no Open Finance
+
+- **Causa Raiz do Erro "Dia 30-10-2026 / 30-09-2026":**
+  - No banco de dados Supabase (tabela `conexoes`), a coluna `data_conexao` tinha como valor padrão o `now()` do banco. Quando várias conexões foram importadas ou sincronizadas em 30 de setembro de 2026, todas receberam o timestamp daquele momento, apagando a data real em que o cliente havia se conectado na Pluggy.
+  - Exemplo: Clientes como *Karina Ramalho Bandeira* e *Lucas da Silva Soares* se conectaram em 11 de agosto de 2026, mas constavam no banco como 30/09/2026!
+- **Correções Aplicadas:**
+  1. **Sincronização Retroativa Executada:** Script `scratch/sync_real_dates.py` auditou e atualizou 13 conexões de Open Finance no Supabase, gravando o `createdAt` oficial fornecido pela Pluggy.
+  2. **Correção em `/salvar-conexao` no Backend:** Toda nova conexão de Open Finance consulta primeiro o `createdAt` real do item na Pluggy antes de persistir, impedindo que o timestamp do servidor sobrescreva a data real.
+  3. **Precisão de Horário:** Datas são formatadas no frontend e backend no fuso horário de Brasília (UTC-3), no formato `DD/MM/AAAA às HH:mm`.
+
+---
+
+## 4.3. Menu Lateral Moderno em Cascata (Sidebar Branco e Azul)
+
+- **Arquitetura Implementada em `gestor.html`:**
+  - Sidebar fixada à esquerda em desktop (`w-72`) e retrátil com backdrop blur suave em mobile.
+  - Paleta rigorosa em Branco e Azul: Fundo Azul Marinho `#010157`, detalhes e destaques em Azul Elétrico `#0985ff`, cartões e tipografia clara.
+  - **Menus em Cascata com Accordions (Dropdowns Expansíveis):**
+    - 📂 **Open Finance:** Clientes Conectados, Extratos Analíticos, Fichas Cadastrais, Gerar Link de Extrato.
+    - ⚡ **Pix Automático:** Solicitações & Contratos, Pagamentos (KPIs & Donut), Gerar Link de Cobrança.
+    - 🏛️ **Securitizadora MC:** Acesso ao Painel Corporativo MC, Conta Bradesco Empresas PJ, Carteira & Caixa.
+    - ⚙️ **Configurações & Auditoria:** Sincronizar Pluggy em tempo real, Webhooks e Logout seguro.
+  - Rodapé da Sidebar exibindo avatar do gestor autenticado, status online pulsante e botão de encerramento de sessão.
 
 ## 5. Auditoria de Código e Sintaxe Frontend
 

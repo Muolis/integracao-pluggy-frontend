@@ -34,64 +34,212 @@
         }
     </style>
 </head>
-<body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen p-4 md:p-8">
+<body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen">
 
-    <div class="max-w-7xl mx-auto space-y-8">
+    <div class="min-h-screen flex w-full relative">
         
-        <!-- HEADER PRINCIPAL COM A IDENTIDADE MC MINHA CONTA -->
-        <header class="bg-[#010157] rounded-3xl border border-blue-900/40 p-6 md:p-7 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl relative overflow-hidden text-white">
-            <!-- Linha decorativa de gradiente oficial (#0985ff para #010157) -->
-            <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0985ff] via-sky-400 to-[#010157]"></div>
-            
-            <div class="flex items-center gap-4">
-                <div class="bg-white rounded-2xl p-2 shadow-md flex items-center justify-center">
-                    <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-12 w-auto object-contain">
-                </div>
-                <div>
-                    <h1 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                        MC Securitizadora
-                        <span class="text-[11px] bg-[#0985ff] text-white px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Gestão</span>
-                    </h1>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="text-xs text-blue-200/80 font-medium">Plataforma Open Finance & Pix Automático</span>
-                        <span class="text-blue-400/40">•</span>
-                        <span id="nome-gestor-logado" class="text-xs text-sky-300 font-bold">Gestor</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-3">
-                <a href="securitizadora.html" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 hover:text-white px-4 py-2 rounded-full text-xs font-bold border border-emerald-400/40 transition shadow-sm cursor-pointer" title="Acessar extrato corporativo, saldos e movimentações da conta MC (Bradesco Empresas)">
-                    <i class="fa-solid fa-building-columns text-emerald-400"></i> Conta Securitizadora MC
-                </a>
+        <!-- BACKDROP BLUR PARA DISPOSITIVOS MÓVEIS -->
+        <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 hidden md:hidden transition-opacity"></div>
 
-                <div class="flex items-center gap-2 bg-[#0985ff]/20 text-sky-300 px-4 py-2 rounded-full text-xs font-bold border border-[#0985ff]/30 backdrop-blur-sm">
-                    <span class="w-2.5 h-2.5 rounded-full bg-[#0985ff] animate-pulse"></span> Sistema Seguro Ativo
-                </div>
+        <!-- ============================================================ -->
+        <!-- MENU LATERAL MODERNO EM CASCATA (SIDEBAR BRANCO E AZUL)      -->
+        <!-- ============================================================ -->
+        <aside id="sidebar-menu" class="w-72 bg-[#010157] text-white flex flex-col fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-300 md:translate-x-0 -translate-x-full border-r border-blue-900/60">
+            <!-- Linha decorativa de gradiente oficial -->
+            <div class="h-1 bg-gradient-to-r from-[#0985ff] via-sky-400 to-[#010157]"></div>
 
-                <button 
-                    onclick="fazerLogout()" 
-                    class="text-blue-200 hover:text-white font-semibold text-xs transition flex items-center gap-2 border border-blue-400/30 hover:border-rose-400 bg-white/10 hover:bg-rose-500/20 px-4 py-2 rounded-full shadow-sm cursor-pointer"
-                >
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do Painel
-                </button>
-            </div>
-        </header>
-
-        <!-- GRID PRINCIPAL -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            <!-- COLUNA ESQUERDA: GERADOR DE ACESSO -->
-            <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm">
-                <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-link"></i>
+            <!-- Topo da Sidebar: Identidade MC Minha Conta -->
+            <div class="p-5 border-b border-blue-900/50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white rounded-2xl p-1.5 shadow-md flex items-center justify-center">
+                        <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-10 w-auto object-contain">
                     </div>
                     <div>
-                        <h2 class="text-lg font-bold text-[#010157]">Gerar Novo Acesso</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Envie o link seguro para o WhatsApp do cliente.</p>
+                        <h2 class="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5 leading-tight">
+                            MC Securitizadora
+                        </h2>
+                        <span class="text-[10px] bg-[#0985ff] text-white px-2 py-0.2 rounded-full font-bold uppercase tracking-wider inline-block mt-0.5">Painel Gestor</span>
                     </div>
                 </div>
+
+                <!-- Botão Fechar no Mobile -->
+                <button type="button" onclick="toggleSidebar(false)" class="md:hidden text-blue-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- NAVEGAÇÃO EM CASCATA COM ACCORDIONS -->
+            <nav class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar text-xs font-semibold">
+                
+                <!-- 1. GRUPO EM CASCATA: OPEN FINANCE -->
+                <div class="space-y-1">
+                    <button type="button" onclick="alternarCascata('openfinance')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition cursor-pointer group">
+                        <span class="flex items-center gap-2.5 text-sky-200 group-hover:text-white font-bold">
+                            <i class="fa-solid fa-building-columns text-[#0985ff] text-sm w-4 text-center"></i>
+                            Open Finance
+                        </span>
+                        <i id="chevron-openfinance" class="fa-solid fa-chevron-down text-[10px] text-blue-300 transition-transform duration-200 transform rotate-180"></i>
+                    </button>
+                    
+                    <div id="submenu-openfinance" class="space-y-1 pl-4 pt-1 border-l-2 border-[#0985ff]/40 ml-4">
+                        <button type="button" onclick="navegarPara('openfinance', 'conexoes')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-[#0985ff]/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-users text-[11px] text-sky-400 w-3.5"></i>
+                            <span>Clientes Conectados</span>
+                        </button>
+                        <button type="button" onclick="navegarPara('openfinance', 'extratos')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-[#0985ff]/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-list-check text-[11px] text-sky-400 w-3.5"></i>
+                            <span>Extratos Analíticos</span>
+                        </button>
+                        <button type="button" onclick="navegarPara('openfinance', 'gerar')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-[#0985ff]/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-plus-circle text-[11px] text-emerald-400 w-3.5"></i>
+                            <span>Gerar Link de Extrato</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. GRUPO EM CASCATA: PIX AUTOMÁTICO -->
+                <div class="space-y-1">
+                    <button type="button" onclick="alternarCascata('pix')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition cursor-pointer group">
+                        <span class="flex items-center gap-2.5 text-sky-200 group-hover:text-white font-bold">
+                            <i class="fa-solid fa-bolt text-emerald-400 text-sm w-4 text-center"></i>
+                            Pix Automático
+                        </span>
+                        <i id="chevron-pix" class="fa-solid fa-chevron-down text-[10px] text-blue-300 transition-transform duration-200"></i>
+                    </button>
+                    
+                    <div id="submenu-pix" class="hidden space-y-1 pl-4 pt-1 border-l-2 border-emerald-400/40 ml-4">
+                        <button type="button" onclick="navegarPara('pix', 'solicitacoes')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-emerald-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-file-invoice text-[11px] text-emerald-400 w-3.5"></i>
+                            <span>Solicitações & Contratos</span>
+                        </button>
+                        <button type="button" onclick="navegarPara('pix', 'pagamentos')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-emerald-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-chart-pie text-[11px] text-emerald-400 w-3.5"></i>
+                            <span>Pagamentos (KPIs & Donut)</span>
+                        </button>
+                        <button type="button" onclick="navegarPara('pix', 'gerar')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-emerald-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-link text-[11px] text-emerald-400 w-3.5"></i>
+                            <span>Gerar Link de Cobrança</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. GRUPO EM CASCATA: SECURITIZADORA MC -->
+                <div class="space-y-1">
+                    <button type="button" onclick="alternarCascata('securitizadora')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition cursor-pointer group">
+                        <span class="flex items-center gap-2.5 text-sky-200 group-hover:text-white font-bold">
+                            <i class="fa-solid fa-landmark text-amber-400 text-sm w-4 text-center"></i>
+                            Securitizadora MC
+                        </span>
+                        <i id="chevron-securitizadora" class="fa-solid fa-chevron-down text-[10px] text-blue-300 transition-transform duration-200"></i>
+                    </button>
+                    
+                    <div id="submenu-securitizadora" class="hidden space-y-1 pl-4 pt-1 border-l-2 border-amber-400/40 ml-4">
+                        <a href="securitizadora.html" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-amber-400 w-3.5"></i>
+                            <span>Painel Corporativo MC</span>
+                        </a>
+                        <a href="securitizadora.html" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-building-circle-check text-[11px] text-amber-400 w-3.5"></i>
+                            <span>Conta Bradesco PJ</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 4. GRUPO EM CASCATA: SINCRONIZAÇÃO & SISTEMA -->
+                <div class="space-y-1">
+                    <button type="button" onclick="alternarCascata('sistema')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition cursor-pointer group">
+                        <span class="flex items-center gap-2.5 text-sky-200 group-hover:text-white font-bold">
+                            <i class="fa-solid fa-gear text-slate-300 text-sm w-4 text-center"></i>
+                            Configurações & Auditoria
+                        </span>
+                        <i id="chevron-sistema" class="fa-solid fa-chevron-down text-[10px] text-blue-300 transition-transform duration-200"></i>
+                    </button>
+                    
+                    <div id="submenu-sistema" class="hidden space-y-1 pl-4 pt-1 border-l-2 border-slate-400/40 ml-4">
+                        <button type="button" onclick="navegarPara('sync')" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-white/10 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-rotate text-[11px] text-[#0985ff] w-3.5"></i>
+                            <span>Sincronizar com Pluggy</span>
+                        </button>
+                        <button type="button" onclick="fazerLogout()" class="w-full text-left px-3 py-2 rounded-lg text-rose-300 hover:text-white hover:bg-rose-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-arrow-right-from-bracket text-[11px] text-rose-400 w-3.5"></i>
+                            <span>Encerrar Sessão</span>
+                        </button>
+                    </div>
+                </div>
+
+            </nav>
+
+            <!-- Rodapé da Sidebar: Usuário Autenticado -->
+            <div class="p-4 border-t border-blue-900/60 bg-[#000045]/60 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-[#0985ff] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <span id="nome-gestor-logado" class="text-xs font-bold text-white block leading-tight">Gestor</span>
+                        <span class="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online
+                        </span>
+                    </div>
+                </div>
+                <button type="button" onclick="fazerLogout()" class="text-blue-300 hover:text-rose-400 p-2 rounded-lg hover:bg-white/10 transition cursor-pointer" title="Sair do Sistema">
+                    <i class="fa-solid fa-power-off text-sm"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ============================================================ -->
+        <!-- ÁREA PRINCIPAL DE CONTEÚDO (À DIREITA DA SIDEBAR)            -->
+        <!-- ============================================================ -->
+        <main class="flex-1 md:ml-72 min-h-screen p-4 md:p-8 flex flex-col space-y-6 w-full max-w-full overflow-x-hidden">
+            
+            <!-- TOPBAR SUPERIOR MODERNO (BRANCO E AZUL) -->
+            <header class="bg-white rounded-2xl border border-slate-200/80 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <!-- Botão Hambúrguer Mobile -->
+                    <button type="button" onclick="toggleSidebar(true)" class="md:hidden bg-slate-100 hover:bg-slate-200 text-[#010157] p-2 rounded-xl transition cursor-pointer" title="Abrir Menu">
+                        <i class="fa-solid fa-bars text-base"></i>
+                    </button>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg md:text-xl font-black text-[#010157] tracking-tight">Painel de Gestão Integrada</h1>
+                            <span class="text-[10px] bg-blue-50 text-[#0985ff] border border-blue-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">v2026.10</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span class="text-[#0985ff] font-semibold">Open Finance</span>
+                            <span class="text-slate-300">•</span>
+                            <span class="text-emerald-600 font-semibold">Pix Automático</span>
+                            <span class="text-slate-300">•</span>
+                            <span class="text-[#010157] font-semibold">Securitizadora MC</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 flex-wrap self-stretch sm:self-auto justify-end">
+                    <a href="securitizadora.html" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer" title="Acessar conta corporativa da Securitizadora MC no Bradesco">
+                        <i class="fa-solid fa-building-columns text-emerald-600"></i> Conta Securitizadora
+                    </a>
+
+                    <button type="button" onclick="carregarClientes(true)" class="bg-[#010157] hover:bg-[#080868] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer" title="Forçar atualização dos dados na Pluggy">
+                        <i class="fa-solid fa-rotate"></i> Sincronizar
+                    </button>
+                </div>
+            </header>
+
+            <!-- GRID PRINCIPAL DE TRABALHO -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- COLUNA ESQUERDA: GERADOR DE ACESSO -->
+                <div id="card-gerador-acesso" class="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-[#010157]">Gerar Novo Acesso</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Envie o link seguro para o WhatsApp do cliente.</p>
+                        </div>
+                    </div>
 
                 <!-- ABAS DO GERADOR -->
                 <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
@@ -259,7 +407,7 @@
             </div>
 
             <!-- COLUNA DIREITA: HISTÓRICO DE CONEXÕES DOS CLIENTES -->
-            <div class="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col min-h-[640px]">
+            <div id="painel-clientes-principal" class="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col min-h-[640px]">
                 
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100">
                     <div class="flex items-center gap-3">
@@ -545,6 +693,7 @@
                 </div>
             </div>
         </div>
+        </main>
     </div>
 
     <script>
@@ -554,6 +703,76 @@
         let filtroStatusPixAtivo = 'todos';
         let tipoLinkAtivo = 'extrato';
         let listaTodosBancos = [];
+
+        function toggleSidebar(abrir) {
+            const sidebar = document.getElementById('sidebar-menu');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar) return;
+            
+            const estaOculto = sidebar.classList.contains('-translate-x-full');
+            const novoEstado = (abrir !== undefined) ? abrir : estaOculto;
+
+            if (novoEstado) {
+                sidebar.classList.remove('-translate-x-full');
+                if (backdrop) backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                if (backdrop) backdrop.classList.add('hidden');
+            }
+        }
+
+        function alternarCascata(menuId) {
+            const submenu = document.getElementById(`submenu-${menuId}`);
+            const chevron = document.getElementById(`chevron-${menuId}`);
+            if (!submenu) return;
+
+            const estaOculto = submenu.classList.contains('hidden');
+            if (estaOculto) {
+                submenu.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+            } else {
+                submenu.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function navegarPara(secao, subopcao) {
+            if (window.innerWidth < 768) {
+                toggleSidebar(false);
+            }
+            
+            if (secao === 'openfinance') {
+                mudarAbaLista('extrato');
+                if (subopcao === 'gerar') {
+                    mudarAbaGerador('extrato');
+                    const inp = document.getElementById('identificadorCliente');
+                    if (inp) {
+                        inp.focus();
+                        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    document.getElementById('painel-clientes-principal')?.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else if (secao === 'pix') {
+                mudarAbaLista('pix');
+                if (subopcao === 'pagamentos') {
+                    mudarSubVisaoPix('pagamentos');
+                } else if (subopcao === 'gerar') {
+                    mudarAbaGerador('pix');
+                    const inp = document.getElementById('identificadorCliente');
+                    if (inp) {
+                        inp.focus();
+                        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    mudarSubVisaoPix('solicitacoes');
+                }
+                document.getElementById('painel-clientes-principal')?.scrollIntoView({ behavior: 'smooth' });
+            } else if (secao === 'sync') {
+                carregarClientes(true);
+                MC_CONFIG.showToast('Sincronização com a Pluggy solicitada!', 'info');
+            }
+        }
 
         function fazerLogout() {
             if (confirm("Deseja realmente sair do Portal do Gestor?")) {
@@ -1403,12 +1622,12 @@
                             </button>
                         `
                         : `
-                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
-                                <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Extrato
-                            </button>
-                            <a href="extratos.html?item=${encodeURIComponent(cliente.item_id)}&cliente=${encodeURIComponent(cliente.cliente)}" target="_blank" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir extrato detalhado em tela cheia">
-                                <i class="fa-solid fa-arrow-up-right-from-square text-[#0985ff]"></i> Tela Cheia
+                            <a href="extratos.html?item=${encodeURIComponent(cliente.item_id)}&cliente=${encodeURIComponent(cliente.cliente)}" target="_blank" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm" title="Abrir Dossiê Cadastral e Extrato Completo (Entradas, Saídas, Contas e Identidade)">
+                                <i class="fa-solid fa-address-card"></i> Dossiê & Extrato
                             </a>
+                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir prévia rápida inline">
+                                <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia
+                            </button>
                         `;
 
                     const cardBg = isSecuritizadora ? 'bg-gradient-to-r from-emerald-50/30 via-white to-white border-emerald-300/80 shadow-md ring-1 ring-emerald-200/50' : 'bg-white border-slate-200/90 shadow-sm';

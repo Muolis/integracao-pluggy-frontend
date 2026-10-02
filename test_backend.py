@@ -295,9 +295,36 @@ def run_tests():
     
     # Testa item não-autorizado: autorizado_em deve ser '---'
     assert det_erro_json.get("autorizado_em") == "---", f"Contrato rejeitado/com erro não pode ter data de autorização: obteve '{det_erro_json.get('autorizado_em')}'"
-    print(f" Teste 29 [Precisão e Cronograma de Datas]: Sucesso! Datas reais, {len(itens_cron)} parcelas distintas e bloqueio de autorização em recusas validados.")
+    # 30. Teste de Extração Completa de Open Finance (/api/openfinance/completo/<item_id>)
+    # Testa com o item real de Severino (8e04346e-cc83-4d53-900a-3b92f5ab1039)
+    res_of_comp = client.get('/api/openfinance/completo/8e04346e-cc83-4d53-900a-3b92f5ab1039', headers={"Authorization": f"Bearer {token}"})
+    assert res_of_comp.status_code == 200, f"Falha na rota /api/openfinance/completo: {res_of_comp.status_code}"
+    of_data = res_of_comp.get_json()
+    assert of_data.get("sucesso") is True, "sucesso deve ser True"
+    assert "item" in of_data, "Objeto item ausente na resposta de Open Finance"
+    assert "identidade" in of_data, "Objeto identidade cadastral ausente"
+    assert "contas" in of_data and len(of_data["contas"]) > 0, "Contas bancárias vazias"
+    assert "transacoes" in of_data and len(of_data["transacoes"]) > 0, "Extrato de transações vazio"
+    assert "metricas" in of_data, "Métricas consolidadas ausentes"
+    
+    mets = of_data["metricas"]
+    assert mets.get("total_entradas", 0) > 0, "Total de entradas deve ser positivo"
+    assert mets.get("total_saidas", 0) > 0, "Total de saídas deve ser positivo"
+    assert mets.get("quantidade_transacoes", 0) > 0, "Quantidade de transações deve ser maior que zero"
+    print(f" Teste 30 [Extração Total Open Finance]: Sucesso! {len(of_data['contas'])} contas, {len(of_data['transacoes'])} movimentações (Entradas: R$ {mets['total_entradas']:,.2f} | Saídas: R$ {mets['total_saidas']:,.2f}) e dados cadastrais extraídos com perfeição.")
 
-    print("\n TODOS OS 29 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 31. Teste de Proteção contra Vazamento de Arquivos Sensíveis (.env, .py, .sql, etc.)
+    res_env = client.get('/.env')
+    assert res_env.status_code == 403, f"Acesso a /.env deveria ser 403, obteve: {res_env.status_code}"
+    res_py = client.get('/backend.py')
+    assert res_py.status_code == 403, f"Acesso a /backend.py deveria ser 403, obteve: {res_py.status_code}"
+    res_sql = client.get('/schema.sql')
+    assert res_sql.status_code == 403, f"Acesso a /schema.sql deveria ser 403, obteve: {res_sql.status_code}"
+    res_git = client.get('/.git/config')
+    assert res_git.status_code == 403, f"Acesso a /.git/config deveria ser 403, obteve: {res_git.status_code}"
+    print(" Teste 31 [Proteção contra Directory Traversal & Vazamento de Código]: Sucesso! /.env, /backend.py, /schema.sql e /.git bloqueados com HTTP 403.")
+
+    print("\n TODOS OS 31 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()

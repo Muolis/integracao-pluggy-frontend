@@ -20,6 +20,7 @@ __pycache__/
 
 # Logs e arquivos temporários
 *.log
+scratch/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

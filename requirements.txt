@@ -5,3 +5,5 @@ gunicorn
 supabase
 python-dateutil
 python-dotenv
+urllib3>=2.8.0
+pyjwt>=2.15.1
