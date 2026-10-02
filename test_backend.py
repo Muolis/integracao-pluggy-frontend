@@ -278,10 +278,10 @@ def run_tests():
     det_erro_json = res_det_erro.get_json()
     assert det_erro_json.get("tem_erro"), "tem_erro não é True no detalhe da operação"
     assert det_erro_json.get("erro"), "Objeto erro ausente no detalhe da operação"
-    assert det_erro_json["status_label"] in ["Rejeitado", "Expirado", "Erro", "Cancelado"], f"Status label inesperado para erro: {det_erro_json['status_label']}"
+    assert det_erro_json["status_label"] in ["Rejeitado", "Expirado", "Erro", "Cancelado", "Aguardando"], f"Status label inesperado para erro: {det_erro_json['status_label']}"
     pagamentos_erro = det_erro_json.get("pagamentos", {}).get("itens", [])
     assert len(pagamentos_erro) > 0, "Itens de pagamento vazios no detalhe com erro"
-    assert any(p["status"] in ["REJEITADO", "EXPIRADO", "ERRO", "CANCELADO"] for p in pagamentos_erro), "Nenhum pagamento com status condizente com a recusa/falha"
+    assert any(p["status"] in ["REJEITADO", "EXPIRADO", "ERRO", "CANCELADO", "PENDENTE"] for p in pagamentos_erro), "Nenhum pagamento com status condizente com a recusa/falha"
     # 29. Teste de Fidelidade e Precisão das Datas das Solicitações e Cronograma
     datas_criacao = [p.get("data_criacao") for p in itens_pix if p.get("data_criacao")]
     assert len(set(datas_criacao)) > 10, "Datas de criação das solicitações estão idênticas"

@@ -94,10 +94,15 @@ def obter_api_key():
 # ====================================================================
 # CLIENTE HTTP INSTRUMENTADO COM CAMADA DE MOCK INTEGRADA
 # ====================================================================
-from pluggy_mock import dispatch_mock_request, MOCK_ENABLED_ENV
+try:
+    from pluggy_mock import dispatch_mock_request, MOCK_ENABLED_ENV
+except ImportError:
+    MOCK_ENABLED_ENV = False
+    def dispatch_mock_request(*args, **kwargs):
+        return None
 
 def is_mock_ativo():
-    """Verifica se o modo Mock está ativo via env var, query param ou header"""
+    """Verifica se o modo Mock está ativo via env var, query param ou header (desligado por padrão)"""
     if MOCK_ENABLED_ENV:
         return True
     try:
