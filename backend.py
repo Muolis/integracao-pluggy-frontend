@@ -1242,15 +1242,20 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 status_cor = 'rose'
                 status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
                 rejeitados_count += 1
-            elif raw_status == 'ERROR':
-                # Verifica se o erro oficial no intent foi recusa do usuário ou expiração
-                if info_erro and info_erro.get('codigo') in ['REJEITADO_USUARIO', 'REVOGADO_RECEBEDOR', 'REVOGADO_USUARIO']:
+            elif raw_status == 'ERROR' or it_status == 'ERROR' or pr_status == 'ERROR' or (info_erro and info_erro.get('tem_erro')):
+                # Se houve erro ou rejeição no intent ou no conector do banco
+                if info_erro and info_erro.get('codigo') in ['REJEITADO_USUARIO', 'REVOGADO_RECEBEDOR', 'REVOGADO_USUARIO', 'CONSENT_REJECTED', 'NOT_INFORMED', 'NAO_INFORMADO']:
                     status_label = 'Rejeitado'
+                    status_classe = 'rejeitado'
                 elif info_erro and info_erro.get('codigo') in ['TEMPO_EXPIRADO_AUTORIZACAO', 'TIMEOUT_CONSENTIMENTO']:
                     status_label = 'Expirado'
+                    status_classe = 'rejeitado'
+                elif info_erro and info_erro.get('codigo') in ['CANCELED', 'REVOKED']:
+                    status_label = 'Cancelado'
+                    status_classe = 'rejeitado'
                 else:
                     status_label = 'Erro'
-                status_classe = 'erro'
+                    status_classe = 'erro'
                 status_cor = 'rose'
                 status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
                 rejeitados_count += 1
@@ -1554,14 +1559,19 @@ def consultar_pix_detalhado(operacao_id):
         status_classe = 'rejeitado'
         status_cor = 'rose'
         status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
-    elif status_raw == 'ERROR':
-        if info_erro and info_erro.get('codigo') in ['REJEITADO_USUARIO', 'REVOGADO_RECEBEDOR', 'REVOGADO_USUARIO']:
+    elif status_raw == 'ERROR' or it_status == 'ERROR' or pr_status == 'ERROR' or (info_erro and info_erro.get('tem_erro')):
+        if info_erro and info_erro.get('codigo') in ['REJEITADO_USUARIO', 'REVOGADO_RECEBEDOR', 'REVOGADO_USUARIO', 'CONSENT_REJECTED', 'NOT_INFORMED', 'NAO_INFORMADO']:
             status_label = 'Rejeitado'
+            status_classe = 'rejeitado'
         elif info_erro and info_erro.get('codigo') in ['TEMPO_EXPIRADO_AUTORIZACAO', 'TIMEOUT_CONSENTIMENTO']:
             status_label = 'Expirado'
+            status_classe = 'rejeitado'
+        elif info_erro and info_erro.get('codigo') in ['CANCELED', 'REVOKED']:
+            status_label = 'Cancelado'
+            status_classe = 'rejeitado'
         else:
             status_label = 'Erro'
-        status_classe = 'erro'
+            status_classe = 'erro'
         status_cor = 'rose'
         status_badge = 'bg-rose-100 text-rose-700 border-rose-200'
     else:

@@ -142,6 +142,17 @@ let todosOsClientes = [];
             input.value = MC_CONFIG.formatCnpj(input.value);
         }
 
+        function mascaraMoedaPix(input) {
+            let v = input.value.replace(/\D/g, "");
+            if (!v) {
+                input.value = "";
+                return;
+            }
+            const centavos = parseInt(v, 10);
+            const floatVal = centavos / 100;
+            input.value = floatVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function gerarLink() {
             const identificador = document.getElementById("identificadorCliente").value.trim();
             if (!identificador) {
@@ -153,15 +164,30 @@ let todosOsClientes = [];
             parametros.append("cliente", identificador);
 
             if (tipoLinkAtivo === "pix") {
-                const valorRaw = document.getElementById("valorPix").value.replace(/\./g, "").replace(",", ".");
-                const valorFloat = parseFloat(valorRaw);
+                const valorCampo = (document.getElementById("valorPix")?.value || "").trim();
+                const apenasDigitos = valorCampo.replace(/\D/g, "");
+                let valorFloat = 0;
+                if (apenasDigitos) {
+                    valorFloat = parseInt(apenasDigitos, 10) / 100;
+                } else {
+                    valorFloat = parseFloat(valorCampo.replace(",", "."));
+                }
+
                 const inicio = document.getElementById("dataInicio")?.value;
                 const fim = document.getElementById("dataFim")?.value;
 
-                if (!valorFloat || valorFloat <= 0) {
+                if (!valorFloat || isNaN(valorFloat) || valorFloat <= 0) {
                     MC_CONFIG.showToast("Informe o valor da parcela mensal do Pix.", "warning");
                     return;
                 }
+
+                if (valorFloat > 10000) {
+                    const fmtValor = valorFloat.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                    if (!confirm(`Atenção: Você está prestes a gerar uma solicitação de Pix Automático no valor de ${fmtValor} mensais.\n\nConfirma que este valor está correto?`)) {
+                        return;
+                    }
+                }
+
                 if (!inicio) {
                     MC_CONFIG.showToast("Informe a data de início da primeira cobrança.", "warning");
                     return;
@@ -604,7 +630,11 @@ let todosOsClientes = [];
                     );
                     let matchStatus = true;
                     if (statusFiltro !== 'todos') {
-                        matchStatus = (p.status_label === statusFiltro || p.status === statusFiltro);
+                        if (statusFiltro === 'Erro') {
+                            matchStatus = (p.status_label === 'Erro' || p.status_label === 'Falha no Banco' || p.status_classe === 'erro');
+                        } else {
+                            matchStatus = (p.status_label === statusFiltro || p.status === statusFiltro);
+                        }
                     }
                     let matchPeriodo = true;
                     if (periodoFiltro !== 'todos' && limitesDias[periodoFiltro]) {
@@ -687,7 +717,7 @@ let todosOsClientes = [];
                             } else if (p.status_label === 'Concluído') {
                                 badgeStatus = 'bg-emerald-50 text-emerald-700 border-emerald-200';
                                 iconeStatus = '<i class="fa-solid fa-check text-[9px] mr-1 text-emerald-600"></i>';
-                            } else if (p.status_label === 'Erro') {
+                            } else if (p.status_label === 'Erro' || p.status_classe === 'erro' || p.status_label === 'Falha no Banco') {
                                 badgeStatus = 'bg-rose-50 text-rose-700 border-rose-200';
                                 iconeStatus = '<i class="fa-solid fa-triangle-exclamation text-[9px] mr-1 text-rose-600"></i>';
                             } else if (p.status_label === 'Rejeitado') {
@@ -708,7 +738,7 @@ let todosOsClientes = [];
                             }
 
                             let tagErroHtml = '';
-                            if (p.erro && (p.erro.titulo || p.erro.codigo)) {
+                            if (p.erro && (p.erro.titulo || p.erro.codigo) && p.status_label !== 'Aguardando') {
                                 const titErro = MC_CONFIG.escapeHtml(p.erro.titulo || p.erro.codigo);
                                 const detErro = MC_CONFIG.escapeHtml(p.erro.detalhe || p.erro.codigo || '');
                                 tagErroHtml = `
