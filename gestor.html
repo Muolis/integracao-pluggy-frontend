@@ -52,7 +52,13 @@
             <div class="p-5 border-b border-blue-900/50 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="bg-white rounded-2xl p-1.5 shadow-md flex items-center justify-center">
-                        <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-10 w-auto object-contain">
+                        <img 
+                            id="logo-sidebar" 
+                            src="logo-mc-minhaconta.png" 
+                            alt="MC Securitizadora" 
+                            class="h-10 w-auto object-contain"
+                            onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'40\' viewBox=\'0 0 120 40\'><rect width=\'120\' height=\'40\' rx=\'8\' fill=\'%23010157\'/><text x=\'50%25\' y=\'55%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23ffffff\' font-family=\'Inter,sans-serif\' font-weight=\'bold\' font-size=\'12\'>MC</text></svg>';"
+                        >
                     </div>
                     <div>
                         <h2 class="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5 leading-tight">
@@ -672,7 +678,8 @@
                                         <th class="py-3 px-3">ID Operação</th>
                                         <th class="py-3 px-3">Recebedor</th>
                                         <th class="py-3 px-3 text-right">Valor Recorrência</th>
-                                        <th class="py-3 px-3 text-center">Status</th>
+                                        <th class="py-3 px-3 text-center">Status Contrato</th>
+                                        <th class="py-3 px-3 text-center">Liberação</th>
                                         <th class="py-3 px-3">Criado em</th>
                                         <th class="py-3 px-3 text-center">Ações</th>
                                     </tr>

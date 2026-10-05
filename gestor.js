@@ -682,7 +682,7 @@ let todosOsClientes = [];
                     if (itensPaginados.length === 0) {
                         tbody.innerHTML = `
                             <tr>
-                                <td colspan="9" class="py-12 text-center text-slate-400">
+                                <td colspan="10" class="py-12 text-center text-slate-400">
                                     <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300 block"></i>
                                     Nenhuma solicitação encontrada para o filtro selecionado.
                                 </td>
@@ -760,6 +760,16 @@ let todosOsClientes = [];
                                 textoStatus = 'Aguardando';
                             }
 
+                            const lib = p.liberacao_operacional || {};
+                            let badgeLiberacao = '';
+                            if (lib.autorizada || p.status_label === 'Concluído') {
+                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Primeira cobrança liquidada com sucesso (COMPLETED).')}"><i class="fa-solid fa-shield-check text-emerald-600"></i> LIBERADO</span>`;
+                            } else if (p.status_classe === 'rejeitado' || p.status_classe === 'erro' || p.status_label === 'Rejeitado' || p.status_label === 'Cancelado') {
+                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Contrato rejeitado/cancelado.')}"><i class="fa-solid fa-ban text-rose-600"></i> RECUSADO</span>`;
+                            } else {
+                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Trava ativa: aguardando liquidação da primeira cobrança (COMPLETED).')}"><i class="fa-solid fa-lock text-amber-600"></i> BLOQUEADO</span>`;
+                            }
+
                             let btnLink = '';
                             if (p.payment_url || p.consent_url) {
                                 const urlAuth = p.payment_url || p.consent_url;
@@ -801,6 +811,9 @@ let todosOsClientes = [];
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${badgeStatus}" ${tooltipStatus ? `title="${MC_CONFIG.escapeHtml(tooltipStatus)}"` : ''}>
                                             ${iconeStatus} ${MC_CONFIG.escapeHtml(textoStatus)}
                                         </span>
+                                    </td>
+                                    <td class="py-3 px-3 text-center">
+                                        ${badgeLiberacao}
                                     </td>
                                     <td class="py-3 px-3 text-slate-600 text-[11px] whitespace-nowrap">
                                         <div class="font-medium text-slate-800">${dataFmt}</div>
@@ -878,6 +891,16 @@ let todosOsClientes = [];
                             `;
                         }
 
+                        const libCard = pix.liberacao_operacional || {};
+                        let badgeLibCard = '';
+                        if (libCard.autorizada || pix.status_label === 'Concluído') {
+                            badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-shield-check text-emerald-600"></i> Liberado</span>`;
+                        } else if (pix.status_classe === 'rejeitado' || pix.status_classe === 'erro' || pix.status_label === 'Rejeitado' || pix.status_label === 'Cancelado') {
+                            badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-ban text-rose-600"></i> Recusado</span>`;
+                        } else {
+                            badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock text-amber-600"></i> Bloqueado</span>`;
+                        }
+
                         htmlCards += `
                             <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
                                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -892,6 +915,7 @@ let todosOsClientes = [];
                                                 <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${pix.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
                                                     ${pix.status_label || 'Pendente'}
                                                 </span>
+                                                ${badgeLibCard}
                                             </div>
                                             <div class="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
                                                 <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco')}</span>
@@ -1442,13 +1466,86 @@ let todosOsClientes = [];
                     : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
 
                 let htmlLinhasPagamentos = '';
+                const libModal = pix.liberacao_operacional || {};
+                let bannerLiberacao = '';
+                if (libModal.autorizada || pix.status_label === 'Concluído') {
+                    bannerLiberacao = `
+                        <!-- CARD DE LIBERAÇÃO OPERACIONAL AUTORIZADA -->
+                        <div class="bg-gradient-to-r from-emerald-50/95 via-emerald-50/60 to-white border-2 border-emerald-300 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 shadow-xs">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm">
+                                    <i class="fa-solid fa-shield-check"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-extrabold text-xs text-emerald-950 uppercase tracking-wide flex items-center gap-2">
+                                        Trava de Liberação Operacional: LIBERADA
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Critério Atendido</span>
+                                    </h4>
+                                    <p class="text-[11px] text-emerald-800 mt-0.5">
+                                        ${MC_CONFIG.escapeHtml(libModal.motivo || 'Primeira cobrança liquidada com sucesso (COMPLETED). Liberação operacional autorizada.')}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-xs flex items-center gap-1.5">
+                                <i class="fa-solid fa-check-double"></i> Liberação Imediata
+                            </div>
+                        </div>
+                    `;
+                } else if (pix.status_classe === 'rejeitado' || pix.status_classe === 'erro' || pix.status_label === 'Rejeitado' || pix.status_label === 'Cancelado') {
+                    bannerLiberacao = `
+                        <!-- CARD DE LIBERAÇÃO BLOQUEADA POR RECUSA -->
+                        <div class="bg-gradient-to-r from-rose-50/95 via-rose-50/60 to-white border-2 border-rose-300 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 shadow-xs">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center text-lg shadow-sm">
+                                    <i class="fa-solid fa-ban"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-extrabold text-xs text-rose-950 uppercase tracking-wide flex items-center gap-2">
+                                        Trava de Liberação Operacional: NÃO AUTORIZADA
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">Recusado</span>
+                                    </h4>
+                                    <p class="text-[11px] text-rose-800 mt-0.5">
+                                        ${MC_CONFIG.escapeHtml(libModal.motivo || 'Contrato rejeitado, cancelado ou expirado. Liberação não permitida.')}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="px-3.5 py-1.5 rounded-xl bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-lock"></i> Bloqueio Definitivo
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    bannerLiberacao = `
+                        <!-- CARD DE TRAVA DE SEGURANÇA ATIVA -->
+                        <div class="bg-gradient-to-r from-amber-50/95 via-amber-50/60 to-white border-2 border-amber-300 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 shadow-xs">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg shadow-sm">
+                                    <i class="fa-solid fa-lock"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-extrabold text-xs text-amber-950 uppercase tracking-wide flex items-center gap-2">
+                                        Trava de Liberação Operacional: BLOQUEADA
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">Aguardando Liquidação</span>
+                                    </h4>
+                                    <p class="text-[11px] text-amber-800 mt-0.5">
+                                        ${MC_CONFIG.escapeHtml(libModal.motivo || 'Aguardando confirmação de COMPLETED na primeira cobrança. Liberação bloqueada até liquidação.')}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="px-3.5 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-hourglass-half"></i> Aguardando 1ª Cobrança
+                            </div>
+                        </div>
+                    `;
+                }
+
                 (pag.itens || []).forEach(item => {
                     let badgeItem = 'bg-slate-100 text-slate-700 border-slate-200';
                     let iconeItem = '<i class="fa-regular fa-clock"></i>';
-                    if (item.status === 'CONCLUIDO') {
+                    if (item.status === 'CONCLUIDO' || item.status === 'COMPLETED') {
                         badgeItem = 'bg-emerald-50 text-emerald-700 border-emerald-200';
                         iconeItem = '<i class="fa-solid fa-check text-emerald-600"></i>';
-                    } else if (item.status === 'AGENDADO' || item.status === 'EM_PROCESSAMENTO') {
+                    } else if (item.status === 'AGENDADO' || item.status === 'SCHEDULED' || item.status === 'EM_PROCESSAMENTO') {
                         badgeItem = 'bg-sky-50 text-sky-700 border-sky-200';
                         iconeItem = '<i class="fa-regular fa-calendar-check text-sky-600"></i>';
                     } else if (item.status === 'REJEITADO' || item.status === 'ERRO') {
@@ -1457,7 +1554,7 @@ let todosOsClientes = [];
                     } else if (item.status === 'CANCELADO' || item.status === 'EXPIRADO') {
                         badgeItem = 'bg-slate-100 text-slate-600 border-slate-200';
                         iconeItem = '<i class="fa-solid fa-ban text-slate-400"></i>';
-                    } else if (item.status === 'PENDENTE') {
+                    } else if (item.status === 'PENDENTE' || item.status === 'CONSENT_GRANTED') {
                         badgeItem = 'bg-amber-50 text-amber-700 border-amber-200';
                         iconeItem = '<i class="fa-solid fa-hourglass-half text-amber-600"></i>';
                     }
@@ -1483,6 +1580,7 @@ let todosOsClientes = [];
                 });
 
                 const htmlDetalhesPluggy = `
+                    ${bannerLiberacao}
                     ${bannerDiagnostico}
 
                     <!-- 1. BLOCO CONFIGURAÇÃO PIX AUTOMÁTICO -->
@@ -1693,17 +1791,24 @@ let todosOsClientes = [];
             }
         }
 
-        // Inicializacao com verificacao de autenticacao
+        // Inicializacao com verificacao de autenticacao e integridade
         document.addEventListener('DOMContentLoaded', () => {
             if (!MC_CONFIG.isAuthenticated()) {
                 window.location.href = 'gestor-login.html';
                 return;
             }
 
+            // Exibição do usuário logado na sidebar
             const usuario = MC_CONFIG.getAuthUser();
             if (usuario) {
-                const elNome = document.getElementById('nome-usuario-gestor');
+                const elNome = document.getElementById('nome-gestor-logado') || document.getElementById('nome-usuario-gestor');
                 if (elNome) elNome.textContent = usuario.nome || usuario.username || 'Gestor';
+            }
+
+            // Atualização da logomarca oficial se configurada
+            if (MC_CONFIG.LOGO_URL && MC_CONFIG.LOGO_URL !== 'logo-mc-minhaconta.png') {
+                const elLogo = document.getElementById('logo-sidebar');
+                if (elLogo) elLogo.src = MC_CONFIG.LOGO_URL;
             }
 
             inicializarDatasFormularioPix();

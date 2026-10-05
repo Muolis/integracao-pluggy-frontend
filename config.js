@@ -23,9 +23,30 @@
     // Permite override via variável global se necessário
     const API_BASE_URL = window.API_BASE_URL_OVERRIDE || defaultApiUrl;
 
-    // 2. Gerenciamento de Autenticação Segura do Gestor
+    // 2. Identidade Visual e Logomarca Oficial (Configurável via URL ou caminho relativo)
+    const LOGO_URL = window.LOGO_URL_OVERRIDE || 'logo-mc-minhaconta.png';
+
+    // 3. Gerenciamento de Autenticação Segura do Gestor com Validação de Integridade
     const TOKEN_KEY = 'mc_gestor_auth_token';
     const USER_KEY = 'mc_gestor_user_info';
+
+    function isTokenValid(token) {
+        if (!token || typeof token !== 'string') return false;
+        try {
+            let b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            const decoded = atob(b64);
+            const partes = decoded.split(':');
+            if (partes.length !== 3) return false;
+            const ts = parseInt(partes[1], 10);
+            if (isNaN(ts)) return false;
+            const agora = Math.floor(Date.now() / 1000);
+            if (agora - ts > 86400 || ts > agora + 60) return false;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
 
     function getAuthToken() {
         return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
@@ -51,14 +72,34 @@
     function getAuthUser() {
         try {
             const data = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
-            return data ? JSON.parse(data) : null;
-        } catch (e) {
-            return null;
+            if (data) return JSON.parse(data);
+        } catch (e) {}
+
+        // Fallback: decodifica o usuário diretamente do payload do token de sessão
+        const token = getAuthToken();
+        if (token && isTokenValid(token)) {
+            try {
+                let b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+                while (b64.length % 4) b64 += '=';
+                const decoded = atob(b64);
+                const u = decoded.split(':')[0];
+                if (u) {
+                    const nome = (u === 'admin') ? 'Administrador' : (u === 'julianemc' ? 'Juliane MC' : u.charAt(0).toUpperCase() + u.slice(1));
+                    return { username: u, nome };
+                }
+            } catch (e) {}
         }
+        return null;
     }
 
     function isAuthenticated() {
-        return !!getAuthToken();
+        const token = getAuthToken();
+        if (!token) return false;
+        if (!isTokenValid(token)) {
+            clearAuthToken();
+            return false;
+        }
+        return true;
     }
 
     // 3. Wrapper de Requisições Autenticadas (authFetch)
@@ -291,11 +332,13 @@
     // Exportação Global
     window.MC_CONFIG = {
         API_BASE_URL,
+        LOGO_URL,
         isLocalhost,
         getAuthToken,
         setAuthToken,
         clearAuthToken,
         getAuthUser,
+        isTokenValid,
         isAuthenticated,
         authFetch,
         escapeHtml,

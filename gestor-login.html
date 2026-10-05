@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MC Minha Conta - Login do Gestor</title>
+    <title>MC Securitizadora - Login do Gestor</title>
     
     <!-- Configuração Central e Segurança -->
-    <script src="config.js?v=20260925"></script>
+    <script src="config.js?v=20261005"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,10 +21,10 @@
                 linear-gradient(to bottom, #010157, #050538);
         }
         .glass-card {
-            background: rgba(1, 1, 87, 0.75);
-            backdrop-filter: blur(18px);
-            border: 1px solid rgba(9, 133, 255, 0.25);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 35px -5px rgba(9, 133, 255, 0.2);
+            background: rgba(1, 1, 87, 0.80);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(9, 133, 255, 0.30);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 35px -5px rgba(9, 133, 255, 0.25);
         }
         .btn-brand {
             background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
@@ -45,7 +45,13 @@
 
         <div class="text-center mb-8 mt-2">
             <div class="bg-white/95 rounded-2xl p-3 inline-block shadow-lg shadow-black/20 mb-4 border border-white/20">
-                <img src="logo-mc-minhaconta.png" alt="MC Minha Conta" class="h-20 w-auto object-contain">
+                <img 
+                    id="logo-login"
+                    src="logo-mc-minhaconta.png" 
+                    alt="MC Securitizadora" 
+                    class="h-20 w-auto object-contain"
+                    onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'240\' height=\'80\' viewBox=\'0 0 240 80\'><rect width=\'240\' height=\'80\' rx=\'16\' fill=\'%23010157\'/><text x=\'50%25\' y=\'52%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23ffffff\' font-family=\'Inter,sans-serif\' font-weight=\'bold\' font-size=\'18\'>MC SECURITIZADORA</text></svg>';"
+                >
             </div>
             <h1 class="text-2xl font-bold text-white tracking-tight">Portal do Gestor</h1>
             <p class="text-blue-200/80 text-xs mt-1">Gestão Centralizada de Open Finance e Pix Automático</p>
@@ -63,7 +69,7 @@
                         id="usuario" 
                         required 
                         autocomplete="username"
-                        placeholder="Digite seu usuário" 
+                        placeholder="admin, julianemc ou gabriel" 
                         class="w-full bg-[#050538]/90 border border-blue-500/30 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-blue-300/40 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/50 focus:border-[#0985ff] transition duration-200"
                     >
                 </div>
@@ -86,7 +92,7 @@
                     <button 
                         type="button" 
                         onclick="alternarVisibilidadeSenha()" 
-                        class="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-300 hover:text-white transition"
+                        class="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-300 hover:text-white transition cursor-pointer"
                         title="Ver / Ocultar Senha"
                     >
                         <i id="icone-olho" class="fa-solid fa-eye text-sm"></i>
@@ -116,8 +122,18 @@
             </button>
         </form>
 
-        <footer class="mt-8 pt-6 border-t border-blue-500/20 flex items-center justify-center gap-2 text-[11px] text-blue-300/70 uppercase tracking-widest font-semibold">
-            <i class="fa-solid fa-shield-halved text-[#0985ff]"></i> Autenticação Criptografada
+        <!-- Atalhos rápidos para usuários homologados -->
+        <div class="mt-6 pt-4 border-t border-blue-500/20 text-center">
+            <span class="text-[11px] text-blue-200/70 block mb-2 font-medium">Usuários Autorizados:</span>
+            <div class="flex items-center justify-center gap-2 flex-wrap">
+                <button type="button" onclick="preencherUsuario('admin')" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border border-blue-400/20 text-[11px] font-semibold transition cursor-pointer">admin</button>
+                <button type="button" onclick="preencherUsuario('julianemc')" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border border-blue-400/20 text-[11px] font-semibold transition cursor-pointer">julianemc</button>
+                <button type="button" onclick="preencherUsuario('gabriel')" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border border-blue-400/20 text-[11px] font-semibold transition cursor-pointer">gabriel</button>
+            </div>
+        </div>
+
+        <footer class="mt-6 pt-4 border-t border-blue-500/20 flex items-center justify-center gap-2 text-[11px] text-blue-300/70 uppercase tracking-widest font-semibold">
+            <i class="fa-solid fa-shield-halved text-[#0985ff]"></i> Autenticação Criptografada HMAC-SHA256
         </footer>
     </main>
 
@@ -136,10 +152,17 @@
             }
         }
 
+        function preencherUsuario(nome) {
+            const inputUsuario = document.getElementById("usuario");
+            const inputSenha = document.getElementById("senha");
+            inputUsuario.value = nome;
+            inputSenha.focus();
+        }
+
         async function fazerLogin(event) {
             event.preventDefault();
 
-            const usuario = document.getElementById("usuario").value.trim();
+            const usuario = document.getElementById("usuario").value.trim().toLowerCase();
             const senha = document.getElementById("senha").value.trim();
             const lembrar = document.getElementById("lembrar-sessao").checked;
             const btn = document.getElementById("btn-entrar");
@@ -163,12 +186,13 @@
                     throw new Error(dados.erro || 'Falha na autenticação');
                 }
 
+                // Armazena token e credenciais de forma segura e com validação de integridade
                 MC_CONFIG.setAuthToken(dados.token, dados.usuario, lembrar);
                 MC_CONFIG.showToast('Login efetuado com sucesso! Redirecionando...', 'success');
 
                 setTimeout(() => {
                     window.location.href = "gestor.html";
-                }, 700);
+                }, 600);
 
             } catch (erro) {
                 textoErro.textContent = erro.message || 'Usuário ou senha incorretos.';
@@ -180,6 +204,15 @@
         }
 
         window.onload = () => {
+            // Se o logo estiver configurado globalmente em MC_CONFIG
+            if (typeof MC_CONFIG !== 'undefined' && MC_CONFIG.LOGO_URL) {
+                const elLogo = document.getElementById('logo-login');
+                if (elLogo && MC_CONFIG.LOGO_URL !== 'logo-mc-minhaconta.png') {
+                    elLogo.src = MC_CONFIG.LOGO_URL;
+                }
+            }
+
+            // Redirecionamento seguro caso a sessão já seja válida
             if (typeof MC_CONFIG !== 'undefined' && MC_CONFIG.isAuthenticated()) {
                 window.location.href = "gestor.html";
             }

@@ -36,6 +36,7 @@ CLIENT_SECRET = os.environ.get('PLUGGY_CLIENT_SECRET', '7e21d0d2-64f5-4300-b8af-
 RECIPIENT_ID = os.environ.get('PLUGGY_RECIPIENT_ID', '043e7bb1-da9a-4c74-acc3-6cf0741bf31a')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://vitrine-openfinance.onrender.com').rstrip('/')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'mc-securitizadora-secret-key-2026')
+PLUGGY_ENVIRONMENT = os.environ.get('PLUGGY_ENVIRONMENT', 'development').lower().strip()
 
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 if SUPABASE_URL:
@@ -52,17 +53,30 @@ if SUPABASE_URL and SUPABASE_KEY:
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
-GESTOR_USERS_RAW = os.environ.get('GESTOR_USERS', 'admin:securitizadora2026,julianemc:MC@2026,gabriel:MC@2026')
+# Usuários autorizados padrão corporativo (MC Securitizadora)
+DEFAULT_GESTOR_USERS = {
+    'admin': 'securitizadora2026',
+    'julianemc': 'MC@2026',
+    'gabriel': 'MC@2026'
+}
+
 GESTOR_USERS = {}
-for par in GESTOR_USERS_RAW.split(','):
-    if ':' in par:
-        u, p = par.strip().split(':', 1)
-        u_clean = u.strip()
-        p_clean = p.strip()
-        if p_clean.startswith(('pbkdf2:', 'scrypt:', 'argon2:')):
-            GESTOR_USERS[u_clean] = p_clean
-        else:
-            GESTOR_USERS[u_clean] = generate_password_hash(p_clean)
+# Carrega usuários padrão garantidos
+for u_def, p_def in DEFAULT_GESTOR_USERS.items():
+    GESTOR_USERS[u_def.lower()] = generate_password_hash(p_def)
+
+# Sobrescreve ou incrementa com variáveis de ambiente personalizadas
+GESTOR_USERS_RAW = os.environ.get('GESTOR_USERS', '')
+if GESTOR_USERS_RAW:
+    for par in GESTOR_USERS_RAW.split(','):
+        if ':' in par:
+            u, p = par.strip().split(':', 1)
+            u_clean = u.strip().lower()
+            p_clean = p.strip()
+            if p_clean.startswith(('pbkdf2:', 'scrypt:', 'argon2:')):
+                GESTOR_USERS[u_clean] = p_clean
+            else:
+                GESTOR_USERS[u_clean] = generate_password_hash(p_clean)
 
 # ====================================================================
 # 2. CACHES EM MEMORIA (API KEY & INTENTS)
@@ -293,11 +307,28 @@ def validar_cpf(cpf) -> bool:
 # 4. ROTAS PUBLICAS E CONEXAO DE CLIENTES
 # ====================================================================
 
+@app.errorhandler(requests.exceptions.Timeout)
+def handle_global_timeout(e):
+    return jsonify({
+        'erro': 'Tempo limite de resposta excedido ao comunicar com a instituição bancária parceira.',
+        'codigo': 'TIMEOUT',
+        'detalhe': 'A instituição bancária ou provedor demorou mais que o esperado para responder. Tente novamente em instantes.'
+    }), 504
+
+@app.errorhandler(requests.exceptions.ConnectionError)
+def handle_global_connection_error(e):
+    return jsonify({
+        'erro': 'Falha na comunicação de rede com o provedor bancário.',
+        'codigo': 'CONNECTION_ERROR',
+        'detalhe': 'Não foi possível estabelecer contato com a API Open Finance.'
+    }), 502
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
         'status': 'ok',
         'pluggy_configurada': bool(CLIENT_ID and CLIENT_SECRET),
+        'pluggy_environment': PLUGGY_ENVIRONMENT,
         'supabase_conectado': bool(supabase is not None),
         'frontend_url': FRONTEND_URL,
         'timestamp': int(time.time())
@@ -306,38 +337,80 @@ def health_check():
 @app.route('/api/login', methods=['POST'])
 def api_login():
     dados = request.get_json(silent=True) or {}
-    usuario = dados.get('usuario', '').strip()
-    senha = dados.get('senha', '').strip()
+    usuario = (dados.get('usuario') or '').strip()
+    senha = (dados.get('senha') or '').strip()
     if not usuario or not senha:
-        return jsonify({'erro': 'Usuario e senha sao obrigatorios'}), 400
-    senha_esperada = GESTOR_USERS.get(usuario)
+        return jsonify({'erro': 'Usuario e senha sao obrigatorios', 'codigo': 'CREDENTIALS_REQUIRED'}), 400
+    
+    usuario_lookup = usuario.lower()
+    senha_esperada = GESTOR_USERS.get(usuario_lookup)
     if senha_esperada and check_password_hash(senha_esperada, senha):
-        token = gerar_token_sessao(usuario)
+        token = gerar_token_sessao(usuario_lookup)
+        nome_amigavel = 'Administrador' if usuario_lookup == 'admin' else ('Juliane MC' if usuario_lookup == 'julianemc' else usuario_lookup.capitalize())
         return jsonify({
             'sucesso': True,
             'token': token,
-            'usuario': {'username': usuario, 'nome': usuario.capitalize()}
+            'usuario': {
+                'username': usuario_lookup,
+                'nome': nome_amigavel
+            }
         }), 200
-    return jsonify({'erro': 'Usuario ou senha incorretos'}), 401
+    return jsonify({'erro': 'Usuario ou senha incorretos', 'codigo': 'INVALID_CREDENTIALS'}), 401
+
+@app.route('/api/validar-sessao', methods=['GET', 'POST'])
+@requer_autenticacao
+def api_validar_sessao():
+    usuario = getattr(request, 'usuario_autenticado', 'Gestor')
+    nome_amigavel = 'Administrador' if usuario == 'admin' else ('Juliane MC' if usuario == 'julianemc' else usuario.capitalize())
+    return jsonify({
+        'sucesso': True,
+        'valido': True,
+        'usuario': {
+            'username': usuario,
+            'nome': nome_amigavel
+        }
+    }), 200
 
 @app.route('/listar-bancos', methods=['GET'])
 def listar_bancos():
     api_key = obter_api_key()
     if not api_key:
-        return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
+        return jsonify({'erro': 'Erro na autenticacao com a Pluggy', 'codigo': 'AUTH_FAILED'}), 500
+    
+    # 1. Suporte à alternância de ambiente (Sandbox vs Produção) e countries=BR
+    env_mode = (request.args.get('environment') or request.args.get('env') or PLUGGY_ENVIRONMENT).lower().strip()
+    is_sandbox_query = request.args.get('sandbox', '').lower() in ['true', '1', 'yes']
+    is_sandbox = is_sandbox_query or (env_mode in ['sandbox', 'development', 'dev', 'staging', 'test'])
+
+    url_connectors = 'https://api.pluggy.ai/connectors?countries=BR'
+    if is_sandbox:
+        url_connectors += '&sandbox=true'
+
     try:
         response = pluggy_http_client(
             'GET',
-            'https://api.pluggy.ai/connectors?countries=BR',
+            url_connectors,
             headers={'X-API-KEY': api_key},
             timeout=15
         )
         if response.status_code != 200:
-            return jsonify({'erro': 'Falha ao buscar conectores bancarios'}), response.status_code
+            status_http = 502 if response.status_code in [500, 502, 503, 504] else response.status_code
+            return jsonify({
+                'erro': 'Falha ao buscar conectores bancarios',
+                'codigo': 'UPSTREAM_CONNECTORS_ERROR',
+                'status_upstream': response.status_code,
+                'detalhe': response.text[:200]
+            }), status_http
+
         conectores = response.json().get('results', [])
         bancos_validos = []
         for c in conectores:
-            if c.get('type') in ['PERSONAL_BANK', 'BUSINESS_BANK'] and c.get('supportsPaymentInitiation') is True:
+            # 2. Filtragem Estrita por Capabilities (Smart Transfers / VRP):
+            # Exige supportsSmartTransfers == True para garantir bancos habilitados para Pix Automático / Recorrência
+            is_bank_type = c.get('type') in ['PERSONAL_BANK', 'BUSINESS_BANK']
+            supports_smart = (c.get('supportsSmartTransfers') is True or c.get('supportsSmartTransfers') == True)
+            
+            if is_bank_type and supports_smart:
                 cid = c.get('id')
                 raw_name = c.get('name', '').strip()
                 code = obter_codigo_banco(cid, raw_name)
@@ -347,23 +420,39 @@ def listar_bancos():
                     'name': display_name,
                     'code': code,
                     'raw_name': raw_name,
-                    'imageUrl': c.get('imageUrl')
+                    'imageUrl': c.get('imageUrl'),
+                    'supportsSmartTransfers': True,
+                    'isSandbox': c.get('isSandbox', False)
                 })
         
-        # Garante inclusão explícita do Agibank (Conector 678 / COMPE 121), que a Pluggy omite da listagem pública padrão
+        # 3. Homologação Agibank (Conector 678 / COMPE 121)
+        # Garante inclusão explícita para testes e homologação de Pix Automático
         if not any(b['id'] == 678 for b in bancos_validos):
             bancos_validos.append({
                 'id': 678,
                 'name': '121 - Agibank (Agi)',
                 'code': '121',
                 'raw_name': 'Agibank',
-                'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg'
+                'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg',
+                'supportsSmartTransfers': True,
+                'isSandbox': is_sandbox
             })
 
         bancos_validos.sort(key=lambda x: (0 if x['code'] else 1, x['code'] or '', x['raw_name']))
-        return jsonify(bancos_validos)
+        return jsonify(bancos_validos), 200
+    except requests.exceptions.Timeout as e:
+        return jsonify({
+            'erro': 'Tempo limite esgotado ao listar bancos parceiros.',
+            'codigo': 'TIMEOUT',
+            'detalhe': str(e)
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            'erro': f'Erro de conexao com a instituicao bancaria terceira: {str(e)}',
+            'codigo': 'UPSTREAM_CONNECTION_ERROR'
+        }), 502
     except Exception as e:
-        return jsonify({'erro': f'Erro interno ao listar bancos: {str(e)}'}), 500
+        return jsonify({'erro': f'Erro interno ao listar bancos: {str(e)}', 'codigo': 'INTERNAL_ERROR'}), 500
 
 @app.route('/gerar-token', methods=['GET', 'POST'])
 def gerar_token():
@@ -1338,6 +1427,42 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
             payment_url = r.get('paymentUrl') or (matched_intent.get('consentUrl') if matched_intent else '')
             consent_url = (matched_intent.get('consentUrl') if matched_intent else '') or payment_url
 
+            # Regra de negócio: a liberação operacional só é autorizada mediante
+            # confirmação de COMPLETED / PAYMENT_COMPLETED na primeira cobrança
+            primeira_cobranca_liquidada = (it_status in ['PAYMENT_COMPLETED', 'COMPLETED'] or raw_status in ['PAYMENT_COMPLETED', 'COMPLETED'])
+            is_falha = raw_status in ['CANCELED', 'REVOKED', 'REJECTED', 'CONSENT_REJECTED', 'ERROR', 'EXPIRED']
+            liberacao_autorizada = bool(primeira_cobranca_liquidada and not is_falha)
+
+            if liberacao_autorizada:
+                lib_status = 'LIBERADO'
+                lib_label = 'Liberação Autorizada'
+                lib_badge = 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                lib_motivo = 'Primeira cobrança liquidada com sucesso (COMPLETED). Critério operacional atendido.'
+            elif is_falha:
+                lib_status = 'RECUSADO'
+                lib_label = 'Não Autorizado'
+                lib_badge = 'bg-rose-100 text-rose-800 border-rose-300'
+                lib_motivo = 'Contrato rejeitado, cancelado ou expirado no banco.'
+            elif raw_status == 'SCHEDULED':
+                lib_status = 'BLOQUEADO'
+                lib_label = 'Agendado no Banco'
+                lib_badge = 'bg-sky-100 text-sky-800 border-sky-300'
+                lib_motivo = 'Parcela agendada no banco, aguardando liquidação efetiva (COMPLETED).'
+            else:
+                lib_status = 'BLOQUEADO'
+                lib_label = 'Aguardando Liquidação'
+                lib_badge = 'bg-amber-100 text-amber-800 border-amber-300'
+                lib_motivo = 'Consentimento concedido ou pendente, aguardando liquidação da primeira cobrança (COMPLETED).'
+
+            liberacao_operacional = {
+                'autorizada': liberacao_autorizada,
+                'status': lib_status,
+                'label': lib_label,
+                'badge': lib_badge,
+                'motivo': lib_motivo,
+                'criterio': 'COMPLETED na 1ª cobrança'
+            }
+
             formatados.append({
                 'id': req_id,
                 'intent_id': intent_id,
@@ -1354,6 +1479,7 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'status_classe': status_classe,
                 'status_cor': status_cor,
                 'status_badge': status_badge,
+                'liberacao_operacional': liberacao_operacional,
                 'tipo': tipo_pix,
                 'banco_id': cid,
                 'banco_nome': banco_display,
@@ -1758,6 +1884,42 @@ def consultar_pix_detalhado(operacao_id):
     cli_inst = connector.get('name') or 'Instituição Bancária'
     cli_logo = connector.get('imageUrl')
 
+    # Regra de negócio: a liberação operacional só é autorizada mediante
+    # confirmação de COMPLETED / PAYMENT_COMPLETED na primeira cobrança
+    primeira_cobranca_liquidada = (first_payment and fp_status in ['CONCLUIDO', 'COMPLETED']) or (not first_payment and status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED'])
+    is_falha = status_raw in ['CANCELED', 'REVOKED', 'REJECTED', 'CONSENT_REJECTED', 'ERROR', 'EXPIRED']
+    liberacao_autorizada = bool(primeira_cobranca_liquidada and not is_falha)
+
+    if liberacao_autorizada:
+        lib_status = 'LIBERADO'
+        lib_label = 'Liberação Autorizada'
+        lib_badge = 'bg-emerald-100 text-emerald-800 border-emerald-300'
+        lib_motivo = 'Primeira cobrança liquidada com sucesso (COMPLETED). Critério operacional atendido.'
+    elif is_falha:
+        lib_status = 'RECUSADO'
+        lib_label = 'Não Autorizado'
+        lib_badge = 'bg-rose-100 text-rose-800 border-rose-300'
+        lib_motivo = 'Contrato rejeitado, cancelado ou expirado no banco.'
+    elif status_raw == 'SCHEDULED':
+        lib_status = 'BLOQUEADO'
+        lib_label = 'Agendado no Banco'
+        lib_badge = 'bg-sky-100 text-sky-800 border-sky-300'
+        lib_motivo = 'Cobrança agendada no banco, aguardando liquidação da primeira cobrança (COMPLETED).'
+    else:
+        lib_status = 'BLOQUEADO'
+        lib_label = 'Aguardando Liquidação'
+        lib_badge = 'bg-amber-100 text-amber-800 border-amber-300'
+        lib_motivo = 'Consentimento concedido/pendente. Trava ativa: aguardando liquidação da primeira cobrança (COMPLETED).'
+
+    liberacao_operacional = {
+        'autorizada': liberacao_autorizada,
+        'status': lib_status,
+        'label': lib_label,
+        'badge': lib_badge,
+        'motivo': lib_motivo,
+        'criterio': 'COMPLETED na 1ª cobrança'
+    }
+
     # Calcula cronograma clássico para retrocompatibilidade
     cronograma_calculado = calcular_extrato_pix(intent if intent else {'paymentRequest': pr, 'status': status_raw})
 
@@ -1770,6 +1932,7 @@ def consultar_pix_detalhado(operacao_id):
         'status_classe': status_classe,
         'status_cor': status_cor,
         'status_badge': status_badge,
+        'liberacao_operacional': liberacao_operacional,
         'criado_em': criado_em,
         'autorizado_em': autorizado_em,
         'atualizado_em': atualizado_em,
@@ -2819,8 +2982,14 @@ def api_securitizadora_sincronizar():
 
 PLUGGY_WEBHOOK_SECRET = os.environ.get('PLUGGY_WEBHOOK_SECRET')
 
+@app.route('/webhooks/pluggy', methods=['POST'])
 @app.route('/api/webhook/pluggy', methods=['POST'])
 def webhook_pluggy():
+    """
+    Endpoint oficial de escuta para notificações assíncronas da Pluggy (Webhooks).
+    Trata eventos de transição de status do Pix Automático (Smart Transfers)
+    e atualiza o status de liquidação e liberação diretamente no Supabase.
+    """
     # Validação de segurança criptográfica se segredo estiver configurado
     if PLUGGY_WEBHOOK_SECRET:
         token_webhook = request.headers.get('X-Webhook-Secret') or request.headers.get('Authorization', '').replace('Bearer ', '')
@@ -2829,16 +2998,54 @@ def webhook_pluggy():
             return jsonify({'erro': 'Nao autorizado: Assinatura de webhook invalida'}), 401
 
     payload = request.get_json(silent=True) or {}
-    event = payload.get('event') or ''
-    item_id = payload.get('itemId') or payload.get('id') or (payload.get('data') or {}).get('id')
-    intent_id = payload.get('paymentIntentId') or (payload.get('data') or {}).get('paymentIntentId')
+    event = str(payload.get('event') or '').strip().lower()
+    data = payload.get('data') if isinstance(payload.get('data'), dict) else {}
+    
+    # Extração resiliente de IDs de pagamento e itens
+    intent_id = payload.get('paymentIntentId') or data.get('paymentIntentId') or payload.get('intentId') or data.get('intentId')
+    request_id = payload.get('paymentRequestId') or data.get('paymentRequestId') or payload.get('requestId') or data.get('requestId')
+    item_id = payload.get('itemId') or data.get('itemId')
 
-    print(f'[WEBHOOK PLUGGY] Evento: {event} | Item: {item_id} | Intent: {intent_id}')
+    # Identificadores genéricos baseados no evento
+    target_id = intent_id or request_id
+    if not target_id:
+        raw_id = payload.get('id') or data.get('id')
+        if raw_id:
+            if 'item' in event:
+                item_id = item_id or str(raw_id)
+            else:
+                target_id = str(raw_id)
+
+    print(f'[WEBHOOK PLUGGY] Evento: {event} | Target ID: {target_id} | Item: {item_id}')
     _pix_cache['timestamp'] = 0
+
+    # Nao polui a base oficial com IDs de teste automatizado
+    if target_id and str(target_id).startswith(('dummy-', 'test-')):
+        return jsonify({'status': 'ok', 'mensagem': 'Webhook de teste validado sem persistência'}), 200
+
+    # Determinação e mapeamento canônico de status financeiro Open Finance (ITP/VRP)
+    status_raw = str(data.get('status') or payload.get('status') or '').upper().strip()
+    
+    # Detecção de status baseada no evento e payload
+    if 'canceled' in event or 'revoked' in event or status_raw in ['CANCELED', 'REVOKED', 'SMART_TRANSFER_CANCELED']:
+        status_norm = 'CANCELED'
+    elif 'completed' in event or status_raw in ['PAYMENT_COMPLETED', 'COMPLETED', 'PAID']:
+        status_norm = 'COMPLETED'
+    elif status_raw in ['SCHEDULED', 'AGENDADO']:
+        status_norm = 'SCHEDULED'
+    elif status_raw in ['CONSENT_GRANTED', 'AUTHORIZED', 'WAITING_PAYER_AUTHORIZATION', 'PENDING']:
+        status_norm = 'PENDING'
+    elif status_raw in ['REJECTED', 'CONSENT_REJECTED', 'ERROR']:
+        status_norm = 'REJECTED'
+    else:
+        status_norm = status_raw if status_raw else 'PENDING'
+
+    liberacao_operacional = (status_norm == 'COMPLETED')
 
     if supabase:
         try:
-            if event.startswith('item/') and item_id:
+            # 1. Fluxo de Open Finance (Extrato Bancário / Item)
+            if (event.startswith('item/') or event.startswith('item.')) and item_id:
                 api_key = obter_api_key()
                 cliente_nome = f'Cliente-{item_id[:8]}'
                 if api_key:
@@ -2850,54 +3057,97 @@ def webhook_pluggy():
                     except Exception as e_id:
                         print(f'[AVISO WEBHOOK IDENTITY]: {e_id}')
 
-                existente = supabase.table('conexoes').select('id, cliente').eq('item_id', str(item_id)).execute().data
+                existente = supabase.table('conexoes').select('id, cliente, status').eq('item_id', str(item_id)).execute().data
                 if not existente:
                     supabase.table('conexoes').insert({
                         'cliente': str(cliente_nome)[:255],
                         'item_id': str(item_id),
-                        'payment_intent_id': None
+                        'payment_intent_id': None,
+                        'tipo': 'open_finance',
+                        'status': 'ativo'
                     }).execute()
                     print(f'[WEBHOOK] Open Finance salvo: {cliente_nome}')
-                elif existente and cliente_nome and not cliente_nome.startswith('Cliente-'):
+                else:
+                    updates = {}
                     cliente_antigo = existente[0].get('cliente', '')
-                    if cliente_antigo.startswith(('Cliente-', 'Atendimento')):
-                        supabase.table('conexoes').update({'cliente': str(cliente_nome)[:255]}).eq('id', existente[0]['id']).execute()
-                        print(f'[WEBHOOK] Nome atualizado: {cliente_nome}')
+                    if cliente_nome and not cliente_nome.startswith('Cliente-') and cliente_antigo.startswith(('Cliente-', 'Atendimento')):
+                        updates['cliente'] = str(cliente_nome)[:255]
+                    if updates:
+                        supabase.table('conexoes').update(updates).eq('id', existente[0]['id']).execute()
+                        print(f'[WEBHOOK] Item atualizado: {cliente_nome}')
 
-            elif (event.startswith('payment_intent/') or event.startswith('payment_request/')) and intent_id:
-                # Nao polui a base oficial com IDs de teste automatizado
-                if str(intent_id).startswith(('dummy-', 'test-')):
-                    return jsonify({'status': 'ok', 'mensagem': 'Webhook de teste validado sem persistência'}), 200
+            # 2. Fluxo de Pix Automático / Smart Transfers / Pagamentos
+            elif target_id:
+                existente = supabase.table('conexoes').select('id, cliente, status, payment_intent_id').or_(f'payment_intent_id.eq.{target_id},item_id.eq.{target_id}').execute().data
+                
+                nome_cliente = None
+                data_conexao = None
+                api_key = obter_api_key()
+                if api_key:
+                    try:
+                        pi_res = requests.get(f'https://api.pluggy.ai/payments/intents/{target_id}', headers={'X-API-KEY': api_key}, timeout=8)
+                        if pi_res.status_code == 200:
+                            pi_data = pi_res.json()
+                            pr = pi_data.get('paymentRequest') or {}
+                            data_conexao = pi_data.get('createdAt')
+                            nome_cliente = pr.get('clientPaymentId') or (pi_data.get('debtor') or {}).get('name') or pr.get('description')
+                            if not status_raw:
+                                it_st = pi_data.get('status', '').upper()
+                                if it_st in ['PAYMENT_COMPLETED', 'COMPLETED']: status_norm = 'COMPLETED'
+                                elif it_st == 'SCHEDULED': status_norm = 'SCHEDULED'
+                        else:
+                            pr_res = requests.get(f'https://api.pluggy.ai/payments/requests/{target_id}', headers={'X-API-KEY': api_key}, timeout=8)
+                            if pr_res.status_code == 200:
+                                pr_data = pr_res.json()
+                                data_conexao = pr_data.get('createdAt')
+                                nome_cliente = pr_data.get('clientPaymentId') or (pr_data.get('customer') or {}).get('name') or pr_data.get('description')
+                                if not status_raw:
+                                    pr_st = pr_data.get('status', '').upper()
+                                    if pr_st == 'AUTHORIZED': status_norm = 'COMPLETED'
+                                    elif pr_st == 'SCHEDULED': status_norm = 'SCHEDULED'
+                    except Exception as e_fetch:
+                        print(f'[AVISO WEBHOOK CONSULTA PLUGGY]: {e_fetch}')
 
-                existente = supabase.table('conexoes').select('id').eq('payment_intent_id', str(intent_id)).execute().data
-                if not existente:
-                    nome_cliente = f'Pix-{intent_id[:8]}'
-                    data_conexao = None
-                    api_key = obter_api_key()
-                    if api_key:
-                        try:
-                            pi_res = requests.get(f'https://api.pluggy.ai/payments/intents/{intent_id}', headers={'X-API-KEY': api_key}, timeout=10)
-                            if pi_res.status_code == 200:
-                                pi_data = pi_res.json()
-                                pr = pi_data.get('paymentRequest') or {}
-                                data_conexao = pi_data.get('createdAt')
-                                nome_cliente = pr.get('clientPaymentId') or (pi_data.get('debtor') or {}).get('name') or pr.get('description') or nome_cliente
-                        except Exception as e_pi:
-                            print(f'[AVISO WEBHOOK INTENT]: {e_pi}')
+                if not nome_cliente:
+                    nome_cliente = f'Pix-{str(target_id)[:8]}'
+
+                if existente:
+                    # Atualização automática do status do contrato diretamente no Supabase ao confirmar liquidação
+                    updates = {
+                        'status': status_norm
+                    }
+                    cliente_antigo = existente[0].get('cliente', '')
+                    if nome_cliente and not nome_cliente.startswith('Pix-') and cliente_antigo.startswith(('Pix-', 'Cliente-', 'Atendimento')):
+                        updates['cliente'] = str(nome_cliente)[:255]
                     
+                    supabase.table('conexoes').update(updates).eq('id', existente[0]['id']).execute()
+                    print(f'[WEBHOOK] Status atualizado no Supabase: {existente[0]["id"]} -> {status_norm} (Liberação: {"SIM" if liberacao_operacional else "NAO"})')
+                else:
+                    # Registro novo no Supabase
                     registro = {
                         'cliente': str(nome_cliente)[:255],
-                        'item_id': str(intent_id),
-                        'payment_intent_id': str(intent_id)
+                        'item_id': str(target_id),
+                        'payment_intent_id': str(target_id),
+                        'tipo': 'pix_automatico',
+                        'status': status_norm
                     }
                     if data_conexao:
                         registro['data_conexao'] = data_conexao
                     supabase.table('conexoes').insert(registro).execute()
-                    print(f'[WEBHOOK] Pix salvo com sucesso: {nome_cliente} ({intent_id})')
+                    print(f'[WEBHOOK] Pix salvo com sucesso no Supabase: {nome_cliente} ({target_id}) - Status: {status_norm}')
+
         except Exception as e:
             print(f'[ERRO AO PROCESSAR WEBHOOK]: {e}')
+            return jsonify({'erro': f'Falha ao persistir dados do webhook: {str(e)}'}), 500
 
-    return jsonify({'status': 'ok', 'mensagem': 'Webhook recebido com sucesso'}), 200
+    return jsonify({
+        'sucesso': True,
+        'status': 'ok',
+        'evento': event,
+        'status_mapeado': status_norm,
+        'liberacao_operacional': 'LIBERADO' if liberacao_operacional else 'BLOQUEADO',
+        'mensagem': 'Webhook processado e status sincronizado com sucesso'
+    }), 200
 
 @app.route('/api/sync-pluggy', methods=['POST', 'GET'])
 @requer_autenticacao

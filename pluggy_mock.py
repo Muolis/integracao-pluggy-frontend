@@ -395,11 +395,11 @@ def dispatch_mock_request(method: str, url: str, headers: Optional[Dict] = None,
     # GET /connectors
     if clean_url.endswith('/connectors'):
         mock_connectors = [
-            {'id': 678, 'name': '121 - Agibank (Agi)', 'code': '121', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg'},
-            {'id': 203, 'name': '237 - Bradesco', 'code': '237', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/203.svg'},
-            {'id': 211, 'name': '001 - Banco do Brasil', 'code': '001', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/211.svg'},
-            {'id': 201, 'name': '341 - Itaú', 'code': '341', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/201.svg'},
-            {'id': 212, 'name': '260 - Nubank', 'code': '260', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/212.svg'}
+            {'id': 678, 'name': '121 - Agibank (Agi)', 'code': '121', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'supportsSmartTransfers': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/678.svg'},
+            {'id': 203, 'name': '237 - Bradesco', 'code': '237', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'supportsSmartTransfers': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/203.svg'},
+            {'id': 211, 'name': '001 - Banco do Brasil', 'code': '001', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'supportsSmartTransfers': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/211.svg'},
+            {'id': 201, 'name': '341 - Itaú', 'code': '341', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'supportsSmartTransfers': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/201.svg'},
+            {'id': 212, 'name': '260 - Nubank', 'code': '260', 'type': 'PERSONAL_BANK', 'supportsPaymentInitiation': True, 'supportsAutomaticPix': True, 'supportsSmartTransfers': True, 'isOpenFinance': True, 'imageUrl': 'https://cdn.pluggy.ai/assets/connector-icons/212.svg'}
         ]
         return MockResponse(200, {'total': len(mock_connectors), 'results': mock_connectors})
 
@@ -416,6 +416,7 @@ def dispatch_mock_request(method: str, url: str, headers: Optional[Dict] = None,
             'isOpenFinance': True,
             'supportsPaymentInitiation': True,
             'supportsAutomaticPix': True,
+            'supportsSmartTransfers': True,
             'status': 'ONLINE'
         })
 
