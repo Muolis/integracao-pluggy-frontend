@@ -461,14 +461,19 @@ def gerar_token():
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     dados = request.get_json(silent=True) or {}
     cliente_id = request.args.get('cliente') or dados.get('cliente') or 'Cliente'
+    item_id = request.args.get('item_id') or dados.get('item_id') or request.args.get('itemId') or dados.get('itemId')
     try:
         token_payload = {
             'options': {
                 'clientUserId': str(cliente_id),
                 'clientName': 'Openfinance MC',
-                'webhookUrl': 'https://motor-openfinance.onrender.com/api/webhook/pluggy'
+                'webhookUrl': 'https://motor-openfinance.onrender.com/api/webhook/pluggy',
+                'avoidDuplicates': False
             }
         }
+        if item_id:
+            token_payload['itemId'] = str(item_id)
+
         token_response = requests.post(
             'https://api.pluggy.ai/connect_token',
             headers={'X-API-KEY': api_key, 'Content-Type': 'application/json'},
@@ -607,7 +612,8 @@ def gerar_token_pix():
         token_payload = {
             'options': {
                 'paymentIntentId': payment_intent_id,
-                'clientName': 'Openfinance MC'
+                'clientName': 'Openfinance MC',
+                'avoidDuplicates': False
             }
         }
         token_response = pluggy_http_client(
@@ -2925,7 +2931,7 @@ def api_securitizadora_conectar_token():
         payload = {
             'options': {
                 'clientName': 'MC Securitizadora - Atualizar Conta' if item_id_update else 'MC Securitizadora - Contas Próprias',
-                'avoidDuplicates': True
+                'avoidDuplicates': False
             }
         }
         if item_id_update:

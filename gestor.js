@@ -368,26 +368,166 @@ let todosOsClientes = [];
             }
         }
 
+        let filtroAmbientePix = 'ativos'; // 'ativos' | 'revogados' | 'todos'
+
+        function mudarFiltroAmbientePix(ambiente) {
+            filtroAmbientePix = ambiente;
+            const tabAtivos = document.getElementById('tab-ambiente-ativos');
+            const tabRevogados = document.getElementById('tab-ambiente-revogados');
+            const tabTodos = document.getElementById('tab-ambiente-todos');
+
+            const styleInativo = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
+            const styleAtivoGreen = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-2 cursor-pointer";
+            const styleAtivoRed = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-rose-50 text-rose-800 border border-rose-300 shadow-xs flex items-center gap-2 cursor-pointer";
+            const styleAtivoTodos = "px-3 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-1.5 cursor-pointer";
+            const styleInativoTodos = "px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer";
+
+            if (tabAtivos) tabAtivos.className = (ambiente === 'ativos') ? styleAtivoGreen : styleInativo;
+            if (tabRevogados) tabRevogados.className = (ambiente === 'revogados') ? styleAtivoRed : styleInativo;
+            if (tabTodos) tabTodos.className = (ambiente === 'todos') ? styleAtivoTodos : styleInativoTodos;
+
+            paginaAtualPluggy = 1;
+            renderizarLista('pix');
+        }
+
         function alternarModoExibicao(modo) {
             modoExibicaoPix = modo;
             const btnTab = document.getElementById('btn-modo-tabela');
+            const btnCli = document.getElementById('btn-modo-cliente');
             const btnCard = document.getElementById('btn-modo-cards');
             const wrapperTab = document.getElementById('wrapper-tabela-pluggy');
             const listaCli = document.getElementById('lista-clientes');
 
+            const stInativo = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer transition";
+            const stAtivo = "px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer transition";
+
+            if (btnTab) btnTab.className = (modo === 'tabela') ? stAtivo : stInativo;
+            if (btnCli) btnCli.className = (modo === 'cliente') ? stAtivo : stInativo;
+            if (btnCard) btnCard.className = (modo === 'cards') ? stAtivo : stInativo;
+
             if (modo === 'tabela') {
-                if (btnTab) btnTab.className = "px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer";
-                if (btnCard) btnCard.className = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer";
                 if (wrapperTab) wrapperTab.classList.remove('hidden');
                 if (listaCli) listaCli.classList.add('hidden');
             } else {
-                if (btnCard) btnCard.className = "px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer";
-                if (btnTab) btnTab.className = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer";
                 if (wrapperTab) wrapperTab.classList.add('hidden');
                 if (listaCli) listaCli.classList.remove('hidden');
             }
             renderizarLista('pix');
         }
+
+        function toggleAccordionCliente(id) {
+            const el = document.getElementById(id);
+            const chev = document.getElementById(`chev-${id}`);
+            if (el) {
+                el.classList.toggle('hidden');
+                if (chev) {
+                    chev.classList.toggle('rotate-180');
+                }
+            }
+        }
+
+        function exportarPixExcel() {
+            if (!todosOsPix || todosOsPix.length === 0) {
+                MC_CONFIG.showToast("Nenhum contrato Pix disponível para exportação.", "warning");
+                return;
+            }
+
+            const colunas = [
+                "ID da Solicitação",
+                "Nome do Cliente",
+                "Tipo Documento",
+                "Documento",
+                "Instituição Bancária",
+                "Recebedor",
+                "Valor Recorrência (R$)",
+                "Periodicidade",
+                "Status do Contrato",
+                "Liberação Operacional",
+                "Data de Criação",
+                "Data 1º Débito",
+                "Diagnóstico / Motivo",
+                "Link de Pagamento"
+            ];
+
+            const linhas = todosOsPix.map(p => {
+                let val = p.valor || p.valor_parcela || 0;
+                if (val === 26997) val = 269.97;
+                const valStr = val.toFixed(2).replace('.', ',');
+                const lib = p.liberacao_operacional?.status || (p.status_label === 'Concluído' ? 'LIBERADO' : (['Cancelado', 'Rejeitado', 'Expirado', 'Erro', 'Falha no Banco'].includes(p.status_label) ? 'RECUSADO' : 'BLOQUEADO'));
+                const motivoErro = p.erro?.detalhe || p.erro?.titulo || '';
+                const link = p.payment_url || p.consent_url || '';
+
+                return [
+                    `"${p.id || ''}"`,
+                    `"${(p.cliente || '').replace(/"/g, '""')}"`,
+                    `"${p.tipo_documento || (p.documento?.length > 14 ? 'CNPJ' : 'CPF')}"`,
+                    `"${p.documento || p.cpf || p.cnpj || ''}"`,
+                    `"${(p.banco_nome || '').replace(/"/g, '""')}"`,
+                    `"${(p.recebedor || 'MC Minhaconta Securitizadora C SA').replace(/"/g, '""')}"`,
+                    `"${valStr}"`,
+                    `"Mensal"`,
+                    `"${p.status_label || ''}"`,
+                    `"${lib}"`,
+                    `"${p.criado_em || formatarDataPluggy(p.data_criacao)}"`,
+                    `"${p.data_inicio_formatada || p.data_inicio || ''}"`,
+                    `"${motivoErro.replace(/"/g, '""')}"`,
+                    `"${link}"`
+                ].join(";");
+            });
+
+            const csvContent = "\uFEFF" + colunas.join(";") + "\r\n" + linhas.join("\r\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const linkEl = document.createElement("a");
+            const dataHoje = new Date().toISOString().split("T")[0];
+            linkEl.href = URL.createObjectURL(blob);
+            linkEl.download = `MC_Securitizadora_Contratos_Pix_${dataHoje}.csv`;
+            document.body.appendChild(linkEl);
+            linkEl.click();
+            document.body.removeChild(linkEl);
+            MC_CONFIG.showToast("Planilha de contratos Pix exportada com sucesso!", "success");
+        }
+
+        function exportarOpenFinanceExcel() {
+            if (!todosOsClientes || todosOsClientes.length === 0) {
+                MC_CONFIG.showToast("Nenhuma conexão de Open Finance disponível para exportação.", "warning");
+                return;
+            }
+
+            const colunas = [
+                "Nome do Cliente",
+                "Tipo Conexão",
+                "Item ID Pluggy",
+                "Data da Conexão",
+                "Status Conexão"
+            ];
+
+            const conexoesOf = todosOsClientes.filter(c => (c.tipo === 'open_finance' || c.tipo === 'securitizadora' || (!c.payment_intent_id && Boolean(c.item_id))));
+            const linhas = conexoesOf.map(c => {
+                return [
+                    `"${(c.cliente || '').replace(/"/g, '""')}"`,
+                    `"${c.tipo === 'securitizadora' ? 'Conta Securitizadora MC' : 'Open Finance'}"`,
+                    `"${c.item_id || ''}"`,
+                    `"${MC_CONFIG.formatDate(c.data_conexao)}"`,
+                    `"${c.status || 'Ativo'}"`
+                ].join(";");
+            });
+
+            const csvContent = "\uFEFF" + colunas.join(";") + "\r\n" + linhas.join("\r\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const linkEl = document.createElement("a");
+            const dataHoje = new Date().toISOString().split("T")[0];
+            linkEl.href = URL.createObjectURL(blob);
+            linkEl.download = `MC_Securitizadora_Clientes_OpenFinance_${dataHoje}.csv`;
+            document.body.appendChild(linkEl);
+            linkEl.click();
+            document.body.removeChild(linkEl);
+            MC_CONFIG.showToast("Planilha de clientes Open Finance exportada com sucesso!", "success");
+        }
+
+        window.mudarFiltroAmbientePix = mudarFiltroAmbientePix;
+        window.toggleAccordionCliente = toggleAccordionCliente;
+        window.exportarPixExcel = exportarPixExcel;
+        window.exportarOpenFinanceExcel = exportarOpenFinanceExcel;
 
         function mudarPagina(delta) {
             paginaAtualPluggy += delta;
@@ -598,6 +738,17 @@ let todosOsClientes = [];
         // RENDERIZADOR PRINCIPAL DE ALTA PERFORMANCE (ZERO LAG)
         // ============================================================
 
+        function isPixRevogado(p) {
+            if (!p) return false;
+            const label = p.status_label || '';
+            const st = (p.status || '').toUpperCase();
+            const cls = p.status_classe || '';
+            if (['Cancelado', 'Expirado', 'Rejeitado', 'Falha no Banco', 'Erro'].includes(label)) return true;
+            if (['REVOKED', 'CANCELED', 'EXPIRED', 'REJECTED', 'ERROR', 'CONSENT_REJECTED'].includes(st)) return true;
+            if (cls === 'rejeitado' || cls === 'erro') return true;
+            return false;
+        }
+
         function renderizarLista(filtroAba) {
             const divLista = document.getElementById('lista-clientes');
             const badgeTotal = document.getElementById('badge-contador-total');
@@ -607,6 +758,14 @@ let todosOsClientes = [];
             ).toLowerCase().trim();
 
             if (filtroAba === 'pix') {
+                // Atualização dos contadores dinâmicos de ambiente
+                const countRevogados = todosOsPix.filter(p => isPixRevogado(p)).length;
+                const countAtivos = todosOsPix.length - countRevogados;
+                const elBadgeAtivos = document.getElementById('badge-count-ativos');
+                const elBadgeRevogados = document.getElementById('badge-count-revogados');
+                if (elBadgeAtivos) elBadgeAtivos.textContent = countAtivos;
+                if (elBadgeRevogados) elBadgeRevogados.textContent = countRevogados;
+
                 const buscaTexto = termoBusca;
                 const statusFiltro = (document.getElementById('filtro-pluggy-status')?.value || 'todos');
                 const periodoFiltro = (document.getElementById('filtro-pluggy-periodo-select')?.value || 'todos');
@@ -618,6 +777,14 @@ let todosOsClientes = [];
                 };
 
                 const pixFiltrados = todosOsPix.filter(p => {
+                    // 1. Filtro de ambiente (Ativos vs Revogados vs Todos)
+                    if (filtroAmbientePix === 'ativos') {
+                        if (isPixRevogado(p)) return false;
+                    } else if (filtroAmbientePix === 'revogados') {
+                        if (!isPixRevogado(p)) return false;
+                    }
+
+                    // 2. Filtro textual
                     const matchTexto = (
                         (p.cliente || '').toLowerCase().includes(buscaTexto) ||
                         (p.cpf || '').includes(buscaTexto) ||
@@ -650,9 +817,10 @@ let todosOsClientes = [];
 
                 atualizarPeriodosDinamicos(pixFiltrados.length > 0 ? pixFiltrados : todosOsPix);
 
-                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> solicitações Pix`;
+                const sufixoAmbiente = filtroAmbientePix === 'ativos' ? ' (Ativos & Em Andamento)' : (filtroAmbientePix === 'revogados' ? ' (Revogados & Cancelados)' : '');
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> contratos${sufixoAmbiente}`;
 
-                // Cálculo da paginação
+                // Cálculo da paginação padrão
                 const totalItens = pixFiltrados.length;
                 const totalPaginas = Math.max(1, Math.ceil(totalItens / linhasPorPaginaPluggy));
                 if (paginaAtualPluggy > totalPaginas) paginaAtualPluggy = totalPaginas;
@@ -662,21 +830,22 @@ let todosOsClientes = [];
                 const fimIdx = Math.min(inicioIdx + linhasPorPaginaPluggy, totalItens);
                 const itensPaginados = pixFiltrados.slice(inicioIdx, fimIdx);
 
-                // Atualiza controles de paginação
+                // Controles de paginação
                 const elResumo = document.getElementById('pluggy-resumo-paginacao');
-                if (elResumo) {
+                const elIndicador = document.getElementById('pluggy-indicador-pag');
+                const btnAnt = document.getElementById('btn-pag-ant');
+                const btnProx = document.getElementById('btn-pag-prox');
+
+                if (elResumo && modoExibicaoPix !== 'cliente') {
                     elResumo.textContent = `Mostrando ${totalItens ? inicioIdx + 1 : 0}-${fimIdx} de ${totalItens}`;
                 }
-                const elIndicador = document.getElementById('pluggy-indicador-pag');
-                if (elIndicador) {
+                if (elIndicador && modoExibicaoPix !== 'cliente') {
                     elIndicador.textContent = `${paginaAtualPluggy}/${totalPaginas}`;
                 }
-                const btnAnt = document.getElementById('btn-pag-ant');
-                if (btnAnt) btnAnt.disabled = (paginaAtualPluggy <= 1);
-                const btnProx = document.getElementById('btn-pag-prox');
-                if (btnProx) btnProx.disabled = (paginaAtualPluggy >= totalPaginas);
+                if (btnAnt && modoExibicaoPix !== 'cliente') btnAnt.disabled = (paginaAtualPluggy <= 1);
+                if (btnProx && modoExibicaoPix !== 'cliente') btnProx.disabled = (paginaAtualPluggy >= totalPaginas);
 
-                // 1. RENDERIZA TABELA (ALTA PERFORMANCE - STRING ACUMULADA)
+                // 1. RENDERIZA TABELA OFICIAL PLUGGY (ALTA PERFORMANCE)
                 const tbody = document.getElementById('tbody-solicitacoes-pluggy');
                 if (tbody) {
                     if (itensPaginados.length === 0) {
@@ -684,7 +853,7 @@ let todosOsClientes = [];
                             <tr>
                                 <td colspan="10" class="py-12 text-center text-slate-400">
                                     <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300 block"></i>
-                                    Nenhuma solicitação encontrada para o filtro selecionado.
+                                    Nenhuma solicitação encontrada no ambiente selecionado.
                                 </td>
                             </tr>
                         `;
@@ -764,7 +933,7 @@ let todosOsClientes = [];
                             let badgeLiberacao = '';
                             if (lib.autorizada || p.status_label === 'Concluído') {
                                 badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Primeira cobrança liquidada com sucesso (COMPLETED).')}"><i class="fa-solid fa-shield-check text-emerald-600"></i> LIBERADO</span>`;
-                            } else if (p.status_classe === 'rejeitado' || p.status_classe === 'erro' || p.status_label === 'Rejeitado' || p.status_label === 'Cancelado') {
+                            } else if (p.status_classe === 'rejeitado' || p.status_classe === 'erro' || isPixRevogado(p)) {
                                 badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Contrato rejeitado/cancelado.')}"><i class="fa-solid fa-ban text-rose-600"></i> RECUSADO</span>`;
                             } else {
                                 badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Trava ativa: aguardando liquidação da primeira cobrança (COMPLETED).')}"><i class="fa-solid fa-lock text-amber-600"></i> BLOQUEADO</span>`;
@@ -837,13 +1006,264 @@ let todosOsClientes = [];
                     }
                 }
 
-                // 2. RENDERIZA VISÃO EM CARDS (ALTA PERFORMANCE)
+                // 2. RENDERIZA VISÃO AGRUPADA POR CLIENTE (PADRONIZADA E ORGANIZADA)
+                if (modoExibicaoPix === 'cliente') {
+                    const mapaClientes = {};
+                    pixFiltrados.forEach(p => {
+                        const chaveDoc = (p.documento || p.cpf || p.cnpj || '').replace(/\D/g, '');
+                        const chave = chaveDoc ? `doc_${chaveDoc}` : `cli_${(p.cliente || 'Desconhecido').toLowerCase().trim()}`;
+                        if (!mapaClientes[chave]) {
+                            mapaClientes[chave] = {
+                                chave: chave,
+                                nome: p.cliente || 'Cliente',
+                                documento: p.documento || p.cpf || p.cnpj || '',
+                                tipo_documento: p.tipo_documento || (p.documento && p.documento.length > 14 ? 'CNPJ' : 'CPF'),
+                                banco_nome: p.banco_nome || 'Banco',
+                                banco_imagem: p.banco_imagem || '',
+                                itens: []
+                            };
+                        }
+                        mapaClientes[chave].itens.push(p);
+                    });
+
+                    const listaClientesAgrupados = Object.values(mapaClientes);
+                    const totalClientes = listaClientesAgrupados.length;
+
+                    if (totalClientes === 0) {
+                        divLista.innerHTML = `
+                            <div class="text-center py-16 text-slate-400">
+                                <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
+                                <p class="text-xs">Nenhum cliente encontrado no ambiente selecionado.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Paginação da visão por cliente
+                    const totalPagsCli = Math.max(1, Math.ceil(totalClientes / linhasPorPaginaPluggy));
+                    if (paginaAtualPluggy > totalPagsCli) paginaAtualPluggy = totalPagsCli;
+                    const iniCli = (paginaAtualPluggy - 1) * linhasPorPaginaPluggy;
+                    const fimCli = Math.min(iniCli + linhasPorPaginaPluggy, totalClientes);
+                    const clientesPaginados = listaClientesAgrupados.slice(iniCli, fimCli);
+
+                    if (elResumo) {
+                        elResumo.textContent = `Mostrando ${totalClientes ? iniCli + 1 : 0}-${fimCli} de ${totalClientes} clientes (${pixFiltrados.length} contratos)`;
+                    }
+                    if (elIndicador) {
+                        elIndicador.textContent = `${paginaAtualPluggy}/${totalPagsCli}`;
+                    }
+                    if (btnAnt) btnAnt.disabled = (paginaAtualPluggy <= 1);
+                    if (btnProx) btnProx.disabled = (paginaAtualPluggy >= totalPagsCli);
+
+                    let htmlClientes = '';
+                    clientesPaginados.forEach((cli, idx) => {
+                        cli.itens.sort((a, b) => {
+                            const ta = new Date(a.data_criacao || 0).getTime() || 0;
+                            const tb = new Date(b.data_criacao || 0).getTime() || 0;
+                            return tb - ta;
+                        });
+
+                        const itemRecente = cli.itens[0];
+                        const totalTentativas = cli.itens.length;
+                        const temAtivo = cli.itens.some(it => !isPixRevogado(it));
+                        const nomeSeguro = MC_CONFIG.escapeHtml(cli.nome);
+                        const idSanfonado = `accordion-cli-${idx}-${cli.chave.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+                        let valRecente = itemRecente.valor || itemRecente.valor_parcela || 0;
+                        if (valRecente === 26997) valRecente = 269.97;
+                        const valorRecorrenciaForm = MC_CONFIG.formatMoney(valRecente);
+
+                        const dataMaisRecente = itemRecente.criado_em || formatarDataPluggy(itemRecente.data_criacao);
+                        const dataInicioRecente = itemRecente.data_inicio_formatada || (itemRecente.data_inicio ? formatarDataSimplesPluggy(itemRecente.data_inicio) : null);
+                        const badgeInicio = (dataInicioRecente && dataInicioRecente !== '---')
+                            ? `<span class="text-slate-500 font-medium ml-1"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioRecente}</strong></span>`
+                            : '';
+
+                        const logoBanco = (itemRecente.banco_imagem || cli.banco_imagem)
+                            ? `<img src="${itemRecente.banco_imagem || cli.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
+                            : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
+
+                        const docBadge = cli.documento 
+                            ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-slate-200">${cli.tipo_documento}: ${cli.documento}</span>` 
+                            : `<span class="text-slate-400 text-[10px] italic">Documento não informado</span>`;
+
+                        let badgeStatusCliente = '';
+                        if (temAtivo) {
+                            badgeStatusCliente = `<span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Ativo</span>`;
+                        } else {
+                            badgeStatusCliente = `<span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${itemRecente.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">${itemRecente.status_label || 'Revogado'}</span>`;
+                        }
+
+                        const libRecente = itemRecente.liberacao_operacional || {};
+                        let badgeLibCliente = '';
+                        if (libRecente.autorizada || itemRecente.status_label === 'Concluído') {
+                            badgeLibCliente = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-shield-check text-emerald-600"></i> Liberado</span>`;
+                        } else if (itemRecente.status_classe === 'rejeitado' || itemRecente.status_classe === 'erro' || isPixRevogado(itemRecente)) {
+                            badgeLibCliente = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-ban text-rose-600"></i> Recusado</span>`;
+                        } else {
+                            badgeLibCliente = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock text-amber-600"></i> Bloqueado</span>`;
+                        }
+
+                        let htmlSubLinhas = '';
+                        cli.itens.forEach(subItem => {
+                            let subVal = subItem.valor || subItem.valor_parcela || 0;
+                            if (subVal === 26997) subVal = 269.97;
+                            const subValorFmt = MC_CONFIG.formatMoney(subVal);
+                            const subData = subItem.criado_em || formatarDataPluggy(subItem.data_criacao);
+                            const subIdCurto = subItem.id ? (subItem.id.slice(0, 16) + '..') : '---';
+
+                            const subLib = subItem.liberacao_operacional || {};
+                            let subBadgeLib = '';
+                            if (subLib.autorizada || subItem.status_label === 'Concluído') {
+                                subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">LIBERADO</span>`;
+                            } else if (isPixRevogado(subItem)) {
+                                subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">RECUSADO</span>`;
+                            } else {
+                                subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">BLOQUEADO</span>`;
+                            }
+
+                            const motivoDiag = subItem.erro?.detalhe || subItem.erro?.titulo || (isPixRevogado(subItem) ? 'Cancelado / Revogado' : 'Aguardando confirmação bancária');
+
+                            let subBtnLink = '';
+                            if (subItem.payment_url || subItem.consent_url) {
+                                subBtnLink = `
+                                    <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(subItem.payment_url || subItem.consent_url)}')" class="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-[11px] cursor-pointer" title="Copiar link de pagamento">
+                                        <i class="fa-brands fa-whatsapp"></i>
+                                    </button>
+                                `;
+                            }
+
+                            htmlSubLinhas += `
+                                <tr class="hover:bg-slate-50/80 transition text-xs">
+                                    <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+                                        <div class="flex items-center gap-1">
+                                            <span>${subIdCurto}</span>
+                                            <button onclick="navigator.clipboard.writeText('${subItem.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
+                                                <i class="fa-regular fa-copy text-[10px]"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-slate-600 text-[11px] whitespace-nowrap">${subData}</td>
+                                    <td class="py-2.5 px-3 text-slate-700 font-medium truncate max-w-[120px]">${MC_CONFIG.escapeHtml(subItem.banco_nome || 'Banco')}</td>
+                                    <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${subValorFmt}</td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${subItem.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
+                                            ${subItem.status_label || 'Pendente'}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center">${subBadgeLib}</td>
+                                    <td class="py-2.5 px-3 text-slate-500 text-[11px] max-w-[220px] truncate" title="${MC_CONFIG.escapeHtml(motivoDiag)}">
+                                        ${MC_CONFIG.escapeHtml(motivoDiag)}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            ${subBtnLink}
+                                            <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer" title="Ver Detalhes Oficiais da Pluggy">
+                                                <i class="fa-solid fa-eye"></i> Detalhes
+                                            </button>
+                                            <button onclick="abrirModalJson('${subItem.id}')" class="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-[11px] cursor-pointer" title="Ver JSON da Pluggy">
+                                                <i class="fa-solid fa-code"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        let btnLinkPrincipal = '';
+                        if (itemRecente.payment_url || itemRecente.consent_url) {
+                            btnLinkPrincipal = `
+                                <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(itemRecente.payment_url || itemRecente.consent_url)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Copiar link mais recente para WhatsApp">
+                                    <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
+                                </button>
+                            `;
+                        }
+
+                        htmlClientes += `
+                            <div class="bg-white border border-slate-200/90 hover:border-[#0985ff]/50 rounded-2xl p-5 shadow-sm transition duration-200">
+                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                                    <div class="flex items-start gap-3.5">
+                                        <div class="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
+                                            ${logoBanco}
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h3 class="font-bold text-[#010157] text-sm md:text-base">${nomeSeguro}</h3>
+                                                ${docBadge}
+                                                ${badgeStatusCliente}
+                                                ${badgeLibCliente}
+                                                <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                                    <i class="fa-solid fa-layer-group text-slate-400"></i> ${totalTentativas} ${totalTentativas === 1 ? 'tentativa' : 'tentativas'}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-3 text-xs text-slate-500 mt-1.5 flex-wrap">
+                                                <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(itemRecente.banco_nome || 'Banco')}</span>
+                                                <span class="text-slate-300">•</span>
+                                                <span><i class="fa-regular fa-clock text-slate-400"></i> Última tentativa: ${dataMaisRecente}</span>
+                                                ${badgeInicio}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                                        <div class="text-left lg:text-right mr-2">
+                                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Recorrência</span>
+                                            <span class="text-base font-black text-[#010157] font-mono">${valorRecorrenciaForm}</span>
+                                            <span class="text-[10px] text-slate-400 font-medium block">Mensal</span>
+                                        </div>
+
+                                        <div class="flex items-center gap-2">
+                                            ${btnLinkPrincipal}
+                                            <button type="button" onclick="toggleAccordionCliente('${idSanfonado}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-2xs">
+                                                <i class="fa-solid fa-list-check text-[#0985ff]"></i>
+                                                <span>Histórico (${totalTentativas})</span>
+                                                <i id="chev-${idSanfonado}" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Accordion de histórico por cliente -->
+                                <div id="${idSanfonado}" class="hidden mt-4 pt-4 border-t border-slate-100">
+                                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                                        <span><i class="fa-solid fa-clock-rotate-left mr-1.5 text-[#0985ff]"></i> Histórico completo de tentativas deste cliente</span>
+                                        <span class="text-slate-400 font-normal">Sincronizado com a Pluggy</span>
+                                    </div>
+                                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                        <table class="w-full text-left border-collapse text-xs">
+                                            <thead class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                                <tr>
+                                                    <th class="py-2.5 px-3">ID Solicitação</th>
+                                                    <th class="py-2.5 px-3">Data / Hora</th>
+                                                    <th class="py-2.5 px-3">Banco</th>
+                                                    <th class="py-2.5 px-3">Valor</th>
+                                                    <th class="py-2.5 px-3 text-center">Status</th>
+                                                    <th class="py-2.5 px-3 text-center">Liberação</th>
+                                                    <th class="py-2.5 px-3">Diagnóstico / Motivo</th>
+                                                    <th class="py-2.5 px-3 text-center">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100 bg-white">
+                                                ${htmlSubLinhas}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    divLista.innerHTML = htmlClientes;
+                    return;
+                }
+
+                // 3. RENDERIZA VISÃO EM CARDS (PADRONIZADA E COMPACTA)
                 if (modoExibicaoPix === 'cards') {
                     if (itensPaginados.length === 0) {
                         divLista.innerHTML = `
                             <div class="text-center py-16 text-slate-400">
                                 <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
-                                <p class="text-xs">Nenhum contrato encontrado para o filtro selecionado.</p>
+                                <p class="text-xs">Nenhum contrato encontrado no ambiente selecionado.</p>
                             </div>
                         `;
                         return;
@@ -872,7 +1292,7 @@ let todosOsClientes = [];
                         if (pix.payment_url || pix.consent_url) {
                             const linkAutorizacao = pix.payment_url || pix.consent_url;
                             btnLinkWhats = `
-                                <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(linkAutorizacao)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Copiar link para WhatsApp">
+                                <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(linkAutorizacao)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Copiar link para WhatsApp">
                                     <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
                                 </button>
                             `;
@@ -881,12 +1301,13 @@ let todosOsClientes = [];
                         let cardAvisoErro = '';
                         if (pix.erro && pix.erro.titulo) {
                             cardAvisoErro = `
-                                <div class="mt-3 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
-                                    <i class="fa-solid fa-triangle-exclamation text-rose-600 mt-0.5 flex-shrink-0"></i>
-                                    <div>
-                                        <span class="font-bold">${MC_CONFIG.escapeHtml(pix.erro.titulo)}</span>:
-                                        <span class="text-rose-700">${MC_CONFIG.escapeHtml(pix.erro.detalhe || '')}</span>
+                                <div class="mt-2.5 py-1.5 px-3 rounded-xl bg-rose-50/90 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 truncate">
+                                        <i class="fa-solid fa-circle-exclamation text-rose-500 text-xs flex-shrink-0"></i>
+                                        <span class="font-bold text-rose-900">${MC_CONFIG.escapeHtml(pix.erro.titulo)}:</span>
+                                        <span class="text-rose-700 truncate" title="${MC_CONFIG.escapeHtml(pix.erro.detalhe || '')}">${MC_CONFIG.escapeHtml(pix.erro.detalhe || '')}</span>
                                     </div>
+                                    <span class="text-[10px] uppercase font-mono font-bold bg-white/90 px-1.5 py-0.5 rounded border border-rose-200 text-rose-700 flex-shrink-0">Diagnóstico Pluggy</span>
                                 </div>
                             `;
                         }
@@ -895,7 +1316,7 @@ let todosOsClientes = [];
                         let badgeLibCard = '';
                         if (libCard.autorizada || pix.status_label === 'Concluído') {
                             badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-shield-check text-emerald-600"></i> Liberado</span>`;
-                        } else if (pix.status_classe === 'rejeitado' || pix.status_classe === 'erro' || pix.status_label === 'Rejeitado' || pix.status_label === 'Cancelado') {
+                        } else if (pix.status_classe === 'rejeitado' || pix.status_classe === 'erro' || isPixRevogado(pix)) {
                             badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-ban text-rose-600"></i> Recusado</span>`;
                         } else {
                             badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock text-amber-600"></i> Bloqueado</span>`;
@@ -1579,6 +2000,17 @@ let todosOsClientes = [];
                     `;
                 });
 
+                const isEncerrado = (
+                    pix.status_classe === 'rejeitado' ||
+                    pix.status_classe === 'erro' ||
+                    ['Cancelado', 'Rejeitado', 'Expirado', 'Erro', 'Falha no Banco'].includes(pix.status_label) ||
+                    ['REVOKED', 'CANCELED', 'EXPIRED', 'REJECTED', 'ERROR'].includes((pix.status || '').toUpperCase())
+                );
+
+                const btnAgendarModal = isEncerrado
+                    ? `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed" title="Mandato encerrado na Pluggy. Novos agendamentos não são permitidos para contratos cancelados ou expirados."><i class="fa-solid fa-ban text-slate-400"></i> Mandato Encerrado</span>`
+                    : `<button onclick="MC_CONFIG.showToast('Módulo de agendamento acoplado ao contrato da Pluggy', 'info')" class="btn-brand-primary text-white text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"><i class="fa-regular fa-calendar-plus"></i> Agendar Pagamento</button>`;
+
                 const htmlDetalhesPluggy = `
                     ${bannerLiberacao}
                     ${bannerDiagnostico}
@@ -1734,9 +2166,7 @@ let todosOsClientes = [];
                                 <button onclick="consultarPix('${intentId}', '${divId || ''}', '${MC_CONFIG.escapeHtml(nomeCliente)}')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition cursor-pointer" title="Atualizar">
                                     <i class="fa-solid fa-rotate-right text-xs"></i>
                                 </button>
-                                <button onclick="MC_CONFIG.showToast('Módulo de agendamento acoplado ao contrato da Pluggy', 'info')" class="btn-brand-primary text-white text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                    <i class="fa-regular fa-calendar-plus"></i> Agendar Pagamento
-                                </button>
+                                ${btnAgendarModal}
                             </div>
                         </div>
                         <div class="overflow-x-auto">

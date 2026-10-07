@@ -328,6 +328,7 @@ let contasSecuritizadora = [];
 
                 const pluggyConnect = new PluggyConnect({
                     connectToken: dados.accessToken,
+                    updateItem: itemId,
                     name: 'Openfinance MC',
                     title: 'Reconectar Bradesco Empresas',
                     onSuccess: async () => {

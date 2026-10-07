@@ -469,27 +469,61 @@
                             </button>
                         </div>
                         
-                        <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
+                            <button type="button" id="btn-exportar-openfinance" onclick="exportarOpenFinanceExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xs cursor-pointer" title="Exportar dados de clientes Open Finance para Excel (.csv)">
+                                <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Excel
+                            </button>
+                        </div>
                     </div>
 
                     <!-- NAVEGADOR DE SUB-VISÃO DO PIX AUTOMÁTICO (SOLICITAÇÕES VS PAGAMENTOS) -->
-                    <div id="subnavegacao-pix" class="hidden flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-100">
-                        <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-                            <button type="button" onclick="mudarSubVisaoPix('solicitacoes')" id="subbtn-solicitacoes" class="px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
-                                <i class="fa-solid fa-list-check"></i> Solicitações
-                            </button>
-                            <button type="button" onclick="mudarSubVisaoPix('pagamentos')" id="subbtn-pagamentos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
-                                <i class="fa-solid fa-chart-pie"></i> Pagamentos (KPIs)
-                            </button>
+                    <div id="subnavegacao-pix" class="hidden flex flex-col gap-3 pt-1 border-t border-slate-100">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                                <button type="button" onclick="mudarSubVisaoPix('solicitacoes')" id="subbtn-solicitacoes" class="px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                                    <i class="fa-solid fa-list-check"></i> Solicitações
+                                </button>
+                                <button type="button" onclick="mudarSubVisaoPix('pagamentos')" id="subbtn-pagamentos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
+                                    <i class="fa-solid fa-chart-pie"></i> Pagamentos (KPIs)
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <!-- Botão Exportar Excel Pix -->
+                                <button type="button" onclick="exportarPixExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar contratos de Pix Automático para Excel (.csv)">
+                                    <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Excel
+                                </button>
+
+                                <!-- Modos de Exibição: Tabela, Por Cliente, Cards -->
+                                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+                                    <button type="button" onclick="alternarModoExibicao('tabela')" id="btn-modo-tabela" class="px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer" title="Visualização em Tabela Oficial">
+                                        <i class="fa-solid fa-table-list mr-1"></i> Tabela
+                                    </button>
+                                    <button type="button" onclick="alternarModoExibicao('cliente')" id="btn-modo-cliente" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização Agrupada por Cliente">
+                                        <i class="fa-solid fa-users-viewfinder mr-1"></i> Por Cliente
+                                    </button>
+                                    <button type="button" onclick="alternarModoExibicao('cards')" id="btn-modo-cards" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização em Cards">
+                                        <i class="fa-solid fa-table-cells-large mr-1"></i> Cards
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Botão de alternar entre Tabela e Cards -->
-                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-                            <button type="button" onclick="alternarModoExibicao('tabela')" id="btn-modo-tabela" class="px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer" title="Visualização em Tabela (Painel Pluggy Oficial)">
-                                <i class="fa-solid fa-table-list mr-1"></i> Tabela
+                        <!-- SEGMENTED TABS: ATIVOS VS REVOGADOS/CANCELADOS -->
+                        <div id="barra-ambiente-pix" class="flex items-center gap-2 bg-slate-100/90 p-1 rounded-2xl w-full sm:w-auto self-start border border-slate-200/60 flex-wrap">
+                            <button type="button" onclick="mudarFiltroAmbientePix('ativos')" id="tab-ambiente-ativos" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-2 cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Contratos Ativos & Em Andamento</span>
+                                <span id="badge-count-ativos" class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
                             </button>
-                            <button type="button" onclick="alternarModoExibicao('cards')" id="btn-modo-cards" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização em Cards Detalhados">
-                                <i class="fa-solid fa-table-cells-large mr-1"></i> Cards
+                            <button type="button" onclick="mudarFiltroAmbientePix('revogados')" id="tab-ambiente-revogados" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-rose-700 flex items-center gap-2 cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                <span>Revogados & Cancelados</span>
+                                <span id="badge-count-revogados" class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
+                            </button>
+                            <button type="button" onclick="mudarFiltroAmbientePix('todos')" id="tab-ambiente-todos" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer">
+                                <span>Todos</span>
                             </button>
                         </div>
                     </div>
