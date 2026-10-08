@@ -500,6 +500,9 @@ def gerar_token_pix():
     dados = request.get_json(silent=True) or {}
     valor_pix = dados.get('valor')
     data_inicio = str(dados.get('data_inicio', '')).strip()
+    data_fim = str(dados.get('data_fim', '')).strip()
+    parcelas_input = dados.get('parcelas') or dados.get('quantidade_parcelas')
+    validacao_inicial = dados.get('validacao_inicial', True)
     banco_selecionado = dados.get('banco')
     cliente_nome = str(dados.get('cliente') or 'Cliente').strip()
     tipo_doc = str(dados.get('tipo_doc') or dados.get('tipoDoc') or '').lower()
@@ -539,6 +542,28 @@ def gerar_token_pix():
     except Exception:
         dia_mes = 10
 
+    # Cálculo dinâmico do número real de parcelas (occurrences)
+    occurrences = 12
+    if parcelas_input:
+        try:
+            p_val = int(parcelas_input)
+            if 1 <= p_val <= 60:
+                occurrences = p_val
+        except (ValueError, TypeError):
+            pass
+    elif data_inicio and data_fim:
+        try:
+            p_ini = [int(x) for x in data_inicio.split('-')[:3]]
+            p_fim = [int(x) for x in data_fim.split('-')[:3]]
+            diff_meses = (p_fim[0] - p_ini[0]) * 12 + (p_fim[1] - p_ini[1])
+            if p_fim[2] >= p_ini[2]:
+                diff_meses += 1
+            if diff_meses > 0:
+                occurrences = min(max(diff_meses, 1), 60)
+        except Exception as e:
+            print(f'[AVISO CALCULO PARCELAS]: {e}')
+            occurrences = 12
+
     # ID Externo (clientPaymentId) formatado
     if is_cnpj:
         client_payment_id = f"{format_cnpj(cnpj_cliente)} {cliente_nome}"[:35].strip()
@@ -560,9 +585,17 @@ def gerar_token_pix():
             'type': 'MONTHLY',
             'startDate': data_inicio,
             'dayOfMonth': dia_mes,
-            'occurrences': 12
+            'occurrences': occurrences
         }
     }
+
+    # Fluxo de validação/teste inicial (R$ 0,01) antes das parcelas contratuais
+    if validacao_inicial:
+        request_payload['firstPayment'] = {
+            'amount': 0.01,
+            'description': 'CONF DEBITO',
+            'date': time.strftime('%Y-%m-%d')
+        }
 
     try:
         req_response = pluggy_http_client(
@@ -572,6 +605,21 @@ def gerar_token_pix():
             json=request_payload,
             timeout=15
         )
+
+        # Fallback gracioso caso firstPayment gere incompatibilidade de schema
+        if req_response.status_code not in (200, 201) and 'firstPayment' in request_payload:
+            payload_fallback = dict(request_payload)
+            payload_fallback.pop('firstPayment', None)
+            res_fallback = pluggy_http_client(
+                'POST',
+                'https://api.pluggy.ai/payments/requests',
+                headers={'X-API-KEY': api_key, 'Content-Type': 'application/json'},
+                json=payload_fallback,
+                timeout=15
+            )
+            if res_fallback.status_code in (200, 201):
+                req_response = res_fallback
+
         if req_response.status_code not in (200, 201):
             return jsonify({'erro': f'Erro ao criar requisicao de pagamento: {req_response.text}'}), req_response.status_code
 
@@ -633,7 +681,9 @@ def gerar_token_pix():
             'consentUrl': consent_url,
             'consent_url': consent_url,
             'tipo_doc': 'pj' if is_cnpj else 'pf',
-            'doc_formatado': format_cnpj(cnpj_cliente) if is_cnpj else format_cpf(cpf_cliente)
+            'doc_formatado': format_cnpj(cnpj_cliente) if is_cnpj else format_cpf(cpf_cliente),
+            'parcelas': occurrences,
+            'validacao_inicial': bool(request_payload.get('firstPayment'))
         }), 200
     except Exception as e:
         return jsonify({'erro': f'Erro interno ao processar Pix: {str(e)}'}), 500

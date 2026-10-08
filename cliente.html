@@ -23,6 +23,8 @@
                 radial-gradient(circle at 90% 90%, rgba(9, 133, 255, 0.18) 0%, transparent 45%),
                 linear-gradient(to bottom, #010157, #07073b);
         }
+        * { box-sizing: border-box; }
+        html, body { max-width: 100%; overflow-x: hidden; }
         .btn-brand {
             background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
             box-shadow: 0 10px 25px -5px rgba(9, 133, 255, 0.35);
@@ -33,9 +35,9 @@
         }
     </style>
 </head>
-<body class="bg-brand min-h-screen flex items-center justify-center p-4 antialiased text-slate-800">
+<body class="bg-brand min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6 antialiased text-slate-800">
 
-    <main class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-7 md:p-9 text-center relative overflow-hidden">
+    <main class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-5 sm:p-7 md:p-9 text-center relative overflow-hidden">
         
         <!-- Linha de gradiente superior oficial (#0985ff para #010157) -->
         <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0985ff] via-sky-400 to-[#010157]"></div>
@@ -192,6 +194,10 @@
                 localStorage.setItem('memoriaValor', valor);
                 localStorage.setItem('memoriaInicio', inicioParam || '');
                 if (fimParam) localStorage.setItem('memoriaFim', fimParam);
+                const parcelasParam = parametrosUrl.get('parcelas');
+                if (parcelasParam) localStorage.setItem('memoriaParcelas', parcelasParam);
+                const validacaoParam = parametrosUrl.get('validacao');
+                if (validacaoParam !== null) localStorage.setItem('memoriaValidacao', validacaoParam);
                 if (bancoParam) {
                     localStorage.setItem('memoriaBanco', bancoParam);
                 } else {
@@ -459,6 +465,8 @@
                 };
 
                 if (valorMemoria && valorMemoria !== "null" && valorMemoria !== "") {
+                    const parcelasMemoria = localStorage.getItem('memoriaParcelas');
+                    const validacaoMemoria = localStorage.getItem('memoriaValidacao');
                     urlBackend = `${MC_CONFIG.API_BASE_URL}/gerar-token-pix`;
                     configuracaoFetch = {
                         method: 'POST',
@@ -471,6 +479,8 @@
                             cliente: clienteId,
                             data_inicio: inicioMemoria,
                             data_fim: fimMemoria || '',
+                            parcelas: parcelasMemoria ? parseInt(parcelasMemoria) : null,
+                            validacao_inicial: validacaoMemoria !== '0',
                             banco: parseInt(bancoEscolhido)
                         })
                     };

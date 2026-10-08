@@ -20,10 +20,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        * { box-sizing: border-box; }
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         .btn-brand-primary {
             background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
             box-shadow: 0 8px 20px -4px rgba(9, 133, 255, 0.35);
@@ -34,17 +40,17 @@
         }
     </style>
 </head>
-<body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen">
+<body class="bg-[#f4f7fc] text-slate-800 antialiased min-h-screen w-full overflow-x-hidden">
 
-    <div class="min-h-screen flex w-full relative">
+    <div class="min-h-screen flex w-full relative overflow-x-hidden">
         
-        <!-- BACKDROP BLUR PARA DISPOSITIVOS MÓVEIS -->
-        <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 hidden md:hidden transition-opacity"></div>
+        <!-- BACKDROP BLUR PARA DISPOSITIVOS MÓVEIS E TABLETS -->
+        <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 hidden xl:hidden transition-opacity"></div>
 
         <!-- ============================================================ -->
         <!-- MENU LATERAL MODERNO EM CASCATA (SIDEBAR BRANCO E AZUL)      -->
         <!-- ============================================================ -->
-        <aside id="sidebar-menu" class="w-72 bg-[#010157] text-white flex flex-col fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-300 md:translate-x-0 -translate-x-full border-r border-blue-900/60">
+        <aside id="sidebar-menu" class="w-72 bg-[#010157] text-white flex flex-col fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-300 xl:translate-x-0 -translate-x-full border-r border-blue-900/60">
             <!-- Linha decorativa de gradiente oficial -->
             <div class="h-1 bg-gradient-to-r from-[#0985ff] via-sky-400 to-[#010157]"></div>
 
@@ -68,8 +74,8 @@
                     </div>
                 </div>
 
-                <!-- Botão Fechar no Mobile -->
-                <button type="button" onclick="toggleSidebar(false)" class="md:hidden text-blue-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer">
+                <!-- Botão Fechar no Mobile/Tablet -->
+                <button type="button" onclick="toggleSidebar(false)" class="xl:hidden text-blue-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -197,18 +203,18 @@
         <!-- ============================================================ -->
         <!-- ÁREA PRINCIPAL DE CONTEÚDO (À DIREITA DA SIDEBAR)            -->
         <!-- ============================================================ -->
-        <main class="flex-1 md:ml-72 min-h-screen p-4 md:p-8 flex flex-col space-y-6 w-full max-w-full overflow-x-hidden">
+        <main class="flex-1 min-w-0 xl:ml-72 min-h-screen p-3.5 sm:p-5 md:p-6 lg:p-8 flex flex-col space-y-6 w-full max-w-full overflow-x-hidden">
             
             <!-- TOPBAR SUPERIOR MODERNO (BRANCO E AZUL) -->
-            <header class="bg-white rounded-2xl border border-slate-200/80 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+            <header class="bg-white rounded-2xl border border-slate-200/80 px-4 sm:px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm w-full">
                 <div class="flex items-center gap-3">
-                    <!-- Botão Hambúrguer Mobile -->
-                    <button type="button" onclick="toggleSidebar(true)" class="md:hidden bg-slate-100 hover:bg-slate-200 text-[#010157] p-2 rounded-xl transition cursor-pointer" title="Abrir Menu">
+                    <!-- Botão Hambúrguer Mobile/Tablet -->
+                    <button type="button" onclick="toggleSidebar(true)" class="xl:hidden bg-slate-100 hover:bg-slate-200 text-[#010157] p-2 rounded-xl transition cursor-pointer flex-shrink-0" title="Abrir Menu">
                         <i class="fa-solid fa-bars text-base"></i>
                     </button>
                     <div>
-                        <div class="flex items-center gap-2">
-                            <h1 class="text-lg md:text-xl font-black text-[#010157] tracking-tight">Painel de Gestão Integrada</h1>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h1 class="text-base sm:text-lg md:text-xl font-black text-[#010157] tracking-tight">Painel de Gestão Integrada</h1>
                             <span class="text-[10px] bg-blue-50 text-[#0985ff] border border-blue-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">v2026.10</span>
                         </div>
                         <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -221,24 +227,24 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2.5 flex-wrap self-stretch sm:self-auto justify-end">
-                    <a href="securitizadora.html" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer" title="Acessar conta corporativa da Securitizadora MC no Bradesco">
+                <div class="flex items-center gap-2 flex-wrap self-stretch sm:self-auto justify-start sm:justify-end">
+                    <a href="securitizadora.html" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer flex-1 sm:flex-none justify-center" title="Acessar conta corporativa da Securitizadora MC no Bradesco">
                         <i class="fa-solid fa-building-columns text-emerald-600"></i> Conta Securitizadora
                     </a>
 
-                    <button type="button" onclick="carregarClientes(true)" class="bg-[#010157] hover:bg-[#080868] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer" title="Forçar atualização dos dados na Pluggy">
+                    <button type="button" onclick="carregarClientes(true)" class="bg-[#010157] hover:bg-[#080868] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer flex-1 sm:flex-none justify-center" title="Forçar atualização dos dados na Pluggy">
                         <i class="fa-solid fa-rotate"></i> Sincronizar
                     </button>
                 </div>
             </header>
 
             <!-- GRID PRINCIPAL DE TRABALHO -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
                 
                 <!-- COLUNA ESQUERDA: GERADOR DE ACESSO -->
-                <div id="card-gerador-acesso" class="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm">
+                <div id="card-gerador-acesso" class="w-full xl:col-span-4 2xl:col-span-3 bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 md:p-8 shadow-sm">
                     <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg flex-shrink-0">
                             <i class="fa-solid fa-link"></i>
                         </div>
                         <div>
@@ -367,14 +373,29 @@
                             <p class="text-[11px] text-slate-400 mt-1">Digite os números (ex: 26997 vira R$ 269,97)</p>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                             <div>
                                 <label class="block text-[11px] font-bold text-[#010157] uppercase tracking-wider mb-1.5">Data Início</label>
-                                <input type="date" id="dataInicio" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition">
+                                <input type="date" id="dataInicio" onchange="atualizarParcelasPorDatas()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition">
                             </div>
                             <div>
-                                <label class="block text-[11px] font-bold text-[#010157] uppercase tracking-wider mb-1.5">Data Término (Opcional)</label>
-                                <input type="date" id="dataFim" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition">
+                                <label class="block text-[11px] font-bold text-[#010157] uppercase tracking-wider mb-1.5">Data Término</label>
+                                <input type="date" id="dataFim" onchange="atualizarParcelasPorDatas()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-[#010157] uppercase tracking-wider mb-1.5">Parcelas (Meses)</label>
+                                <input type="number" id="parcelasPix" min="1" max="60" value="12" placeholder="Ex: 8" oninput="atualizarDataFimPorParcelas()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition font-mono">
+                            </div>
+                        </div>
+
+                        <!-- Card de Validação Inicial de R$ 0,01 (Pluggy Payments v2) -->
+                        <div class="bg-blue-50/60 border border-blue-200/80 rounded-xl p-3 flex items-start gap-2.5 mt-2">
+                            <input type="checkbox" id="checkValidacaoInicial" checked class="mt-0.5 w-4 h-4 text-[#0985ff] rounded border-slate-300 focus:ring-[#0985ff] cursor-pointer">
+                            <div class="text-xs">
+                                <label for="checkValidacaoInicial" class="font-bold text-[#010157] cursor-pointer flex items-center gap-1.5">
+                                    <i class="fa-solid fa-shield-check text-[#0985ff]"></i> Cobrança Inicial de Teste (R$ 0,01)
+                                </label>
+                                <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">Dispara validação no banco (CONF DEBITO) antes do agendamento das parcelas reais.</p>
                             </div>
                         </div>
                     </div>
@@ -416,21 +437,21 @@
                 </div>
             </div>
 
-            <!-- COLUNA DIREITA: HISTÓRICO DE CONEXÕES DOS CLIENTES -->
-            <div id="painel-clientes-principal" class="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 md:p-8 shadow-sm flex flex-col min-h-[640px]">
+            <!-- COLUNA DIREITA: HISTORICO DE CONEXOES DOS CLIENTES (OCUPA 100% DA LARGURA UTIL) -->
+            <div id="painel-clientes-principal" class="w-full xl:col-span-8 2xl:col-span-9 flex-1 min-w-0 bg-white rounded-3xl border border-slate-200/80 p-4 sm:p-6 md:p-8 shadow-sm flex flex-col min-h-[640px]">
                 
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-lg flex-shrink-0">
                             <i class="fa-solid fa-users-viewfinder"></i>
                         </div>
                         <div>
-                            <h2 class="text-lg font-bold text-[#010157]">Clientes Conectados</h2>
+                            <h2 class="text-base sm:text-lg font-bold text-[#010157]">Clientes Conectados</h2>
                             <p class="text-xs text-slate-500 mt-0.5">Acompanhe extratos de Open Finance e contratos de Pix Automático.</p>
                         </div>
                     </div>
                     
-                    <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div class="flex items-center gap-2.5 w-full md:w-auto">
                         <div class="relative flex-1 md:w-64">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
                                 <i class="fa-solid fa-magnifying-glass text-xs"></i>
@@ -445,10 +466,10 @@
                         </div>
 
                         <button 
-                            type="button"
+                            type="button" 
                             onclick="carregarClientes()" 
                             id="btn-recarregar"
-                            class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center gap-2 cursor-pointer"
+                            class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center gap-2 cursor-pointer flex-shrink-0"
                             title="Atualizar lista"
                         >
                             <i class="fa-solid fa-rotate"></i>
@@ -458,49 +479,49 @@
 
                 <!-- ABAS DE FILTRO EXCLUSIVAS: APENAS OPEN FINANCE E PIX AUTOMÁTICO (SEM ABA TODOS) -->
                 <!-- ABAS PRINCIPAIS: OPEN FINANCE vs PIX AUTOMÁTICO (PAINEL PLUGGY) -->
-                <div class="flex flex-col gap-4 mb-6">
-                    <div class="flex items-center justify-between flex-wrap gap-3">
-                        <div class="flex bg-slate-100 p-1.5 rounded-2xl w-fit border border-slate-200/80 gap-1.5">
-                            <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer">
+                <div class="flex flex-col gap-3.5 mb-6 w-full">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                        <div class="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-fit border border-slate-200/80 gap-1">
+                            <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer">
                                 <i class="fa-solid fa-building-columns text-[#0985ff]"></i> Open Finance
                             </button>
-                            <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer">
+                            <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center justify-center gap-2 cursor-pointer">
                                 <i class="fa-solid fa-bolt text-emerald-500"></i> Pix Automático
                             </button>
                         </div>
                         
-                        <div class="flex items-center gap-3 flex-wrap">
+                        <div class="flex items-center justify-between sm:justify-end gap-2.5 flex-wrap">
                             <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
-                            <button type="button" id="btn-exportar-openfinance" onclick="exportarOpenFinanceExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xs cursor-pointer" title="Exportar dados de clientes Open Finance para Excel (.csv)">
+                            <button type="button" id="btn-exportar-openfinance" onclick="exportarOpenFinanceExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar dados de clientes Open Finance para Excel (.csv)">
                                 <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Excel
                             </button>
                         </div>
                     </div>
 
                     <!-- NAVEGADOR DE SUB-VISÃO DO PIX AUTOMÁTICO (SOLICITAÇÕES VS PAGAMENTOS) -->
-                    <div id="subnavegacao-pix" class="hidden flex flex-col gap-3 pt-1 border-t border-slate-100">
-                        <div class="flex items-center justify-between flex-wrap gap-2">
-                            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-                                <button type="button" onclick="mudarSubVisaoPix('solicitacoes')" id="subbtn-solicitacoes" class="px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                    <div id="subnavegacao-pix" class="hidden flex flex-col gap-3 pt-2 border-t border-slate-100 w-full">
+                        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+                            <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold w-full sm:w-auto">
+                                <button type="button" onclick="mudarSubVisaoPix('solicitacoes')" id="subbtn-solicitacoes" class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-[#010157] text-white shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-list-check"></i> Solicitações
                                 </button>
-                                <button type="button" onclick="mudarSubVisaoPix('pagamentos')" id="subbtn-pagamentos" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center gap-1.5">
+                                <button type="button" onclick="mudarSubVisaoPix('pagamentos')" id="subbtn-pagamentos" class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#010157] transition cursor-pointer flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-chart-pie"></i> Pagamentos (KPIs)
                                 </button>
                             </div>
 
-                            <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex items-center justify-between md:justify-end gap-2 flex-wrap">
                                 <!-- Botão Exportar Excel Pix -->
-                                <button type="button" onclick="exportarPixExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar contratos de Pix Automático para Excel (.csv)">
+                                <button type="button" onclick="exportarPixExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar contratos de Pix Automático para Excel (.csv)">
                                     <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Excel
                                 </button>
 
                                 <!-- Modos de Exibição: Tabela, Por Cliente, Cards -->
                                 <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-                                    <button type="button" onclick="alternarModoExibicao('tabela')" id="btn-modo-tabela" class="px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer" title="Visualização em Tabela Oficial">
+                                    <button type="button" onclick="alternarModoExibicao('tabela')" id="btn-modo-tabela" class="px-2.5 py-1 rounded-lg bg-white text-[#010157] font-bold shadow-xs cursor-pointer" title="Visualização em Tabela">
                                         <i class="fa-solid fa-table-list mr-1"></i> Tabela
                                     </button>
-                                    <button type="button" onclick="alternarModoExibicao('cliente')" id="btn-modo-cliente" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização Agrupada por Cliente">
+                                    <button type="button" onclick="alternarModoExibicao('cliente')" id="btn-modo-cliente" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização por Cliente">
                                         <i class="fa-solid fa-users-viewfinder mr-1"></i> Por Cliente
                                     </button>
                                     <button type="button" onclick="alternarModoExibicao('cards')" id="btn-modo-cards" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-[#010157] font-medium cursor-pointer" title="Visualização em Cards">
@@ -511,20 +532,19 @@
                         </div>
 
                         <!-- SEGMENTED TABS: ATIVOS VS REVOGADOS/CANCELADOS -->
-                        <div id="barra-ambiente-pix" class="flex items-center gap-2 bg-slate-100/90 p-1 rounded-2xl w-full sm:w-auto self-start border border-slate-200/60 flex-wrap">
-                            <button type="button" onclick="mudarFiltroAmbientePix('ativos')" id="tab-ambiente-ativos" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-2 cursor-pointer">
+                        <div id="barra-ambiente-pix" class="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl w-full border border-slate-200/60 overflow-x-auto custom-scrollbar">
+                            <button type="button" onclick="mudarFiltroAmbientePix('ativos')" id="tab-ambiente-ativos" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-1.5 cursor-pointer">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span>Contratos Ativos & Em Andamento</span>
+                                <span>Contratos Ativos</span>
                                 <span id="badge-count-ativos" class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
                             </button>
-                            <button type="button" onclick="mudarFiltroAmbientePix('revogados')" id="tab-ambiente-revogados" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-rose-700 flex items-center gap-2 cursor-pointer">
+                            <button type="button" onclick="mudarFiltroAmbientePix('revogados')" id="tab-ambiente-revogados" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-rose-700 flex items-center gap-1.5 cursor-pointer">
                                 <span class="w-2 h-2 rounded-full bg-rose-500"></span>
                                 <span>Revogados & Cancelados</span>
                                 <span id="badge-count-revogados" class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
                             </button>
-                            <button type="button" onclick="mudarFiltroAmbientePix('todos')" id="tab-ambiente-todos" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer">
+                            <button type="button" onclick="mudarFiltroAmbientePix('todos')" id="tab-ambiente-todos" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer">
                                 <span>Todos</span>
-                            </button>
                         </div>
                     </div>
 
@@ -703,18 +723,15 @@
                         </div>
 
                         <!-- Tabela Oficial de Solicitações (Imagem 1) -->
-                        <div id="wrapper-tabela-pluggy" class="overflow-x-auto border border-slate-200/90 rounded-2xl bg-white shadow-xs custom-scrollbar">
+                        <div id="wrapper-tabela-pluggy" class="overflow-x-auto border border-slate-200/90 rounded-2xl bg-white shadow-xs custom-scrollbar w-full">
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr class="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                                        <th class="py-3 px-3.5">Cliente / Documento</th>
-                                        <th class="py-3 px-3">Instituição Bancária</th>
-                                        <th class="py-3 px-3">ID Operação</th>
-                                        <th class="py-3 px-3">Recebedor</th>
-                                        <th class="py-3 px-3 text-right">Valor Recorrência</th>
-                                        <th class="py-3 px-3 text-center">Status Contrato</th>
+                                        <th class="py-3 px-3 sm:px-3.5">Cliente & Instituição</th>
+                                        <th class="py-3 px-3 text-right">Valor Recorrente</th>
+                                        <th class="py-3 px-3 text-center">Status</th>
                                         <th class="py-3 px-3 text-center">Liberação</th>
-                                        <th class="py-3 px-3">Criado em</th>
+                                        <th class="py-3 px-3">Data</th>
                                         <th class="py-3 px-3 text-center">Ações</th>
                                     </tr>
                                 </thead>
@@ -772,7 +789,7 @@
             </div>
 
             <!-- Conteúdo Rolável -->
-            <div id="corpo-detalhe-pluggy" class="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-5 bg-slate-50/40">
+            <div id="corpo-detalhe-pluggy" class="p-4 sm:p-6 overflow-y-auto flex-1 custom-scrollbar space-y-5 bg-slate-50/40">
                 <!-- Inserido dinamicamente via JS -->
             </div>
         </div>

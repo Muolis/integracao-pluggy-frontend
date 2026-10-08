@@ -43,7 +43,7 @@ let todosOsClientes = [];
         }
 
         function navegarPara(secao, subopcao) {
-            if (window.innerWidth < 768) {
+            if (window.innerWidth < 1280) {
                 toggleSidebar(false);
             }
             
@@ -198,6 +198,12 @@ let todosOsClientes = [];
                 if (fim) {
                     parametros.append("fim", fim);
                 }
+                const parcelasInput = document.getElementById("parcelasPix")?.value;
+                if (parcelasInput) {
+                    parametros.append("parcelas", parcelasInput);
+                }
+                const checkVal = document.getElementById("checkValidacaoInicial")?.checked;
+                parametros.append("validacao", checkVal ? "1" : "0");
 
                 if (tipoPessoaPix === 'pf') {
                     const cpf = MC_CONFIG.cleanCpf(document.getElementById("cpfCliente")?.value);
@@ -749,6 +755,47 @@ let todosOsClientes = [];
             return false;
         }
 
+                function toggleSubtabelaCliente(idSub) {
+            const el = document.getElementById(idSub);
+            const icon = document.getElementById('icon-chev-' + idSub);
+            if (el) {
+                el.classList.toggle('hidden');
+                if (icon) {
+                    icon.classList.toggle('rotate-180');
+                }
+            }
+        }
+
+        function alternarAbaSub(idx, aba) {
+            const abaContratos = document.getElementById('aba-sub-contratos-' + idx);
+            const abaAuditoria = document.getElementById('aba-sub-auditoria-' + idx);
+            const btnContratos = document.getElementById('btn-sub-contratos-' + idx);
+            const btnAuditoria = document.getElementById('btn-sub-auditoria-' + idx);
+
+            if (aba === 'contratos') {
+                if (abaContratos) abaContratos.classList.remove('hidden');
+                if (abaAuditoria) abaAuditoria.classList.add('hidden');
+                if (btnContratos) btnContratos.className = 'px-2.5 py-1 rounded-md font-bold bg-white text-[#010157] shadow-xs cursor-pointer';
+                if (btnAuditoria) btnAuditoria.className = 'px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-[#010157] cursor-pointer';
+            } else {
+                if (abaContratos) abaContratos.classList.add('hidden');
+                if (abaAuditoria) abaAuditoria.classList.remove('hidden');
+                if (btnContratos) btnContratos.className = 'px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-[#010157] cursor-pointer';
+                if (btnAuditoria) btnAuditoria.className = 'px-2.5 py-1 rounded-md font-bold bg-white text-[#010157] shadow-xs cursor-pointer';
+            }
+        }
+
+        function toggleAccordionOf(idOf) {
+            const el = document.getElementById(idOf);
+            const chev = document.getElementById('chev-' + idOf);
+            if (el) {
+                el.classList.toggle('hidden');
+                if (chev) {
+                    chev.classList.toggle('rotate-180');
+                }
+            }
+        }
+
         function renderizarLista(filtroAba) {
             const divLista = document.getElementById('lista-clientes');
             const badgeTotal = document.getElementById('badge-contador-total');
@@ -817,18 +864,58 @@ let todosOsClientes = [];
 
                 atualizarPeriodosDinamicos(pixFiltrados.length > 0 ? pixFiltrados : todosOsPix);
 
-                const sufixoAmbiente = filtroAmbientePix === 'ativos' ? ' (Ativos & Em Andamento)' : (filtroAmbientePix === 'revogados' ? ' (Revogados & Cancelados)' : '');
-                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${pixFiltrados.length}</strong> de <strong class="text-[#0985ff] font-bold">${todosOsPix.length}</strong> contratos${sufixoAmbiente}`;
+                // ================================================================
+                // AGRUPAMENTO E DEDUPLICAÇÃO DE CLIENTES NO PIX AUTOMÁTICO (FASE 2)
+                // ================================================================
+                const mapaClientesPix = {};
+                pixFiltrados.forEach(p => {
+                    const docLimpo = (p.documento || p.cpf || p.cnpj || '').replace(/\D/g, '');
+                    let chave = '';
+                    if (docLimpo && docLimpo.length >= 11) {
+                        chave = 'doc_' + docLimpo;
+                    } else {
+                        const nomeNorm = (p.cliente || 'CLIENTE').toUpperCase().trim().replace(/\s+/g, ' ');
+                        chave = 'nome_' + nomeNorm;
+                    }
 
-                // Cálculo da paginação padrão
-                const totalItens = pixFiltrados.length;
-                const totalPaginas = Math.max(1, Math.ceil(totalItens / linhasPorPaginaPluggy));
+                    if (!mapaClientesPix[chave]) {
+                        mapaClientesPix[chave] = {
+                            chave: chave,
+                            nome: p.cliente || 'Cliente',
+                            documento: p.documento || p.cpf || p.cnpj || '',
+                            tipo_documento: p.tipo_documento || (docLimpo.length > 11 ? 'CNPJ' : 'CPF'),
+                            itens: []
+                        };
+                    }
+                    mapaClientesPix[chave].itens.push(p);
+                });
+
+                const listaClientesPix = Object.values(mapaClientesPix);
+                listaClientesPix.forEach(cli => {
+                    cli.itens.sort((a, b) => {
+                        const ta = new Date(a.data_criacao || a.criado_em || 0).getTime() || 0;
+                        const tb = new Date(b.data_criacao || b.criado_em || 0).getTime() || 0;
+                        return tb - ta;
+                    });
+                });
+                listaClientesPix.sort((a, b) => {
+                    const ta = new Date(a.itens[0]?.data_criacao || a.itens[0]?.criado_em || 0).getTime() || 0;
+                    const tb = new Date(b.itens[0]?.data_criacao || b.itens[0]?.criado_em || 0).getTime() || 0;
+                    return tb - ta;
+                });
+
+                const sufixoAmbiente = filtroAmbientePix === 'ativos' ? ' (Ativos & Em Andamento)' : (filtroAmbientePix === 'revogados' ? ' (Revogados & Cancelados)' : '');
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${listaClientesPix.length}</strong> clientes consolidados (<strong class="text-[#0985ff] font-bold">${pixFiltrados.length}</strong> contratos)${sufixoAmbiente}`;
+
+                // Cálculo da paginação baseado em clientes consolidados
+                const totalClientes = listaClientesPix.length;
+                const totalPaginas = Math.max(1, Math.ceil(totalClientes / linhasPorPaginaPluggy));
                 if (paginaAtualPluggy > totalPaginas) paginaAtualPluggy = totalPaginas;
                 if (paginaAtualPluggy < 1) paginaAtualPluggy = 1;
 
                 const inicioIdx = (paginaAtualPluggy - 1) * linhasPorPaginaPluggy;
-                const fimIdx = Math.min(inicioIdx + linhasPorPaginaPluggy, totalItens);
-                const itensPaginados = pixFiltrados.slice(inicioIdx, fimIdx);
+                const fimIdx = Math.min(inicioIdx + linhasPorPaginaPluggy, totalClientes);
+                const clientesPaginados = listaClientesPix.slice(inicioIdx, fimIdx);
 
                 // Controles de paginação
                 const elResumo = document.getElementById('pluggy-resumo-paginacao');
@@ -836,112 +923,114 @@ let todosOsClientes = [];
                 const btnAnt = document.getElementById('btn-pag-ant');
                 const btnProx = document.getElementById('btn-pag-prox');
 
-                if (elResumo && modoExibicaoPix !== 'cliente') {
-                    elResumo.textContent = `Mostrando ${totalItens ? inicioIdx + 1 : 0}-${fimIdx} de ${totalItens}`;
+                if (elResumo) {
+                    elResumo.textContent = `Mostrando ${totalClientes ? inicioIdx + 1 : 0}-${fimIdx} de ${totalClientes} clientes (${pixFiltrados.length} contratos)`;
                 }
-                if (elIndicador && modoExibicaoPix !== 'cliente') {
+                if (elIndicador) {
                     elIndicador.textContent = `${paginaAtualPluggy}/${totalPaginas}`;
                 }
-                if (btnAnt && modoExibicaoPix !== 'cliente') btnAnt.disabled = (paginaAtualPluggy <= 1);
-                if (btnProx && modoExibicaoPix !== 'cliente') btnProx.disabled = (paginaAtualPluggy >= totalPaginas);
+                if (btnAnt) btnAnt.disabled = (paginaAtualPluggy <= 1);
+                if (btnProx) btnProx.disabled = (paginaAtualPluggy >= totalPaginas);
 
-                // 1. RENDERIZA TABELA OFICIAL PLUGGY (ALTA PERFORMANCE)
+                // 1. RENDERIZA TABELA OFICIAL DEDUPLICADA (ALTA PERFORMANCE)
                 const tbody = document.getElementById('tbody-solicitacoes-pluggy');
                 if (tbody) {
-                    if (itensPaginados.length === 0) {
+                    if (clientesPaginados.length === 0) {
                         tbody.innerHTML = `
                             <tr>
                                 <td colspan="10" class="py-12 text-center text-slate-400">
                                     <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300 block"></i>
-                                    Nenhuma solicitação encontrada no ambiente selecionado.
+                                    Nenhum cliente ou solicitação encontrada no ambiente selecionado.
                                 </td>
                             </tr>
                         `;
                     } else {
                         let htmlRows = '';
-                        itensPaginados.forEach(p => {
-                            const idCurto = p.id ? (p.id.slice(0, 18) + '..') : '---';
-                            const recDisplay = MC_CONFIG.escapeHtml(p.recebedor || 'MC Minhaconta Securitizadora C SA');
-                            let valLinha = p.valor || p.valor_parcela || 0;
+                        clientesPaginados.forEach((cli, idx) => {
+                            const totalTentativas = cli.itens.length;
+                            const itemRecente = cli.itens[0];
+                            const temAtivo = cli.itens.some(it => !isPixRevogado(it));
+                            const nomeSeguro = MC_CONFIG.escapeHtml(cli.nome || 'Cliente');
+                            const idSub = `sub-pix-${idx}-${cli.chave.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+                            let valLinha = itemRecente.valor || itemRecente.valor_parcela || 0;
                             if (valLinha === 26997) valLinha = 269.97;
                             const valorDisplay = MC_CONFIG.formatMoney(valLinha);
 
-                            const dataFmt = p.criado_em || formatarDataPluggy(p.data_criacao);
-                            const dataInicioFmt = p.data_inicio_formatada || (p.data_inicio ? formatarDataSimplesPluggy(p.data_inicio) : null);
+                            const dataFmt = itemRecente.criado_em || formatarDataPluggy(itemRecente.data_criacao);
+                            const dataInicioFmt = itemRecente.data_inicio_formatada || (itemRecente.data_inicio ? formatarDataSimplesPluggy(itemRecente.data_inicio) : null);
                             const badgeInicio = (dataInicioFmt && dataInicioFmt !== '---')
                                 ? `<div class="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-medium"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioFmt}</strong></div>`
                                 : '';
-                            const nomeSeguro = MC_CONFIG.escapeHtml(p.cliente || 'Cliente');
 
-                            const docDisplay = p.documento 
-                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">${p.tipo_documento || 'DOC'}: ${p.documento}</span>`
+                            const docDisplay = cli.documento 
+                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">${cli.tipo_documento || 'DOC'}: ${cli.documento}</span>`
                                 : `<span class="text-slate-400 text-[11px] italic">Não informado</span>`;
 
-                            const logoBanco = p.banco_imagem 
-                                ? `<img src="${p.banco_imagem}" alt="Logo" class="w-5 h-5 object-contain rounded-md inline-block mr-1.5" onerror="this.style.display='none'">` 
+                            const logoBanco = itemRecente.banco_imagem 
+                                ? `<img src="${itemRecente.banco_imagem}" alt="Logo" class="w-5 h-5 object-contain rounded-md inline-block mr-1.5" onerror="this.style.display='none'">` 
                                 : `<i class="fa-solid fa-building-columns text-slate-400 mr-1.5"></i>`;
 
+                            // Determinação de Status Consolidado do Cliente
                             let badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
                             let iconeStatus = '<i class="fa-regular fa-clock text-[9px] mr-1"></i>';
-                            let textoStatus = p.status_label || 'Pendente';
-                            let tooltipStatus = '';
+                            let textoStatus = itemRecente.status_label || 'Pendente';
 
-                            if (p.status_label === 'Autorizado') {
-                                badgeStatus = 'bg-purple-50 text-purple-700 border-purple-200';
-                                iconeStatus = '<i class="fa-solid fa-bolt text-[9px] mr-1 text-purple-600"></i>';
-                                textoStatus = 'Autorizado';
-                            } else if (p.status_label === 'Concluído') {
+                            const itemAutorizado = cli.itens.find(it => it.status_label === 'Autorizado' || it.status === 'AUTHORIZED');
+                            const itemConcluido = cli.itens.find(it => it.status_label === 'Concluído' || it.status === 'PAYMENT_COMPLETED');
+                            const itemAgendado = cli.itens.find(it => it.status_label === 'Agendado' || it.status === 'SCHEDULED');
+
+                            if (itemConcluido) {
                                 badgeStatus = 'bg-emerald-50 text-emerald-700 border-emerald-200';
                                 iconeStatus = '<i class="fa-solid fa-check text-[9px] mr-1 text-emerald-600"></i>';
                                 textoStatus = 'Concluído';
-                            } else if (p.status_label === 'Erro' || p.status_classe === 'erro' || p.status_label === 'Falha no Banco') {
-                                badgeStatus = 'bg-rose-50 text-rose-700 border-rose-200';
-                                iconeStatus = '<i class="fa-solid fa-triangle-exclamation text-[9px] mr-1 text-rose-600"></i>';
-                                if (p.erro && (p.erro.codigo === 'CONNECTION_ERROR' || (p.erro.titulo && p.erro.titulo.includes('Conexão')))) {
-                                    textoStatus = 'Falha no Banco';
-                                    tooltipStatus = p.erro.detalhe || 'Instabilidade de conexão entre o banco e o Open Finance.';
-                                } else if (p.erro && p.erro.titulo) {
-                                    textoStatus = p.erro.titulo;
-                                    tooltipStatus = p.erro.detalhe || '';
-                                } else {
-                                    textoStatus = 'Erro';
-                                }
-                            } else if (p.status_label === 'Rejeitado') {
-                                badgeStatus = 'bg-rose-50 text-rose-700 border-rose-200';
-                                iconeStatus = '<i class="fa-solid fa-ban text-[9px] mr-1 text-rose-600"></i>';
-                                textoStatus = 'Rejeitado';
-                                if (p.erro && p.erro.detalhe) tooltipStatus = p.erro.detalhe;
-                            } else if (p.status_label === 'Expirado') {
-                                badgeStatus = 'bg-slate-100 text-slate-700 border-slate-300';
-                                iconeStatus = '<i class="fa-regular fa-clock text-[9px] mr-1 text-slate-500"></i>';
-                                textoStatus = 'Expirado';
-                            } else if (p.status_label === 'Agendado') {
+                            } else if (itemAutorizado) {
+                                badgeStatus = 'bg-purple-50 text-purple-700 border-purple-200';
+                                iconeStatus = '<i class="fa-solid fa-bolt text-[9px] mr-1 text-purple-600"></i>';
+                                textoStatus = 'Autorizado';
+                            } else if (itemAgendado) {
                                 badgeStatus = 'bg-sky-50 text-sky-700 border-sky-200';
                                 iconeStatus = '<i class="fa-regular fa-calendar-check text-[9px] mr-1 text-sky-600"></i>';
                                 textoStatus = 'Agendado';
-                            } else if (p.status_label === 'Cancelado') {
-                                badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
-                                iconeStatus = '<i class="fa-solid fa-xmark text-[9px] mr-1 text-slate-500"></i>';
-                                textoStatus = 'Cancelado';
-                            } else {
+                            } else if (temAtivo) {
                                 badgeStatus = 'bg-amber-50 text-amber-800 border-amber-200';
                                 iconeStatus = '<i class="fa-solid fa-hourglass-half text-[9px] mr-1 text-amber-600"></i>';
                                 textoStatus = 'Aguardando';
-                            }
-
-                            const lib = p.liberacao_operacional || {};
-                            let badgeLiberacao = '';
-                            if (lib.autorizada || p.status_label === 'Concluído') {
-                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Primeira cobrança liquidada com sucesso (COMPLETED).')}"><i class="fa-solid fa-shield-check text-emerald-600"></i> LIBERADO</span>`;
-                            } else if (p.status_classe === 'rejeitado' || p.status_classe === 'erro' || isPixRevogado(p)) {
-                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Contrato rejeitado/cancelado.')}"><i class="fa-solid fa-ban text-rose-600"></i> RECUSADO</span>`;
+                            } else if (itemRecente.status_label === 'Rejeitado') {
+                                badgeStatus = 'bg-rose-50 text-rose-700 border-rose-200';
+                                iconeStatus = '<i class="fa-solid fa-ban text-[9px] mr-1 text-rose-600"></i>';
+                                textoStatus = 'Rejeitado';
+                            } else if (itemRecente.status_label === 'Cancelado') {
+                                badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
+                                iconeStatus = '<i class="fa-solid fa-xmark text-[9px] mr-1 text-slate-500"></i>';
+                                textoStatus = 'Cancelado';
+                            } else if (itemRecente.status_label === 'Expirado') {
+                                badgeStatus = 'bg-slate-100 text-slate-700 border-slate-300';
+                                iconeStatus = '<i class="fa-regular fa-clock text-[9px] mr-1 text-slate-500"></i>';
+                                textoStatus = 'Expirado';
                             } else {
-                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="${MC_CONFIG.escapeHtml(lib.motivo || 'Trava ativa: aguardando liquidação da primeira cobrança (COMPLETED).')}"><i class="fa-solid fa-lock text-amber-600"></i> BLOQUEADO</span>`;
+                                badgeStatus = 'bg-rose-50 text-rose-700 border-rose-200';
+                                iconeStatus = '<i class="fa-solid fa-triangle-exclamation text-[9px] mr-1 text-rose-600"></i>';
+                                textoStatus = itemRecente.status_label || 'Erro';
                             }
 
+                            // Determinação de Liberação Consolidada
+                            const temLiberacao = cli.itens.some(it => (it.liberacao_operacional && it.liberacao_operacional.autorizada) || it.status_label === 'Concluído');
+                            const todosRecusados = cli.itens.every(it => it.status_classe === 'rejeitado' || it.status_classe === 'erro' || isPixRevogado(it));
+                            let badgeLiberacao = '';
+                            if (temLiberacao) {
+                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300" title="Primeira cobrança liquidada com sucesso (COMPLETED)."><i class="fa-solid fa-shield-check text-emerald-600"></i> LIBERADO</span>`;
+                            } else if (todosRecusados) {
+                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title="Contratos rejeitados ou cancelados."><i class="fa-solid fa-ban text-rose-600"></i> RECUSADO</span>`;
+                            } else {
+                                badgeLiberacao = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="Aguardando liquidação da primeira cobrança."><i class="fa-solid fa-lock text-amber-600"></i> BLOQUEADO</span>`;
+                            }
+
+                            // Botão WhatsApp do item ativo mais recente
                             let btnLink = '';
-                            if (p.payment_url || p.consent_url) {
-                                const urlAuth = p.payment_url || p.consent_url;
+                            const itemComLink = cli.itens.find(it => it.payment_url || it.consent_url);
+                            if (itemComLink) {
+                                const urlAuth = itemComLink.payment_url || itemComLink.consent_url;
                                 btnLink = `
                                     <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(urlAuth)}')" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-xs font-semibold cursor-pointer" title="Copiar link WhatsApp">
                                         <i class="fa-brands fa-whatsapp text-sm"></i>
@@ -949,54 +1038,245 @@ let todosOsClientes = [];
                                 `;
                             }
 
+                            // Badge de contagem de tentativas
+                            const badgeTentativas = `
+                                <button type="button" onclick="toggleSubtabelaCliente('${idSub}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200 hover:bg-blue-100 transition cursor-pointer" title="Clique para ver todos os contratos deste cliente">
+                                    <i class="fa-solid fa-layer-group text-blue-500"></i> ${totalTentativas} ${totalTentativas === 1 ? 'contrato' : 'contratos'}
+                                </button>
+                            `;
+
+                            // Sub-tabela 1: Contratos
+                            let htmlSubLinhasContratos = '';
+                            // Sub-tabela 2: Auditoria de Débitos (Fase 4)
+                            let htmlSubLinhasAuditoria = '';
+
+                            cli.itens.forEach((subItem) => {
+                                const subIdCurto = subItem.id ? (subItem.id.slice(0, 16) + '..') : '---';
+                                let subVal = subItem.valor || subItem.valor_parcela || 0;
+                                if (subVal === 26997) subVal = 269.97;
+                                const subValFmt = MC_CONFIG.formatMoney(subVal);
+                                const subData = subItem.criado_em || formatarDataPluggy(subItem.data_criacao);
+
+                                const subLib = subItem.liberacao_operacional || {};
+                                let subBadgeLib = '';
+                                if (subLib.autorizada || subItem.status_label === 'Concluído') {
+                                    subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">LIBERADO</span>`;
+                                } else if (isPixRevogado(subItem)) {
+                                    subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">RECUSADO</span>`;
+                                } else {
+                                    subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">BLOQUEADO</span>`;
+                                }
+
+                                let subBtnWhats = '';
+                                if (subItem.payment_url || subItem.consent_url) {
+                                    subBtnWhats = `
+                                        <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(subItem.payment_url || subItem.consent_url)}')" class="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-[11px] cursor-pointer" title="Copiar link">
+                                            <i class="fa-brands fa-whatsapp"></i>
+                                        </button>
+                                    `;
+                                }
+
+                                htmlSubLinhasContratos += `
+                                    <tr class="hover:bg-slate-50/80 transition text-xs">
+                                        <td class="py-2.5 px-3">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-semibold text-slate-800">${MC_CONFIG.escapeHtml(subItem.banco_nome || 'Banco')}</span>
+                                                <span class="font-mono text-[10px] text-slate-400">(${subIdCurto})</span>
+                                                <button onclick="navigator.clipboard.writeText('${subItem.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
+                                                    <i class="fa-regular fa-copy text-[10px]"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="py-2.5 px-3 text-slate-600 text-[11px] whitespace-nowrap">${subData}</td>
+                                        <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${subValFmt}</td>
+                                        <td class="py-2.5 px-3">
+                                            <div class="flex items-center gap-1.5 flex-wrap justify-center">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${subItem.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
+                                                    ${subItem.status_label || 'Pendente'}
+                                                </span>
+                                                ${subBadgeLib}
+                                            </div>
+                                        </td>
+                                        <td class="py-2.5 px-3 text-center">
+                                            <div class="flex items-center justify-center gap-1">
+                                                ${subBtnWhats}
+                                                <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer" title="Ver Detalhes Oficiais da Pluggy">
+                                                    <i class="fa-solid fa-eye"></i> <span class="hidden sm:inline">Detalhes</span>
+                                                </button>
+                                                <button onclick="abrirModalJson('${subItem.id}')" class="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-[11px] cursor-pointer" title="Ver JSON da Pluggy">
+                                                    <i class="fa-solid fa-code"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+
+                                // Linha de Auditoria: Validação Inicial R$ 0,01
+                                const statusTeste = (subItem.status_label === 'Autorizado' || subItem.status_label === 'Concluído')
+                                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa-solid fa-check text-emerald-600"></i> Concluído / Pago</span>`
+                                    : (isPixRevogado(subItem)
+                                        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"><i class="fa-solid fa-ban text-rose-600"></i> Rejeitado</span>`
+                                        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><i class="fa-solid fa-clock text-amber-600"></i> Pendente</span>`);
+
+                                const diagPluggy = subItem.erro?.detalhe || subItem.erro?.titulo || (isPixRevogado(subItem) ? 'Mandato revogado / rejeitado no banco' : 'Validação de adesão e limites no banco');
+
+                                htmlSubLinhasAuditoria += `
+                                    <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100">
+                                        <td class="py-2 px-3 text-slate-600 font-mono text-[11px]">${subData}</td>
+                                        <td class="py-2 px-3">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                                <i class="fa-solid fa-vial-circle-check text-purple-600"></i> Cobrança Teste (R$ 0,01)
+                                            </span>
+                                        </td>
+                                        <td class="py-2 px-3 font-mono font-bold text-slate-900">R$ 0,01</td>
+                                        <td class="py-2 px-3 text-center">${statusTeste}</td>
+                                        <td class="py-2 px-3 text-slate-500 text-[11px] max-w-xs truncate" title="${MC_CONFIG.escapeHtml(diagPluggy)}">${MC_CONFIG.escapeHtml(diagPluggy)}</td>
+                                        <td class="py-2 px-3 text-center">
+                                            <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer">Auditar</button>
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100 bg-slate-50/30">
+                                        <td class="py-2 px-3 text-slate-600 font-mono text-[11px]">${subItem.data_inicio_formatada || subData}</td>
+                                        <td class="py-2 px-3">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200">
+                                                <i class="fa-solid fa-calendar-check text-[#0985ff]"></i> 1ª Parcela Mensal Recorrente
+                                            </span>
+                                        </td>
+                                        <td class="py-2 px-3 font-mono font-bold text-slate-900">${subValFmt}</td>
+                                        <td class="py-2 px-3 text-center">
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${subItem.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
+                                                ${subItem.status_label || 'Agendado'}
+                                            </span>
+                                        </td>
+                                        <td class="py-2 px-3 text-slate-500 text-[11px] max-w-xs truncate" title="Recorrência vinculada à autorização">Recorrência Pix Automático vinculada à autorização</td>
+                                        <td class="py-2 px-3 text-center">
+                                            <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer">Auditar</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+
+                            const idCurtoRecente = itemRecente.id ? (itemRecente.id.slice(0, 18) + '..') : '---';
+
                             htmlRows += `
                                 <tr class="hover:bg-slate-50/80 transition duration-150">
-                                    <td class="py-3 px-3.5">
-                                        <div class="flex flex-col gap-0.5">
-                                            <span class="font-bold text-[#010157] text-xs leading-snug">${nomeSeguro}</span>
-                                            <div>${docDisplay}</div>
+                                    <td class="py-3 px-3 sm:px-3.5">
+                                        <div class="flex flex-col gap-1 min-w-[140px]">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-bold text-[#010157] text-xs leading-snug">${nomeSeguro}</span>
+                                                ${badgeTentativas}
+                                            </div>
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                ${docDisplay}
+                                                <div class="flex items-center text-slate-600 text-[11px]">
+                                                    ${logoBanco}
+                                                    <span class="truncate max-w-[120px]" title="${MC_CONFIG.escapeHtml(itemRecente.banco_nome || 'Banco')}">${MC_CONFIG.escapeHtml(itemRecente.banco_nome || 'Banco')}</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1 font-mono text-[10px] text-slate-400" title="${itemRecente.id}">
+                                                <span>ID: ${idCurtoRecente}</span>
+                                                <button onclick="navigator.clipboard.writeText('${itemRecente.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
+                                                    <i class="fa-regular fa-copy text-[10px]"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td class="py-3 px-3 text-slate-700 text-xs font-medium">
-                                        <div class="flex items-center">
-                                            ${logoBanco}
-                                            <span class="truncate max-w-[130px]" title="${MC_CONFIG.escapeHtml(p.banco_nome || 'Banco')}">${MC_CONFIG.escapeHtml(p.banco_nome || 'Banco')}</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-3 font-mono text-[11px] text-slate-600" title="${p.id}">
-                                        <div class="flex items-center gap-1">
-                                            <span>${idCurto}</span>
-                                            <button onclick="navigator.clipboard.writeText('${p.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
-                                                <i class="fa-regular fa-copy text-[10px]"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-3 text-slate-600 text-xs max-w-[140px] truncate" title="${recDisplay}">${recDisplay}</td>
                                     <td class="py-3 px-3 text-right">
                                         <div class="font-black text-slate-900 font-mono text-xs">${valorDisplay}</div>
                                         <span class="text-[10px] text-slate-400 font-semibold block">Mensal</span>
+                                        ${badgeInicio}
                                     </td>
                                     <td class="py-3 px-3 text-center">
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${badgeStatus}" ${tooltipStatus ? `title="${MC_CONFIG.escapeHtml(tooltipStatus)}"` : ''}>
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${badgeStatus}">
                                             ${iconeStatus} ${MC_CONFIG.escapeHtml(textoStatus)}
                                         </span>
                                     </td>
                                     <td class="py-3 px-3 text-center">
                                         ${badgeLiberacao}
                                     </td>
-                                    <td class="py-3 px-3 text-slate-600 text-[11px] whitespace-nowrap">
+                                    <td class="py-3 px-3 text-slate-600 text-[11px]">
                                         <div class="font-medium text-slate-800">${dataFmt}</div>
-                                        ${badgeInicio}
                                     </td>
                                     <td class="py-3 px-3 text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
+                                        <div class="flex items-center justify-center gap-1">
                                             ${btnLink}
-                                            <button onclick="consultarPix('${p.id}', null, '${nomeSeguro}')" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Ver Detalhes Oficiais da Pluggy">
-                                                <i class="fa-solid fa-eye"></i> Detalhes
+                                            <button onclick="toggleSubtabelaCliente('${idSub}')" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Ver Detalhes e Histórico deste cliente">
+                                                <i class="fa-solid fa-list-check"></i>
+                                                <span class="hidden sm:inline">Detalhes</span>
+                                                <span class="bg-[#0985ff] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">${totalTentativas}</span>
+                                                <i id="icon-chev-${idSub}" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
                                             </button>
-                                            <button onclick="abrirModalJson('${p.id}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-xs cursor-pointer" title="Ver JSON da Pluggy">
+                                            <button onclick="abrirModalJson('${itemRecente.id}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-xs cursor-pointer" title="Ver JSON da Pluggy">
                                                 <i class="fa-solid fa-code"></i>
                                             </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- LINHA EXPANSÍVEL DEDICADA DO CLIENTE (ACORDEÃO COMPLETO) -->
+                                <tr id="${idSub}" class="hidden bg-slate-50/90 border-y border-blue-200">
+                                    <td colspan="6" class="p-3 sm:p-5">
+                                        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 pb-3 border-b border-slate-100">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-bold text-[#010157] text-xs flex items-center gap-1.5">
+                                                        <i class="fa-solid fa-user-check text-[#0985ff]"></i> ${nomeSeguro}
+                                                    </span>
+                                                    ${docDisplay}
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200">
+                                                        Total de ${totalTentativas} ${totalTentativas === 1 ? 'solicitação' : 'solicitações'}
+                                                    </span>
+                                                </div>
+                                                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-[11px]">
+                                                    <button type="button" onclick="alternarAbaSub('${idx}', 'contratos')" id="btn-sub-contratos-${idx}" class="px-2.5 py-1 rounded-md font-bold bg-white text-[#010157] shadow-xs cursor-pointer">
+                                                        <i class="fa-solid fa-file-contract mr-1 text-[#0985ff]"></i> Solicitações (${totalTentativas})
+                                                    </button>
+                                                    <button type="button" onclick="alternarAbaSub('${idx}', 'auditoria')" id="btn-sub-auditoria-${idx}" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-[#010157] cursor-pointer">
+                                                        <i class="fa-solid fa-list-check mr-1 text-emerald-600"></i> Histórico de Débitos / Auditoria
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Aba 1: Solicitações e Contratos Individuais -->
+                                            <div id="aba-sub-contratos-${idx}" class="overflow-x-auto w-full custom-scrollbar">
+                                                <table class="w-full text-left border-collapse text-xs">
+                                                    <thead class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                                        <tr>
+                                                            <th class="py-2.5 px-3">Banco & ID da Operação</th>
+                                                            <th class="py-2.5 px-3">Data / Hora</th>
+                                                            <th class="py-2.5 px-3">Valor Parcela</th>
+                                                            <th class="py-2.5 px-3 text-center">Status & Liberação</th>
+                                                            <th class="py-2.5 px-3 text-center">Ações</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-slate-100">
+                                                        ${htmlSubLinhasContratos}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <!-- Aba 2: Histórico de Tentativas de Cobrança / Débitos (Fase 4!) -->
+                                            <div id="aba-sub-auditoria-${idx}" class="hidden overflow-x-auto w-full custom-scrollbar">
+                                                <div class="mb-2 text-[11px] text-slate-500 flex items-center justify-between">
+                                                    <span class="font-semibold"><i class="fa-solid fa-clock-rotate-left text-emerald-600 mr-1"></i> Registro Cronológico de Cobranças (Validação Inicial R$ 0,01 + Parcelas Recorrentes)</span>
+                                                    <span class="text-[10px] text-slate-400">Pluggy Payments API v2</span>
+                                                </div>
+                                                <table class="w-full text-left border-collapse text-xs">
+                                                    <thead class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                                        <tr>
+                                                            <th class="py-2 px-3">Data / Hora</th>
+                                                            <th class="py-2 px-3">Tipo de Cobrança</th>
+                                                            <th class="py-2 px-3">Valor Cobrado</th>
+                                                            <th class="py-2 px-3 text-center">Status da Transação</th>
+                                                            <th class="py-2 px-3">Motivo / Mensagem da API</th>
+                                                            <th class="py-2 px-3 text-center">Ação</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-slate-100">
+                                                        ${htmlSubLinhasAuditoria}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -1006,30 +1286,9 @@ let todosOsClientes = [];
                     }
                 }
 
-                // 2. RENDERIZA VISÃO AGRUPADA POR CLIENTE (PADRONIZADA E ORGANIZADA)
-                if (modoExibicaoPix === 'cliente') {
-                    const mapaClientes = {};
-                    pixFiltrados.forEach(p => {
-                        const chaveDoc = (p.documento || p.cpf || p.cnpj || '').replace(/\D/g, '');
-                        const chave = chaveDoc ? `doc_${chaveDoc}` : `cli_${(p.cliente || 'Desconhecido').toLowerCase().trim()}`;
-                        if (!mapaClientes[chave]) {
-                            mapaClientes[chave] = {
-                                chave: chave,
-                                nome: p.cliente || 'Cliente',
-                                documento: p.documento || p.cpf || p.cnpj || '',
-                                tipo_documento: p.tipo_documento || (p.documento && p.documento.length > 14 ? 'CNPJ' : 'CPF'),
-                                banco_nome: p.banco_nome || 'Banco',
-                                banco_imagem: p.banco_imagem || '',
-                                itens: []
-                            };
-                        }
-                        mapaClientes[chave].itens.push(p);
-                    });
-
-                    const listaClientesAgrupados = Object.values(mapaClientes);
-                    const totalClientes = listaClientesAgrupados.length;
-
-                    if (totalClientes === 0) {
+                // 2. RENDERIZA VISÃO AGRUPADA EM CARDS DE CLIENTE (MODO CARDS)
+                if (modoExibicaoPix === 'cliente' || modoExibicaoPix === 'cards') {
+                    if (clientesPaginados.length === 0) {
                         divLista.innerHTML = `
                             <div class="text-center py-16 text-slate-400">
                                 <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
@@ -1039,30 +1298,8 @@ let todosOsClientes = [];
                         return;
                     }
 
-                    // Paginação da visão por cliente
-                    const totalPagsCli = Math.max(1, Math.ceil(totalClientes / linhasPorPaginaPluggy));
-                    if (paginaAtualPluggy > totalPagsCli) paginaAtualPluggy = totalPagsCli;
-                    const iniCli = (paginaAtualPluggy - 1) * linhasPorPaginaPluggy;
-                    const fimCli = Math.min(iniCli + linhasPorPaginaPluggy, totalClientes);
-                    const clientesPaginados = listaClientesAgrupados.slice(iniCli, fimCli);
-
-                    if (elResumo) {
-                        elResumo.textContent = `Mostrando ${totalClientes ? iniCli + 1 : 0}-${fimCli} de ${totalClientes} clientes (${pixFiltrados.length} contratos)`;
-                    }
-                    if (elIndicador) {
-                        elIndicador.textContent = `${paginaAtualPluggy}/${totalPagsCli}`;
-                    }
-                    if (btnAnt) btnAnt.disabled = (paginaAtualPluggy <= 1);
-                    if (btnProx) btnProx.disabled = (paginaAtualPluggy >= totalPagsCli);
-
                     let htmlClientes = '';
                     clientesPaginados.forEach((cli, idx) => {
-                        cli.itens.sort((a, b) => {
-                            const ta = new Date(a.data_criacao || 0).getTime() || 0;
-                            const tb = new Date(b.data_criacao || 0).getTime() || 0;
-                            return tb - ta;
-                        });
-
                         const itemRecente = cli.itens[0];
                         const totalTentativas = cli.itens.length;
                         const temAtivo = cli.itens.some(it => !isPixRevogado(it));
@@ -1079,30 +1316,22 @@ let todosOsClientes = [];
                             ? `<span class="text-slate-500 font-medium ml-1"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioRecente}</strong></span>`
                             : '';
 
-                        const logoBanco = (itemRecente.banco_imagem || cli.banco_imagem)
-                            ? `<img src="${itemRecente.banco_imagem || cli.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
+                        const logoBanco = itemRecente.banco_imagem
+                            ? `<img src="${itemRecente.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
                             : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
 
                         const docBadge = cli.documento 
                             ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-slate-200">${cli.tipo_documento}: ${cli.documento}</span>` 
                             : `<span class="text-slate-400 text-[10px] italic">Documento não informado</span>`;
 
-                        let badgeStatusCliente = '';
-                        if (temAtivo) {
-                            badgeStatusCliente = `<span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Ativo</span>`;
-                        } else {
-                            badgeStatusCliente = `<span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${itemRecente.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">${itemRecente.status_label || 'Revogado'}</span>`;
-                        }
+                        let badgeStatusCliente = temAtivo
+                            ? `<span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Ativo</span>`
+                            : `<span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${itemRecente.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">${itemRecente.status_label || 'Revogado'}</span>`;
 
-                        const libRecente = itemRecente.liberacao_operacional || {};
-                        let badgeLibCliente = '';
-                        if (libRecente.autorizada || itemRecente.status_label === 'Concluído') {
-                            badgeLibCliente = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-shield-check text-emerald-600"></i> Liberado</span>`;
-                        } else if (itemRecente.status_classe === 'rejeitado' || itemRecente.status_classe === 'erro' || isPixRevogado(itemRecente)) {
-                            badgeLibCliente = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-ban text-rose-600"></i> Recusado</span>`;
-                        } else {
-                            badgeLibCliente = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock text-amber-600"></i> Bloqueado</span>`;
-                        }
+                        const temLiberacao = cli.itens.some(it => (it.liberacao_operacional && it.liberacao_operacional.autorizada) || it.status_label === 'Concluído');
+                        let badgeLibCliente = temLiberacao
+                            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-shield-check text-emerald-600"></i> Liberado</span>`
+                            : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock text-amber-600"></i> Bloqueado</span>`;
 
                         let htmlSubLinhas = '';
                         cli.itens.forEach(subItem => {
@@ -1112,76 +1341,33 @@ let todosOsClientes = [];
                             const subData = subItem.criado_em || formatarDataPluggy(subItem.data_criacao);
                             const subIdCurto = subItem.id ? (subItem.id.slice(0, 16) + '..') : '---';
 
-                            const subLib = subItem.liberacao_operacional || {};
-                            let subBadgeLib = '';
-                            if (subLib.autorizada || subItem.status_label === 'Concluído') {
-                                subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">LIBERADO</span>`;
-                            } else if (isPixRevogado(subItem)) {
-                                subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">RECUSADO</span>`;
-                            } else {
-                                subBadgeLib = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">BLOQUEADO</span>`;
-                            }
-
-                            const motivoDiag = subItem.erro?.detalhe || subItem.erro?.titulo || (isPixRevogado(subItem) ? 'Cancelado / Revogado' : 'Aguardando confirmação bancária');
-
-                            let subBtnLink = '';
-                            if (subItem.payment_url || subItem.consent_url) {
-                                subBtnLink = `
-                                    <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(subItem.payment_url || subItem.consent_url)}')" class="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 border border-emerald-200 text-[11px] cursor-pointer" title="Copiar link de pagamento">
-                                        <i class="fa-brands fa-whatsapp"></i>
-                                    </button>
-                                `;
-                            }
-
                             htmlSubLinhas += `
                                 <tr class="hover:bg-slate-50/80 transition text-xs">
-                                    <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
-                                        <div class="flex items-center gap-1">
-                                            <span>${subIdCurto}</span>
-                                            <button onclick="navigator.clipboard.writeText('${subItem.id}'); MC_CONFIG.showToast('ID copiado!', 'success')" class="text-slate-400 hover:text-[#0985ff] p-0.5 cursor-pointer" title="Copiar ID">
-                                                <i class="fa-regular fa-copy text-[10px]"></i>
-                                            </button>
+                                    <td class="py-2.5 px-3">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="font-semibold text-slate-800">${MC_CONFIG.escapeHtml(subItem.banco_nome || 'Banco')}</span>
+                                            <span class="font-mono text-[10px] text-slate-400">(${subIdCurto})</span>
                                         </div>
                                     </td>
                                     <td class="py-2.5 px-3 text-slate-600 text-[11px] whitespace-nowrap">${subData}</td>
-                                    <td class="py-2.5 px-3 text-slate-700 font-medium truncate max-w-[120px]">${MC_CONFIG.escapeHtml(subItem.banco_nome || 'Banco')}</td>
                                     <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${subValorFmt}</td>
                                     <td class="py-2.5 px-3 text-center">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${subItem.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
                                             ${subItem.status_label || 'Pendente'}
                                         </span>
                                     </td>
-                                    <td class="py-2.5 px-3 text-center">${subBadgeLib}</td>
-                                    <td class="py-2.5 px-3 text-slate-500 text-[11px] max-w-[220px] truncate" title="${MC_CONFIG.escapeHtml(motivoDiag)}">
-                                        ${MC_CONFIG.escapeHtml(motivoDiag)}
-                                    </td>
                                     <td class="py-2.5 px-3 text-center">
-                                        <div class="flex items-center justify-center gap-1">
-                                            ${subBtnLink}
-                                            <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer" title="Ver Detalhes Oficiais da Pluggy">
-                                                <i class="fa-solid fa-eye"></i> Detalhes
-                                            </button>
-                                            <button onclick="abrirModalJson('${subItem.id}')" class="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 text-[11px] cursor-pointer" title="Ver JSON da Pluggy">
-                                                <i class="fa-solid fa-code"></i>
-                                            </button>
-                                        </div>
+                                        <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer">
+                                            <i class="fa-solid fa-eye"></i> Detalhes
+                                        </button>
                                     </td>
                                 </tr>
                             `;
                         });
 
-                        let btnLinkPrincipal = '';
-                        if (itemRecente.payment_url || itemRecente.consent_url) {
-                            btnLinkPrincipal = `
-                                <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(itemRecente.payment_url || itemRecente.consent_url)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Copiar link mais recente para WhatsApp">
-                                    <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
-                                </button>
-                            `;
-                        }
-
                         htmlClientes += `
-                            <div class="bg-white border border-slate-200/90 hover:border-[#0985ff]/50 rounded-2xl p-5 shadow-sm transition duration-200">
-                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                            <div class="bg-white border border-slate-200/90 hover:border-[#0985ff]/50 rounded-2xl p-4 sm:p-5 shadow-sm transition duration-200">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                     <div class="flex items-start gap-3.5">
                                         <div class="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
                                             ${logoBanco}
@@ -1193,7 +1379,7 @@ let todosOsClientes = [];
                                                 ${badgeStatusCliente}
                                                 ${badgeLibCliente}
                                                 <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                                    <i class="fa-solid fa-layer-group text-slate-400"></i> ${totalTentativas} ${totalTentativas === 1 ? 'tentativa' : 'tentativas'}
+                                                    <i class="fa-solid fa-layer-group text-slate-400"></i> ${totalTentativas} ${totalTentativas === 1 ? 'contrato' : 'contratos'}
                                                 </span>
                                             </div>
                                             <div class="flex items-center gap-3 text-xs text-slate-500 mt-1.5 flex-wrap">
@@ -1205,41 +1391,30 @@ let todosOsClientes = [];
                                         </div>
                                     </div>
 
-                                    <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                                        <div class="text-left lg:text-right mr-2">
+                                    <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                                        <div class="text-left sm:text-right mr-2">
                                             <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Recorrência</span>
                                             <span class="text-base font-black text-[#010157] font-mono">${valorRecorrenciaForm}</span>
                                             <span class="text-[10px] text-slate-400 font-medium block">Mensal</span>
                                         </div>
 
-                                        <div class="flex items-center gap-2">
-                                            ${btnLinkPrincipal}
-                                            <button type="button" onclick="toggleAccordionCliente('${idSanfonado}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-2xs">
-                                                <i class="fa-solid fa-list-check text-[#0985ff]"></i>
-                                                <span>Histórico (${totalTentativas})</span>
-                                                <i id="chev-${idSanfonado}" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
-                                            </button>
-                                        </div>
+                                        <button type="button" onclick="toggleAccordionCliente('${idSanfonado}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-2xs">
+                                            <i class="fa-solid fa-list-check text-[#0985ff]"></i>
+                                            <span>Histórico (${totalTentativas})</span>
+                                            <i id="chev-${idSanfonado}" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
+                                        </button>
                                     </div>
                                 </div>
 
-                                <!-- Accordion de histórico por cliente -->
                                 <div id="${idSanfonado}" class="hidden mt-4 pt-4 border-t border-slate-100">
-                                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-                                        <span><i class="fa-solid fa-clock-rotate-left mr-1.5 text-[#0985ff]"></i> Histórico completo de tentativas deste cliente</span>
-                                        <span class="text-slate-400 font-normal">Sincronizado com a Pluggy</span>
-                                    </div>
-                                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                    <div class="overflow-x-auto rounded-xl border border-slate-200 w-full custom-scrollbar">
                                         <table class="w-full text-left border-collapse text-xs">
                                             <thead class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
                                                 <tr>
-                                                    <th class="py-2.5 px-3">ID Solicitação</th>
+                                                    <th class="py-2.5 px-3">Banco & ID</th>
                                                     <th class="py-2.5 px-3">Data / Hora</th>
-                                                    <th class="py-2.5 px-3">Banco</th>
                                                     <th class="py-2.5 px-3">Valor</th>
                                                     <th class="py-2.5 px-3 text-center">Status</th>
-                                                    <th class="py-2.5 px-3 text-center">Liberação</th>
-                                                    <th class="py-2.5 px-3">Diagnóstico / Motivo</th>
                                                     <th class="py-2.5 px-3 text-center">Ações</th>
                                                 </tr>
                                             </thead>
@@ -1252,137 +1427,55 @@ let todosOsClientes = [];
                             </div>
                         `;
                     });
-
                     divLista.innerHTML = htmlClientes;
-                    return;
-                }
-
-                // 3. RENDERIZA VISÃO EM CARDS (PADRONIZADA E COMPACTA)
-                if (modoExibicaoPix === 'cards') {
-                    if (itensPaginados.length === 0) {
-                        divLista.innerHTML = `
-                            <div class="text-center py-16 text-slate-400">
-                                <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
-                                <p class="text-xs">Nenhum contrato encontrado no ambiente selecionado.</p>
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    let htmlCards = '';
-                    itensPaginados.forEach(pix => {
-                        const dataCriacaoFormatada = pix.criado_em || formatarDataPluggy(pix.data_criacao);
-                        const dataInicioCard = pix.data_inicio_formatada || (pix.data_inicio ? formatarDataSimplesPluggy(pix.data_inicio) : null);
-                        const badgeInicioCard = (dataInicioCard && dataInicioCard !== '---')
-                            ? `<span class="text-slate-500 font-medium ml-1.5"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioCard}</strong></span>`
-                            : '';
-                        let valCard = pix.valor || pix.valor_parcela || 0;
-                        if (valCard === 26997) valCard = 269.97;
-                        const valorParcelaForm = MC_CONFIG.formatMoney(valCard);
-                        const nomeSeguro = MC_CONFIG.escapeHtml(pix.cliente);
-                        const docDisplay = pix.documento 
-                            ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${pix.tipo_documento}: ${pix.documento}</span>` 
-                            : (pix.cpf ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${pix.cpf}</span>` : '');
-
-                        const logoBanco = pix.banco_imagem 
-                            ? `<img src="${pix.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
-                            : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
-
-                        let btnLinkWhats = '';
-                        if (pix.payment_url || pix.consent_url) {
-                            const linkAutorizacao = pix.payment_url || pix.consent_url;
-                            btnLinkWhats = `
-                                <button onclick="copiarLinkPagamento('${MC_CONFIG.escapeHtml(linkAutorizacao)}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Copiar link para WhatsApp">
-                                    <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i> Copiar Link
-                                </button>
-                            `;
-                        }
-
-                        let cardAvisoErro = '';
-                        if (pix.erro && pix.erro.titulo) {
-                            cardAvisoErro = `
-                                <div class="mt-2.5 py-1.5 px-3 rounded-xl bg-rose-50/90 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2">
-                                    <div class="flex items-center gap-2 truncate">
-                                        <i class="fa-solid fa-circle-exclamation text-rose-500 text-xs flex-shrink-0"></i>
-                                        <span class="font-bold text-rose-900">${MC_CONFIG.escapeHtml(pix.erro.titulo)}:</span>
-                                        <span class="text-rose-700 truncate" title="${MC_CONFIG.escapeHtml(pix.erro.detalhe || '')}">${MC_CONFIG.escapeHtml(pix.erro.detalhe || '')}</span>
-                                    </div>
-                                    <span class="text-[10px] uppercase font-mono font-bold bg-white/90 px-1.5 py-0.5 rounded border border-rose-200 text-rose-700 flex-shrink-0">Diagnóstico Pluggy</span>
-                                </div>
-                            `;
-                        }
-
-                        const libCard = pix.liberacao_operacional || {};
-                        let badgeLibCard = '';
-                        if (libCard.autorizada || pix.status_label === 'Concluído') {
-                            badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-shield-check text-emerald-600"></i> Liberado</span>`;
-                        } else if (pix.status_classe === 'rejeitado' || pix.status_classe === 'erro' || isPixRevogado(pix)) {
-                            badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-ban text-rose-600"></i> Recusado</span>`;
-                        } else {
-                            badgeLibCard = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock text-amber-600"></i> Bloqueado</span>`;
-                        }
-
-                        htmlCards += `
-                            <div class="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200 shadow-sm">
-                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                                    <div class="flex items-start gap-3.5">
-                                        <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                                            ${logoBanco}
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-2 flex-wrap">
-                                                <h3 class="font-bold text-[#010157] text-sm">${nomeSeguro}</h3>
-                                                ${docDisplay}
-                                                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border ${pix.status_badge || 'bg-slate-100 text-slate-600 border-slate-200'}">
-                                                    ${pix.status_label || 'Pendente'}
-                                                </span>
-                                                ${badgeLibCard}
-                                            </div>
-                                            <div class="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                                                <span><i class="fa-solid fa-building-columns text-slate-400"></i> ${MC_CONFIG.escapeHtml(pix.banco_nome || 'Banco')}</span>
-                                                <span class="text-slate-300">•</span>
-                                                <span><i class="fa-regular fa-clock text-slate-400"></i> ${dataCriacaoFormatada}</span>
-                                                ${badgeInicioCard}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                                        <div class="text-left lg:text-right mr-2">
-                                            <span class="text-[10px] text-slate-400 font-bold uppercase block">Valor</span>
-                                            <span class="text-base font-black text-[#010157] font-mono">${valorParcelaForm}</span>
-                                        </div>
-
-                                        <div class="flex items-center gap-2">
-                                            ${btnLinkWhats}
-                                            <button onclick="consultarPix('${pix.id}', 'detalhe-pix-${pix.id}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                                <i class="fa-solid fa-file-invoice-dollar text-[#0985ff]"></i> Detalhes
-                                            </button>
-                                            <button onclick="abrirModalJson('${pix.id}')" class="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-2 rounded-xl text-xs transition cursor-pointer" title="Ver JSON da Pluggy">
-                                                <i class="fa-solid fa-code"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                ${cardAvisoErro}
-                                <div id="detalhe-pix-${pix.id}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
-                            </div>
-                        `;
-                    });
-                    divLista.innerHTML = htmlCards;
                 }
 
             } else {
-                // RENDERIZACAO DE OPEN FINANCE (ALTA PERFORMANCE)
+                // =========================================================================
+                // RENDERIZAÇÃO DEDUPLICADA E AGRUPADA DE OPEN FINANCE (FASE 2)
+                // =========================================================================
                 const ofFiltrados = todosOsClientes.filter(cliente => {
                     const matchTexto = (cliente.cliente || '').toLowerCase().includes(termoBusca);
                     const matchTipo = (cliente.tipo === 'open_finance') || (cliente.tipo === 'securitizadora') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
                     return matchTexto && matchTipo;
                 });
 
-                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${ofFiltrados.length}</strong> conexões Open Finance`;
+                // Agrupamento por Cliente Único
+                const mapaClientesOf = {};
+                ofFiltrados.forEach(cli => {
+                    const nomeNormalizado = (cli.cliente || 'CLIENTE').toUpperCase().trim().replace(/\s+/g, ' ');
+                    const chave = (cli.tipo === 'securitizadora' || (cli.cliente && cli.cliente.toUpperCase().includes('SECURITIZADORA')))
+                        ? 'securitizadora_mc'
+                        : `of_${nomeNormalizado}`;
 
-                if (ofFiltrados.length === 0) {
+                    if (!mapaClientesOf[chave]) {
+                        mapaClientesOf[chave] = {
+                            chave: chave,
+                            nome: cli.cliente || 'Cliente',
+                            tipo: cli.tipo,
+                            conexoes: []
+                        };
+                    }
+                    mapaClientesOf[chave].conexoes.push(cli);
+                });
+
+                const listaClientesOf = Object.values(mapaClientesOf);
+                listaClientesOf.forEach(cli => {
+                    cli.conexoes.sort((a, b) => {
+                        const ta = new Date(a.data_conexao || 0).getTime() || 0;
+                        const tb = new Date(b.data_conexao || 0).getTime() || 0;
+                        return tb - ta;
+                    });
+                });
+                listaClientesOf.sort((a, b) => {
+                    const ta = new Date(a.conexoes[0]?.data_conexao || 0).getTime() || 0;
+                    const tb = new Date(b.conexoes[0]?.data_conexao || 0).getTime() || 0;
+                    return tb - ta;
+                });
+
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${listaClientesOf.length}</strong> clientes consolidados (<strong class="text-[#0985ff] font-bold">${ofFiltrados.length}</strong> conexões Open Finance)`;
+
+                if (listaClientesOf.length === 0) {
                     divLista.innerHTML = `
                         <div class="text-center py-16 text-slate-400">
                             <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
@@ -1393,32 +1486,72 @@ let todosOsClientes = [];
                 }
 
                 let htmlOf = '';
-                ofFiltrados.forEach(cliente => {
-                    const dataFormatada = MC_CONFIG.formatDate(cliente.data_conexao);
-                    const nomeSeguro = MC_CONFIG.escapeHtml(cliente.cliente);
-                    const clienteId = cliente.id || Math.random().toString(36).substring(7);
-                    const isSecuritizadora = cliente.tipo === 'securitizadora' || (cliente.cliente && cliente.cliente.toUpperCase().includes('SECURITIZADORA'));
+                listaClientesOf.forEach((cli, idx) => {
+                    const totalConexoes = cli.conexoes.length;
+                    const conexaoRecente = cli.conexoes[0];
+                    const dataFormatada = MC_CONFIG.formatDate(conexaoRecente.data_conexao);
+                    const nomeSeguro = MC_CONFIG.escapeHtml(cli.nome);
+                    const idOf = `of-accordion-${idx}-${cli.chave.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const isSecuritizadora = cli.tipo === 'securitizadora' || (cli.nome && cli.nome.toUpperCase().includes('SECURITIZADORA'));
 
                     const badgeOf = isSecuritizadora
                         ? `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase font-bold rounded-md border border-emerald-200 flex items-center gap-1"><i class="fa-solid fa-building-shield"></i> Conta Securitizadora MC</span>`
                         : `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
+
+                    const badgeTotalConexoes = `
+                        <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-[#0985ff] border border-blue-200 flex items-center gap-1">
+                            <i class="fa-solid fa-link text-[#0985ff]"></i> ${totalConexoes} ${totalConexoes === 1 ? 'conexão' : 'conexões'}
+                        </span>
+                    `;
+
+                    // Linhas da gaveta de conexões caso haja mais de 1
+                    let htmlSubConexoes = '';
+                    cli.conexoes.forEach((con, cIdx) => {
+                        const dataCon = MC_CONFIG.formatDate(con.data_conexao);
+                        const itemIdCurto = con.item_id ? (con.item_id.slice(0, 16) + '..') : '---';
+                        htmlSubConexoes += `
+                            <div class="flex items-center justify-between p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 text-xs gap-2 flex-wrap">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-5 h-5 rounded-full bg-blue-100 text-[#0985ff] flex items-center justify-center font-bold text-[10px]">${cIdx + 1}</span>
+                                    <span class="text-slate-600"><i class="fa-regular fa-clock mr-1 text-slate-400"></i> ${dataCon}</span>
+                                    <span class="font-mono text-[10px] text-slate-400">(${itemIdCurto})</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a href="extratos.html?item=${encodeURIComponent(con.item_id)}&cliente=${encodeURIComponent(cli.nome)}" target="_blank" class="btn-brand-primary text-white px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1">
+                                        <i class="fa-solid fa-address-card"></i> Dossiê & Extrato
+                                    </a>
+                                    <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(con.item_id)}', 'det-sub-of-${idx}-${cIdx}', '${nomeSeguro}')" class="bg-white hover:bg-slate-100 text-[#010157] border border-slate-200 px-2 py-1 rounded-lg text-[11px] font-bold transition">
+                                        <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia
+                                    </button>
+                                </div>
+                                <div id="det-sub-of-${idx}-${cIdx}" class="hidden w-full bg-white border border-slate-200 rounded-lg p-3 mt-2"></div>
+                            </div>
+                        `;
+                    });
 
                     const botoesAcao = isSecuritizadora
                         ? `
                             <a href="securitizadora.html" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
                                 <i class="fa-solid fa-landmark"></i> Abrir Ambiente Securitizadora
                             </a>
-                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(conexaoRecente.item_id)}', 'detalhe-of-${idx}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
                                 <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia Rápida
                             </button>
                         `
                         : `
-                            <a href="extratos.html?item=${encodeURIComponent(cliente.item_id)}&cliente=${encodeURIComponent(cliente.cliente)}" target="_blank" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm" title="Abrir Dossiê Cadastral e Extrato Completo (Entradas, Saídas, Contas e Identidade)">
+                            <a href="extratos.html?item=${encodeURIComponent(conexaoRecente.item_id)}&cliente=${encodeURIComponent(cli.nome)}" target="_blank" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm" title="Abrir Dossiê Cadastral e Extrato Completo">
                                 <i class="fa-solid fa-address-card"></i> Dossiê & Extrato
                             </a>
-                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(cliente.item_id)}', 'detalhe-of-${clienteId}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir prévia rápida inline">
+                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(conexaoRecente.item_id)}', 'detalhe-of-${idx}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir prévia rápida inline">
                                 <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia
                             </button>
+                            ${totalConexoes > 1 ? `
+                                <button type="button" onclick="toggleAccordionOf('${idOf}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                                    <i class="fa-solid fa-network-wired text-[#0985ff]"></i>
+                                    <span>Conexões (${totalConexoes})</span>
+                                    <i id="chev-${idOf}" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
+                                </button>
+                            ` : ''}
                         `;
 
                     const cardBg = isSecuritizadora ? 'bg-gradient-to-r from-emerald-50/30 via-white to-white border-emerald-300/80 shadow-md ring-1 ring-emerald-200/50' : 'bg-white border-slate-200/90 shadow-sm';
@@ -1428,24 +1561,38 @@ let todosOsClientes = [];
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div>
                                     <div class="flex items-center gap-2 flex-wrap">
-                                        <h3 class="font-bold text-[#010157] text-sm">${nomeSeguro}</h3>
+                                        <h3 class="font-bold text-[#010157] text-sm md:text-base">${nomeSeguro}</h3>
                                         ${badgeOf}
+                                        ${badgeTotalConexoes}
                                     </div>
                                     <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-                                        <i class="fa-regular fa-clock"></i> Conectado em: ${dataFormatada}
+                                        <i class="fa-regular fa-clock"></i> Conectado mais recentemente em: ${dataFormatada}
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
                                     ${botoesAcao}
                                 </div>
                             </div>
-                            <div id="detalhe-of-${clienteId}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
+
+                            <!-- Acordeão de múltiplas conexões do mesmo cliente -->
+                            ${totalConexoes > 1 ? `
+                                <div id="${idOf}" class="hidden mt-4 pt-4 border-t border-slate-100 space-y-2">
+                                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                        <span><i class="fa-solid fa-clock-rotate-left text-[#0985ff] mr-1"></i> Todas as ${totalConexoes} conexões deste cliente</span>
+                                        <span class="text-slate-400 font-normal">Open Finance Brasil</span>
+                                    </div>
+                                    ${htmlSubConexoes}
+                                </div>
+                            ` : ''}
+
+                            <div id="detalhe-of-${idx}" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-5 mt-4"></div>
                         </div>
                     `;
                 });
                 divLista.innerHTML = htmlOf;
             }
         }
+
 
         function copiarLinkPagamento(url) {
             navigator.clipboard.writeText(url).then(() => {
@@ -2206,18 +2353,54 @@ let todosOsClientes = [];
             }
         }
 
+        function atualizarParcelasPorDatas() {
+            const elInicio = document.getElementById("dataInicio");
+            const elFim = document.getElementById("dataFim");
+            const elParcelas = document.getElementById("parcelasPix");
+            if (!elInicio || !elFim || !elParcelas) return;
+            if (elInicio.value && elFim.value) {
+                const [y1, m1, d1] = elInicio.value.split('-').map(Number);
+                const [y2, m2, d2] = elFim.value.split('-').map(Number);
+                let diff = (y2 - y1) * 12 + (m2 - m1);
+                if (d2 >= d1) diff += 1;
+                if (diff > 0) {
+                    elParcelas.value = Math.min(Math.max(diff, 1), 60);
+                }
+            }
+        }
+
+        function atualizarDataFimPorParcelas() {
+            const elInicio = document.getElementById("dataInicio");
+            const elFim = document.getElementById("dataFim");
+            const elParcelas = document.getElementById("parcelasPix");
+            if (!elInicio || !elFim || !elParcelas) return;
+            const p = parseInt(elParcelas.value, 10);
+            if (!p || p < 1) return;
+            if (elInicio.value) {
+                const [y, m, d] = elInicio.value.split('-').map(Number);
+                const dataBase = new Date(y, m - 1, d);
+                dataBase.setMonth(dataBase.getMonth() + (p - 1));
+                const anoStr = dataBase.getFullYear();
+                const mesStr = String(dataBase.getMonth() + 1).padStart(2, '0');
+                const diaStr = String(dataBase.getDate()).padStart(2, '0');
+                elFim.value = `${anoStr}-${mesStr}-${diaStr}`;
+            }
+        }
+
         function inicializarDatasFormularioPix() {
             const elInicio = document.getElementById("dataInicio");
             const elFim = document.getElementById("dataFim");
+            const elParcelas = document.getElementById("parcelasPix");
             if (elInicio && !elInicio.value) {
                 const d = new Date();
                 d.setDate(d.getDate() + 1);
                 elInicio.value = d.toISOString().split('T')[0];
             }
+            if (elParcelas && !elParcelas.value) {
+                elParcelas.value = "12";
+            }
             if (elFim && !elFim.value) {
-                const dFim = new Date();
-                dFim.setFullYear(dFim.getFullYear() + 1);
-                elFim.value = dFim.toISOString().split('T')[0];
+                atualizarDataFimPorParcelas();
             }
         }
 
