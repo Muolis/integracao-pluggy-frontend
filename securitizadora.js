@@ -240,22 +240,22 @@ let contasSecuritizadora = [];
 
                     return `
                         <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition text-xs">
-                            <td class="py-3 px-6 whitespace-nowrap text-slate-600 font-mono text-[11px]">
+                            <td class="py-3 px-3 sm:px-4 md:px-5 whitespace-nowrap text-slate-600 font-mono text-[11px]">
                                 ${t.data}
                             </td>
-                            <td class="py-3 px-6 text-slate-800 font-medium max-w-md">
+                            <td class="py-3 px-3 sm:px-4 md:px-5 text-slate-800 font-medium max-w-xs md:max-w-md">
                                 <div class="truncate" title="${MC_CONFIG.escapeHtml(t.descricao)}">${MC_CONFIG.escapeHtml(t.descricao)}</div>
                                 ${contraparteHtml}
                             </td>
-                            <td class="py-3 px-6 whitespace-nowrap">
+                            <td class="py-3 px-3 sm:px-4 md:px-5 whitespace-nowrap">
                                 <span class="bg-blue-50/80 text-[#0985ff] border border-blue-100 px-2 py-0.5 rounded-md text-[10px] font-semibold">
                                     ${MC_CONFIG.escapeHtml(t.categoria)}
                                 </span>
                             </td>
-                            <td class="py-3 px-6 text-center whitespace-nowrap">
+                            <td class="py-3 px-3 sm:px-4 md:px-5 text-center whitespace-nowrap">
                                 ${badgeTipo}
                             </td>
-                            <td class="py-3 px-6 text-right whitespace-nowrap font-mono text-sm ${corValor}">
+                            <td class="py-3 px-3 sm:px-4 md:px-5 text-right whitespace-nowrap font-mono text-sm ${corValor}">
                                 ${t.valor_formatado}
                             </td>
                         </tr>

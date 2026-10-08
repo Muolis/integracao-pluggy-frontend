@@ -26,6 +26,8 @@
             border: 1px solid rgba(9, 133, 255, 0.30);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 35px -5px rgba(9, 133, 255, 0.25);
         }
+        * { box-sizing: border-box; }
+        html, body { max-width: 100%; overflow-x: hidden; }
         .btn-brand {
             background: linear-gradient(135deg, #0985ff 0%, #0772dc 100%);
             box-shadow: 0 10px 25px -5px rgba(9, 133, 255, 0.4);
@@ -36,9 +38,9 @@
         }
     </style>
 </head>
-<body class="bg-brand min-h-screen flex items-center justify-center p-4 antialiased text-slate-100">
+<body class="bg-brand min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6 antialiased text-slate-100">
 
-    <main class="max-w-md w-full glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden">
+    <main class="max-w-md w-full glass-card rounded-3xl p-6 sm:p-8 md:p-10 relative overflow-hidden">
         
         <!-- Linha de gradiente no topo oficial (#0985ff para #010157) -->
         <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0985ff] via-sky-400 to-[#010157]"></div>

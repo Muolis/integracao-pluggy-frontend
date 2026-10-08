@@ -381,27 +381,27 @@ const parametrosUrl = new URLSearchParams(window.location.search);
 
                 htmlRows += `
                     <tr class="hover:bg-slate-50/80 transition group">
-                        <td class="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        <td class="py-2.5 px-2.5 sm:px-3 md:px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
                             ${dataFormatada}
                         </td>
-                        <td class="py-3 px-4 text-slate-800 font-medium">
+                        <td class="py-2.5 px-2.5 sm:px-3 md:px-4 text-slate-800 font-medium">
                             <div class="flex items-center gap-2">
                                 ${badgeTipo}
                                 <span class="truncate max-w-xs md:max-w-sm" title="${desc}">${desc}</span>
                             </div>
                         </td>
-                        <td class="py-3 px-4 text-slate-600">
+                        <td class="py-2.5 px-2.5 sm:px-3 md:px-4 text-slate-600">
                             <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[10px] font-medium border border-slate-200/60">
                                 ${cat}
                             </span>
                         </td>
-                        <td class="py-3 px-4 text-slate-500 text-[11px]">
+                        <td class="py-2.5 px-2.5 sm:px-3 md:px-4 text-slate-500 text-[11px]">
                             ${contaNome} <span class="font-mono text-slate-400">(${contaNum})</span>
                         </td>
-                        <td class="py-3 px-4 text-slate-500 text-[11px] truncate max-w-xs">
+                        <td class="py-2.5 px-2.5 sm:px-3 md:px-4 text-slate-500 text-[11px] truncate max-w-xs">
                             ${contraparte}
                         </td>
-                        <td class="py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${corValor}">
+                        <td class="py-2.5 px-2.5 sm:px-3 md:px-4 text-right font-mono text-xs whitespace-nowrap ${corValor}">
                             ${sinal}${valorFormatado}
                         </td>
                     </tr>
