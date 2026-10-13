@@ -8,7 +8,7 @@
 * **Data / Hora**: 13 de Outubro de 2026, 12:25 (Horário de Brasília)
 * **Status**: 🧹 **Auditoria e Limpeza Concluídas • Sistema de Memória e Controle Implantado • 31/31 Testes Aprovados**.
 * **Conta de Autoria Git**: `TI Suporte MC Minhaconta <ti.suportemcminhaconta@gmail.com>`
-* **Branch de Trabalho**: `main` (`https://github.com/Muolis/integracao-pluggy-frontend.git`)
+* **Commit Local**: `07f0f38` (Branch `main`)
 * **Integridade dos Testes Automatizados**: **31 de 31 testes aprovados** (`.venv\Scripts\python.exe test_backend.py`).
 
 ---
