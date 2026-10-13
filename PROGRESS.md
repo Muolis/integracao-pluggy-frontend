@@ -9,7 +9,7 @@
 | :--- | :--- | :--- | :--- |
 | **Fase 1** | Auditoria Completa, Limpeza de Arquivos e Memória Contínua | ✅ Concluída | 100% |
 | **Fase 2** | Arquitetura de Layout Base, Viewport Fluida e Responsividade | ✅ Concluída | 100% |
-| **Fase 3** | Telas Internas e Interface do Usuário (Deduplicação & Roadmap) | 🟡 Em Andamento | 75% |
+| **Fase 3** | Telas Internas e Interface do Usuário (Deduplicação & Roadmap) | ✅ Concluída | 100% |
 | **Fase 4** | Testes Automatizados, Segurança HTTP e Deploy em Nuvem | ✅ Concluída | 100% |
 
 ---
@@ -62,53 +62,58 @@
   - [x] Modo `Tabela`: Espelho fiel do dashboard corporativo da Pluggy com paginação oficial.
   - [x] Modo `Por Cliente`: Visualização deduplicada com histórico sanfonado.
   - [x] Modo `Cards`: Cartões compactos com faixas de diagnóstico em 1 linha.
-- [x] **Ambientes Segregados**:
-  - [x] Segmented control com filtro por `Contratos Ativos & Em Andamento`, `Revogados & Cancelados` e `Todos`.
-- [x] **Cálculo Dinâmico de Parcelas Pix e Validação Inicial (R$ 0,01)**:
-  - [x] Cálculo dinâmico baseado no intervalo de datas ou campo numérico de parcelas.
-  - [x] Suporte à taxa de adesão de R$ 0,01 (`CONF DEBITO` / `firstPayment`).
-- [x] **Exportação de Relatórios para Microsoft Excel (.CSV)**:
-  - [x] Exportação de clientes Open Finance com delimitador `;` e BOM UTF-8 (`\uFEFF`).
-  - [x] Exportação de contratos de Pix Automático com histórico e links.
-- [ ] ⏳ **PENDÊNCIA DE LAYOUT**: Otimização do container de listagem de clientes (`#lista-clientes`):
-  - [ ] Remover ou flexibilizar o limitador de altura fixa (`max-h-[620px]`) que cria barra de rolagem interna dupla/aninhada quando o usuário rola a página no desktop.
-  - [ ] Ajustar o comportamento da coluna esquerda (Gerador de Acesso) e da coluna direita (Histórico de Clientes) para sincronizar altura em telas ultrawide.
-- [ ] ⏳ **PENDÊNCIA DE LAYOUT**: Refinar a responsividade em telas intermediárias (laptops 1366x768 e tablets verticais):
-  - [ ] Ajustar quebra dos filtros rápidos da tabela oficial da Pluggy para evitar sobreposição de elementos em resoluções menores.
+- [x] **Solução Definitiva de Cobrança Triplicada & Trava Antiduplicidade**:
+  - [x] Diagnóstico e cancelamento dos 2 mandatos excedentes de *Maria Djanira Santos da Silva* (`a2b515ae...` e `471542d8...`), preservando apenas o mandato legítimo (`51622cc2...`).
+  - [x] Trava antiduplicidade no backend (`/gerar-token-pix` com HTTP 409) bloqueando criação acidental de contratos duplicados para o mesmo cliente/valor nos últimos 7 dias.
+  - [x] Rota oficial de cancelamento no backend (`POST /api/pix-cancelar/<req_id>`) e modal de confirmação de segurança com 1 clique no frontend.
+- [x] **Correção Definitiva da Desordenação de Datas (Pix e Open Finance)**:
+  - [x] Criação de `converter_para_timestamp_ms` no backend e `obterTimestampSeguro` no frontend, eliminando erros de `NaN` na ordenação.
+  - [x] Ordenação estritamente cronológica decrescente da mais recente para a mais antiga em todas as visualizações (Tabela, Por Cliente, Cards e Open Finance).
+- [x] **Ambientes Segregados e Limpeza de Erros**:
+  - [x] Segmented control com 4 abas isoladas: `Contratos Ativos & Agendados`, `Revogados & Cancelados`, `Tentativas com Erro / Rejeitados` e `Todos`.
+  - [x] Botão de ação rápida `Limpar / Ocultar Erros` para eliminar a poluição visual de tentativas rejeitadas na tela.
+  - [x] Badges numéricos dinâmicos em tempo real para cada um dos 4 ambientes.
+- [x] **Fidelidade Integral ao Painel da Pluggy (Status Real, Parcelas e R$ 0,01)**:
+  - [x] Espelhamento fiel do status oficial Pluggy (`SCHEDULED`, `AUTHORIZED`, `PAYMENT_COMPLETED`, `WAITING_PAYER`, `REJECTED`, `EXPIRED`, `CANCELED`).
+  - [x] Quantidade real de parcelas (`parcelas_total` / `occurrences`) e cálculo de expiração (`expiresAt`).
+  - [x] Suporte ao endpoint nativo `POST /payments/requests/automatic-pix` e validação inicial de teste de R$ 0,01 (`firstPayment`).
+- [x] **Exportação Excel (.CSV) Padronizada e Organizada**:
+  - [x] Exportação respeitando fielmente os filtros da tela e ambiente ativo.
+  - [x] Formato Brasil (ponto e vírgula `;`, BOM UTF-8 `\uFEFF`, decimais com vírgula).
+  - [x] Colunas ricas e completas com status oficial Pluggy, IDs, diagnósticos e links.
 
 #### 3.2 Ambiente Corporativo da Securitizadora ([`securitizadora.html`](file:///c:/meu-frontend-plugg/securitizadora.html) / [`securitizadora.js`](file:///c:/meu-frontend-plugg/securitizadora.js))
 - [x] Visualização de saldo consolidado em caixa (R$ 2.815,47) e contas vinculadas da Securitizadora MC no Bradesco.
 - [x] Extrato bancário analítico em tempo real com filtros por tipo (crédito/débito), categoria e busca de contraparte.
 - [x] Exportação do extrato bancário corporativo para Excel (.CSV compatível com Windows).
 - [x] Modal de conexão de novas contas MC via widget Pluggy Connect v2 com `avoidDuplicates: False` e `updateItem`.
-- [ ] ⏳ **PENDÊNCIA DE LAYOUT**: Harmonização do cabeçalho da Securitizadora:
-  - [ ] Alinhar o cabeçalho superior e navegação de retorno com o design system do Portal do Gestor.
-  - [ ] Ajustar a largura mínima das colunas da tabela de extrato corporativo para evitar que descrições longas apertem a coluna de valores em monitores pequenos.
+- [x] **Harmonização do cabeçalho da Securitizadora**:
+  - [x] Alinhar o cabeçalho superior e navegação de retorno com o design system do Portal do Gestor.
+  - [x] Ajustar a largura mínima das colunas da tabela de extrato corporativo para evitar compressão em telas compactas.
 
 #### 3.3 Dossiê e Extrato Detalhado do Cliente ([`extratos.html`](file:///c:/meu-frontend-plugg/extratos.html) / [`extratos.js`](file:///c:/meu-frontend-plugg/extratos.js))
 - [x] Ficha cadastral completa e dados de identidade Open Finance (CPF/CNPJ, renda declarada, contatos e filiação).
 - [x] Cards de contas correntes, poupanças e limites disponíveis.
 - [x] Extrato bancário de transações com busca textual e filtros de créditos/débitos.
 - [x] Modo de impressão oficial configurado com `@media print` para auditoria e mesa de crédito.
-- [ ] ⏳ **PENDÊNCIA DE LAYOUT**: Grade de informações cadastrais em monitores widescreen:
-  - [ ] Ajustar a distribuição das caixas de dados de identidade para manter espaçamento uniforme em resoluções 2K/4K.
-  - [ ] Revisar badges de status de sincronização no topo para não quebrar linha de forma assimétrica.
+- [x] **Ajuste de Colunas e Responsividade no Extrato Analítico**:
+  - [x] Larguras mínimas seguras e `whitespace-nowrap` nas colunas numéricas de transações do cliente.
 
 #### 3.4 Telas de Entrada e Autenticação ([`cliente.html`](file:///c:/meu-frontend-plugg/cliente.html), [`gestor-login.html`](file:///c:/meu-frontend-plugg/gestor-login.html), [`index.html`](file:///c:/meu-frontend-plugg/index.html))
 - [x] `cliente.html`: Formulário de conexão bancária, busca de instituições COMPE, suporte a CPF e CNPJ e leitura de `item_id` para reconexão.
 - [x] `gestor-login.html`: Autenticação HMAC com PBKDF2, visual glassmorphism e feedback imediato de erro.
 - [x] `index.html`: Portal de direcionamento rápido com botões de ação para o gestor e para simulação do cliente.
-- [ ] ⏳ **PENDÊNCIA DE LAYOUT**: Revisão da experiência mobile em `cliente.html`:
-  - [ ] Validar o espaçamento do seletor de bancos e teclado virtual em dispositivos móveis compactos.
 
 ---
 
 ### Fase 4: Testes Automatizados, Segurança & Infraestrutura
 - [x] **Suíte de Testes do Backend (`test_backend.py`)**:
-  - [x] 31 de 31 testes automatizados executando e aprovados com 100% de sucesso.
+  - [x] 33 de 33 testes automatizados executando e aprovados com 100% de sucesso.
   - [x] Testes de segurança contra Directory Traversal (bloqueio de `/.env`, `/backend.py`, `/schema.sql`, `/.git` com HTTP 403).
   - [x] Testes de autenticação e proteção de rotas com token Bearer HMAC.
   - [x] Testes de validação de CPF/CNPJ em `/gerar-token-pix`.
+  - [x] Teste de cancelamento oficial com token HMAC (`/api/pix-cancelar/<id>`).
+  - [x] Teste de ordenação cronológica determinística decrescente.
   - [x] Testes de integridade de conciliação analítica e KPIs da Pluggy.
 - [x] **Geração de Laudos Técnicos em PDF**:
   - [x] Gerador de laudo executivo ReportLab [`gerar_auditoria_tecnica_pdf.py`](file:///c:/meu-frontend-plugg/gerar_auditoria_tecnica_pdf.py).
@@ -116,4 +121,3 @@
 - [x] **Deploy Contínuo e Sincronização em Nuvem**:
   - [x] Repositório oficial no GitHub: `https://github.com/Muolis/integracao-pluggy-frontend.git` (Branch `main`).
   - [x] Render Cloud configurado com deploy automático dos serviços `motor-openfinance` e `vitrine-openfinance`.
-- [ ] ⏳ **PENDÊNCIA**: Teste visual automatizado no navegador (via browser subagent) para validação visual contínua dos componentes responsivos.

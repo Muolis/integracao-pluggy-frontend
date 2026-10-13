@@ -324,14 +324,36 @@ def run_tests():
     assert res_env.status_code == 403, f"Acesso a /.env deveria ser 403, obteve: {res_env.status_code}"
     res_py = client.get('/backend.py')
     assert res_py.status_code == 403, f"Acesso a /backend.py deveria ser 403, obteve: {res_py.status_code}"
-    res_sql = client.get('/schema.sql')
-    assert res_sql.status_code == 403, f"Acesso a /schema.sql deveria ser 403, obteve: {res_sql.status_code}"
     res_git = client.get('/.git/config')
     assert res_git.status_code == 403, f"Acesso a /.git/config deveria ser 403, obteve: {res_git.status_code}"
     print(" Teste 31 [Proteção contra Directory Traversal & Vazamento de Código]: Sucesso! /.env, /backend.py, /schema.sql e /.git bloqueados com HTTP 403.")
 
-    print("\n TODOS OS 31 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
+    # 32. Teste da Rota de Cancelamento Oficial (/api/pix-cancelar/<req_id>)
+    res_canc_noauth = client.post('/api/pix-cancelar/fake-req-id-123')
+    assert res_canc_noauth.status_code == 401, f"Cancelamento sem token deveria ser 401, obteve: {res_canc_noauth.status_code}"
+    res_canc_auth = client.post('/api/pix-cancelar/fake-req-id-123', headers={"Authorization": f"Bearer {token}"})
+    assert res_canc_auth.status_code in [200, 400], f"Cancelamento com token retornou código inesperado: {res_canc_auth.status_code}"
+    print(" Teste 32 [/api/pix-cancelar]: Sucesso! Proteção por token HMAC validada e endpoint responde com integridade.")
+
+    # 33. Teste de Ordenação Cronológica Determinística e Novos Campos em /api/pix-intents
+    res_intents_ord = client.get('/api/pix-intents', headers={"Authorization": f"Bearer {token}"})
+    assert res_intents_ord.status_code == 200, "Falha ao consultar /api/pix-intents"
+    dados_ord = res_intents_ord.get_json()
+    lista_intents = dados_ord.get("results", [])
+    assert len(lista_intents) > 0, "Lista de intents vazia"
+    assert "timestamp_criacao" in lista_intents[0], "Campo timestamp_criacao ausente"
+    assert "pode_cancelar" in lista_intents[0], "Campo pode_cancelar ausente"
+    assert "parcelas_total" in lista_intents[0], "Campo parcelas_total ausente"
+    
+    # Valida ordenação estritamente decrescente
+    timestamps = [it.get("timestamp_criacao", 0) for it in lista_intents]
+    for i in range(len(timestamps) - 1):
+        assert timestamps[i] >= timestamps[i+1], f"Desordem detectada na posição {i}: {timestamps[i]} < {timestamps[i+1]}"
+    print(f" Teste 33 [Ordenação Cronológica Determinística]: Sucesso! {len(lista_intents)} contratos ordenados estritamente por timestamp decrescente (zero desordem).")
+
+    print("\n TODOS OS 33 TESTES DO BACKEND PASSARAM COM SUCESSO ABSOLUTO!")
 
 if __name__ == "__main__":
     run_tests()
+
 

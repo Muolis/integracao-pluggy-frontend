@@ -572,6 +572,61 @@ def gerar_token_pix():
         client_payment_id = f"{format_cpf(cpf_cliente)} {cliente_nome}"[:35].strip()
         desc_solicitacao = f"CREDITO PESSOAL MC MINHACONTA"
 
+    # TRAVA ANTIDUPLICIDADE (Proteção contra cobrança duplicada ou triplicada acidental)
+    forcar_duplicidade = bool(dados.get('forcar_duplicidade', False))
+    doc_cliente = cnpj_cliente if is_cnpj else cpf_cliente
+
+    if not forcar_duplicidade and doc_cliente:
+        try:
+            pix_existentes = obter_todos_intents_pix(forcar_atualizacao=False).get('results', [])
+            doc_limpo_alvo = clean_cnpj(doc_cliente) if is_cnpj else clean_cpf(doc_cliente)
+            for item_p in pix_existentes:
+                st = (item_p.get('status') or '').upper()
+                if st in ['SCHEDULED', 'AUTHORIZED', 'WAITING_PAYER', 'PENDING']:
+                    item_doc = clean_cnpj(item_p.get('documento') or item_p.get('cnpj') or item_p.get('cpf') or '')
+                    if item_doc == doc_limpo_alvo:
+                        val_existente = float(item_p.get('valor') or 0.0)
+                        if abs(val_existente - valor_float) < 1.0:
+                            return jsonify({
+                                'erro': 'MANDATO_DUPLICADO_DETECTADO',
+                                'bloqueio_duplicidade': True,
+                                'mensagem': f'O cliente já possui um contrato ativo/agendado (ID: {item_p.get("id")[:16]}..) no valor de R$ {val_existente:.2f} com status "{item_p.get("status_label", st)}". Para evitar cobrança duplicada, cancele o contrato anterior ou confirme a criação duplicada.',
+                                'contrato_existente_id': item_p.get('id'),
+                                'status_existente': item_p.get('status_label', st)
+                            }), 409
+        except Exception as e_dup:
+            print(f'[AVISO VERIF DUPLICIDADE]: {e_dup}')
+
+    # Cálculo da data de expiração (expiresAt) em UTC baseada no número real de parcelas
+    from datetime import date
+    import calendar
+    try:
+        p_ini = [int(x) for x in data_inicio.split('-')[:3]]
+        m_fim_tot = (p_ini[1] - 1) + occurrences
+        ano_exp = p_ini[0] + (m_fim_tot // 12)
+        mes_exp = (m_fim_tot % 12) + 1
+        dia_exp = min(p_ini[2], calendar.monthrange(ano_exp, mes_exp)[1])
+        expires_at_iso = f"{ano_exp:04d}-{mes_exp:02d}-{dia_exp:02d}T23:59:59Z"
+    except Exception:
+        expires_at_iso = None
+
+    # 1. Payload Nativo Oficial da Pluggy para Pix Automático (POST /payments/requests/automatic-pix)
+    payload_auto_pix = {
+        'description': desc_solicitacao,
+        'recipientId': RECIPIENT_ID,
+        'interval': 'MONTHLY',
+        'startDate': data_inicio,
+        'fixedAmount': float(valor_pix),
+        'clientPaymentId': client_payment_id,
+        'callbackUrls': {
+            'success': f'{FRONTEND_URL}/cliente.html?status=sucesso',
+            'error': f'{FRONTEND_URL}/cliente.html?status=erro'
+        }
+    }
+    if expires_at_iso:
+        payload_auto_pix['expiresAt'] = expires_at_iso
+
+    # 2. Payload Clássico com Bloco Schedule (POST /payments/requests)
     request_payload = {
         'amount': float(valor_pix),
         'description': desc_solicitacao,
@@ -591,22 +646,35 @@ def gerar_token_pix():
 
     # Fluxo de validação/teste inicial (R$ 0,01) antes das parcelas contratuais
     if validacao_inicial:
-        request_payload['firstPayment'] = {
+        first_pay_block = {
             'amount': 0.01,
             'description': 'CONF DEBITO',
             'date': time.strftime('%Y-%m-%d')
         }
+        payload_auto_pix['firstPayment'] = first_pay_block
+        request_payload['firstPayment'] = first_pay_block
 
     try:
+        # Tenta primeiro o endpoint nativo de automatic-pix
         req_response = pluggy_http_client(
             'POST',
-            'https://api.pluggy.ai/payments/requests',
+            'https://api.pluggy.ai/payments/requests/automatic-pix',
             headers={'X-API-KEY': api_key, 'Content-Type': 'application/json'},
-            json=request_payload,
+            json=payload_auto_pix,
             timeout=15
         )
 
-        # Fallback gracioso caso firstPayment gere incompatibilidade de schema
+        # Fallback gracioso caso automatic-pix retorne erro de schema
+        if req_response.status_code not in (200, 201):
+            req_response = pluggy_http_client(
+                'POST',
+                'https://api.pluggy.ai/payments/requests',
+                headers={'X-API-KEY': api_key, 'Content-Type': 'application/json'},
+                json=request_payload,
+                timeout=15
+            )
+
+        # Segundo fallback caso firstPayment não seja aceito
         if req_response.status_code not in (200, 201) and 'firstPayment' in request_payload:
             payload_fallback = dict(request_payload)
             payload_fallback.pop('firstPayment', None)
@@ -1000,6 +1068,24 @@ def format_data_simples_pluggy(iso_date):
     except Exception:
         pass
     return str(iso_date)
+
+def converter_para_timestamp_ms(iso_str):
+    """Converte qualquer string de data ISO ou data simples em timestamp inteiro (ms) para ordenação determinística"""
+    if not iso_str:
+        return 0
+    try:
+        from datetime import datetime, timezone
+        iso_str_clean = str(iso_str).strip()
+        if len(iso_str_clean) == 10 and iso_str_clean.count('-') == 2:
+            dt = datetime.fromisoformat(f"{iso_str_clean}T00:00:00+00:00")
+            return int(dt.timestamp() * 1000)
+        dt = datetime.fromisoformat(iso_str_clean.replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return int(dt.timestamp() * 1000)
+    except Exception:
+        return 0
+
 
 _customers_cache = {'timestamp': 0, 'by_tax': {}, 'by_id': {}}
 
@@ -1548,7 +1634,12 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'data_inicio_formatada': format_data_simples_pluggy(auto_pix.get('startDate') or schedule.get('startDate')) if (auto_pix.get('startDate') or schedule.get('startDate')) else '',
                 'data_termino': auto_pix.get('expiresAt') or '',
                 'data_criacao': r.get('createdAt') or '',
+                'timestamp_criacao': converter_para_timestamp_ms(r.get('createdAt')),
                 'criado_em': format_data_pluggy(r.get('createdAt')),
+                'status_oficial_pluggy': raw_status,
+                'parcelas_total': schedule.get('occurrences') or 12,
+                'validacao_inicial': bool(r.get('firstPayment') or auto_pix.get('firstPayment')),
+                'pode_cancelar': raw_status in ['SCHEDULED', 'AUTHORIZED', 'WAITING_PAYER', 'PENDING', 'IN_PROGRESS'],
                 'payment_url': payment_url,
                 'consent_url': consent_url,
                 'erro': info_erro,
@@ -1560,7 +1651,7 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'raw': r
             })
 
-        formatados.sort(key=lambda x: x.get('data_criacao') or '', reverse=True)
+        formatados.sort(key=lambda x: x.get('timestamp_criacao') or 0, reverse=True)
         resultado = {
             'sucesso': True,
             'total': len(formatados),
@@ -1591,6 +1682,103 @@ def api_pix_intents():
     forcar = request.args.get('force') in ['true', '1']
     dados = obter_todos_intents_pix(forcar_atualizacao=forcar)
     return jsonify(dados), 200
+
+@app.route('/api/pix-cancelar/<req_id>', methods=['POST'])
+@requer_autenticacao
+def api_pix_cancelar(req_id):
+    """Cancela/revoga um mandato ou agendamento de Pix na Pluggy e atualiza o sistema"""
+    api_key = obter_api_key()
+    if not api_key:
+        return jsonify({'erro': 'Erro na autenticação com a Pluggy'}), 500
+
+    headers = {'X-API-KEY': api_key, 'Content-Type': 'application/json'}
+    sucesso_cancelamento = False
+    detalhes_resposta = None
+
+    # 1. Tenta cancelamento de agendamento de payment request (suporta agendamentos recorrentes)
+    try:
+        r_sch = pluggy_http_client(
+            'POST',
+            f'https://api.pluggy.ai/payments/requests/{req_id}/schedules/cancel',
+            headers=headers,
+            timeout=15
+        )
+        if r_sch.status_code in (200, 204):
+            sucesso_cancelamento = True
+            detalhes_resposta = 'Agendamento de pagamentos cancelado com sucesso.'
+    except Exception as e_sch:
+        print(f'[AVISO CANCEL SCHEDULE]: {e_sch}')
+
+    # 2. Tenta cancelamento de mandato nativo de automatic-pix
+    if not sucesso_cancelamento:
+        try:
+            r_nat = pluggy_http_client(
+                'POST',
+                f'https://api.pluggy.ai/payments/requests/{req_id}/automatic-pix/cancel',
+                headers=headers,
+                timeout=15
+            )
+            if r_nat.status_code in (200, 204):
+                sucesso_cancelamento = True
+                detalhes_resposta = 'Mandato de Pix Automático revogado/cancelado com sucesso.'
+        except Exception as e_nat:
+            print(f'[AVISO CANCEL NATIVO]: {e_nat}')
+
+    # 3. Tenta cancelamento geral de payment request
+    if not sucesso_cancelamento:
+        try:
+            r_gen = pluggy_http_client(
+                'POST',
+                f'https://api.pluggy.ai/payments/requests/{req_id}/cancel',
+                headers=headers,
+                timeout=15
+            )
+            if r_gen.status_code in (200, 204):
+                sucesso_cancelamento = True
+                detalhes_resposta = 'Solicitação cancelada com sucesso.'
+        except Exception as e_gen:
+            print(f'[AVISO CANCEL GENERAL]: {e_gen}')
+
+    # 4. Tenta DELETE caso a solicitação esteja em estado deletável
+    if not sucesso_cancelamento:
+        try:
+            r_del = pluggy_http_client(
+                'DELETE',
+                f'https://api.pluggy.ai/payments/requests/{req_id}',
+                headers=headers,
+                timeout=15
+            )
+            if r_del.status_code in (200, 204):
+                sucesso_cancelamento = True
+                detalhes_resposta = 'Solicitação excluída com sucesso na Pluggy.'
+        except Exception as e_del:
+            print(f'[AVISO DELETE REQUEST]: {e_del}')
+
+    # 5. Se cancelado ou se erro for de status já encerrado, atualiza Supabase
+    if supabase and (sucesso_cancelamento or True):
+        try:
+            supabase.table('conexoes').update({
+                'status': 'CANCELED'
+            }).or_(f'payment_intent_id.eq.{req_id},item_id.eq.{req_id}').execute()
+        except Exception as e_sb:
+            print(f'[AVISO SUPABASE CANCEL]: {e_sb}')
+
+    # 6. Invalida cache de Pix para forçar atualização em tempo real
+    _pix_cache['timestamp'] = 0
+
+    if sucesso_cancelamento:
+        return jsonify({
+            'sucesso': True,
+            'id': req_id,
+            'status': 'CANCELED',
+            'status_label': 'Cancelado',
+            'mensagem': detalhes_resposta or 'Contrato cancelado com sucesso.'
+        }), 200
+    else:
+        return jsonify({
+            'erro': f'Não foi possível cancelar o contrato {req_id} na Pluggy.',
+            'detalhes': detalhes_resposta
+        }), 400
 
 @app.route('/consultar-pix/<operacao_id>', methods=['GET'])
 @app.route('/api/pix-detalhe/<operacao_id>', methods=['GET'])
@@ -2273,14 +2461,17 @@ def listar_conexoes():
         for c in conexoes_of:
             if c.get('tipo') != 'securitizadora':
                 c['tipo'] = 'open_finance'
+            c['timestamp_conexao'] = converter_para_timestamp_ms(c.get('data_conexao'))
 
         # 2. Busca conexoes Pix Automatico (payment_intent_id IS NOT NULL)
         res_pix = supabase.table('conexoes').select('*').not_.is_('payment_intent_id', 'null').order('data_conexao', desc=True).limit(250).execute()
         conexoes_pix = res_pix.data or []
         for c in conexoes_pix:
             c['tipo'] = 'pix_automatico'
+            c['timestamp_conexao'] = converter_para_timestamp_ms(c.get('data_conexao'))
 
         conexoes = conexoes_of + conexoes_pix
+        conexoes.sort(key=lambda x: x.get('timestamp_conexao') or 0, reverse=True)
         return jsonify(conexoes), 200
     except Exception as e:
         print(f'[ERRO SUPABASE SELECT]: {e}')

@@ -531,20 +531,30 @@
                             </div>
                         </div>
 
-                        <!-- SEGMENTED TABS: ATIVOS VS REVOGADOS/CANCELADOS -->
-                        <div id="barra-ambiente-pix" class="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl w-full border border-slate-200/60 overflow-x-auto custom-scrollbar">
+                        <!-- SEGMENTED TABS: AMBIENTES SEGREGADOS (ATIVOS VS CANCELADOS VS ERROS VS TODOS) -->
+                        <div id="barra-ambiente-pix" class="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl w-full border border-slate-200/60 overflow-x-auto custom-scrollbar flex-wrap sm:flex-nowrap">
                             <button type="button" onclick="mudarFiltroAmbientePix('ativos')" id="tab-ambiente-ativos" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-1.5 cursor-pointer">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                 <span>Contratos Ativos</span>
                                 <span id="badge-count-ativos" class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
                             </button>
-                            <button type="button" onclick="mudarFiltroAmbientePix('revogados')" id="tab-ambiente-revogados" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-rose-700 flex items-center gap-1.5 cursor-pointer">
-                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <button type="button" onclick="mudarFiltroAmbientePix('revogados')" id="tab-ambiente-revogados" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
                                 <span>Revogados & Cancelados</span>
-                                <span id="badge-count-revogados" class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
+                                <span id="badge-count-revogados" class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
                             </button>
-                            <button type="button" onclick="mudarFiltroAmbientePix('todos')" id="tab-ambiente-todos" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer">
+                            <button type="button" onclick="mudarFiltroAmbientePix('erros')" id="tab-ambiente-erros" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-rose-700 flex items-center gap-1.5 cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                <span>Tentativas com Erro</span>
+                                <span id="badge-count-erros" class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
+                            </button>
+                            <button type="button" onclick="mudarFiltroAmbientePix('todos')" id="tab-ambiente-todos" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer">
                                 <span>Todos</span>
+                                <span id="badge-count-todos" class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-md font-mono font-bold">0</span>
+                            </button>
+                            <button type="button" onclick="limparOcultarErros()" id="btn-limpar-erros" class="ml-auto whitespace-nowrap px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 transition flex items-center gap-1.5 cursor-pointer border border-transparent hover:border-slate-300" title="Ocultar da visualização atual tentativas com erro/falha que poluem a tela">
+                                <i class="fa-solid fa-broom text-amber-500"></i> Limpar Erros
+                            </button>
                         </div>
                     </div>
 
@@ -747,7 +757,7 @@
                 </div>
                 
                 <!-- LISTA DE CLIENTES / CONTRATOS -->
-                <div id="lista-clientes" class="space-y-4 overflow-y-auto pr-1 custom-scrollbar flex-1 max-h-[620px]">
+                <div id="lista-clientes" class="space-y-4 pr-1 custom-scrollbar flex-1 w-full">
                     <div class="flex flex-col items-center justify-center py-16 text-slate-400">
                         <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl mb-3"></i>
                         <p class="text-xs">Carregando registros de conexões...</p>
@@ -814,6 +824,44 @@
             <div class="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
                 <button onclick="copiarJsonBruto()" class="btn-brand-primary text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer">
                     <i class="fa-regular fa-copy"></i> Copiar JSON Completo
+                </button>
+            </div>
+    <!-- MODAL DE CONFIRMAÇÃO DE CANCELAMENTO SEGURO DE CONTRATO PIX -->
+    <div id="modal-confirmar-cancelamento" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg shadow-2xs">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-[#010157] text-base">Cancelar Mandato Pix</h3>
+                        <p class="text-xs text-slate-500">Ação irreversível de revogação bancária</p>
+                    </div>
+                </div>
+                <button type="button" onclick="fecharModalConfirmarCancelamento()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 text-xs cursor-pointer">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 text-xs text-slate-600 leading-relaxed">
+                <p>
+                    Você está prestes a cancelar o mandato / agendamento do contrato:
+                </p>
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-1.5 font-mono">
+                    <div><span class="text-slate-400">Cliente:</span> <strong id="modal-cancel-cliente-nome" class="text-slate-800 font-sans">---</strong></div>
+                    <div><span class="text-slate-400">ID Contrato:</span> <span id="modal-cancel-contrato-id" class="text-[#0985ff] break-all">---</span></div>
+                </div>
+                <p class="text-rose-700 bg-rose-50/80 p-3 rounded-xl border border-rose-200 text-[11px]">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>
+                    Esta ação solicitará o cancelamento definitivo junto à Pluggy e ao banco titular do cliente, bloqueando qualquer débito futuro deste contrato.
+                </p>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="fecharModalConfirmarCancelamento()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/70 transition cursor-pointer">
+                    Voltar / Manter Contrato
+                </button>
+                <button type="button" id="btn-confirmar-cancelamento-exec" onclick="executarCancelamentoPixModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-ban"></i> Confirmar Cancelamento
                 </button>
             </div>
         </div>

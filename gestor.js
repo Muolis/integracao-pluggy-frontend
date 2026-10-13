@@ -374,26 +374,150 @@ let todosOsClientes = [];
             }
         }
 
-        let filtroAmbientePix = 'ativos'; // 'ativos' | 'revogados' | 'todos'
+        let filtroAmbientePix = 'ativos'; // 'ativos' | 'revogados' | 'erros' | 'todos'
+        let ocultarErrosAtivos = false;
+        let contratoParaCancelar = null;
+        let pixFiltradosAtuais = [];
+
+        function obterTimestampSeguro(obj) {
+            if (!obj) return 0;
+            if (typeof obj.timestamp_criacao === 'number' && obj.timestamp_criacao > 0) return obj.timestamp_criacao;
+            if (typeof obj.timestamp_conexao === 'number' && obj.timestamp_conexao > 0) return obj.timestamp_conexao;
+
+            const dataStr = obj.data_criacao || obj.data_conexao || obj.createdAt || obj.updatedAt;
+            if (dataStr) {
+                const ms = Date.parse(dataStr);
+                if (!isNaN(ms)) return ms;
+            }
+
+            const textoPt = obj.criado_em || obj.data_conexao_formatada;
+            if (textoPt && typeof textoPt === 'string') {
+                const mesesPt = { 'jan': 0, 'fev': 1, 'mar': 2, 'abr': 3, 'mai': 4, 'jun': 5, 'jul': 6, 'ago': 7, 'set': 8, 'out': 9, 'nov': 10, 'dez': 11 };
+                const m = textoPt.match(/(\d{1,2})\s+de\s+([a-z]{3})\.?\s+de\s+(\d{4})(?:,\s+(\d{2}):(\d{2}):(\d{2}))?/i);
+                if (m) {
+                    const dia = parseInt(m[1], 10);
+                    const mes = mesesPt[m[2].toLowerCase()] ?? 0;
+                    const ano = parseInt(m[3], 10);
+                    const hora = m[4] ? parseInt(m[4], 10) : 0;
+                    const min = m[5] ? parseInt(m[5], 10) : 0;
+                    const seg = m[6] ? parseInt(m[6], 10) : 0;
+                    return new Date(Date.UTC(ano, mes, dia, hora + 3, min, seg)).getTime();
+                }
+            }
+            return 0;
+        }
+
+        function isPixCancelado(p) {
+            if (!p) return false;
+            const label = (p.status_label || '').toLowerCase();
+            const st = (p.status || '').toUpperCase();
+            return label.includes('cancelad') || label.includes('revogad') || ['CANCELED', 'REVOKED', 'REVOGADO_USUARIO', 'REVOGADO_RECEBEDOR'].includes(st);
+        }
+
+        function isPixErro(p) {
+            if (!p) return false;
+            if (isPixCancelado(p)) return false;
+            const label = (p.status_label || '').toLowerCase();
+            const st = (p.status || '').toUpperCase();
+            const cls = (p.status_classe || '').toLowerCase();
+            if (label.includes('erro') || label.includes('rejeitad') || label.includes('expirad') || label.includes('falha')) return true;
+            if (['ERROR', 'REJECTED', 'EXPIRED', 'CONSENT_REJECTED'].includes(st)) return true;
+            if (cls === 'erro' || cls === 'rejeitado') return true;
+            if (p.tem_erro && p.erro?.tem_erro) return true;
+            return false;
+        }
+
+        function isPixAtivo(p) {
+            if (!p) return false;
+            if (isPixCancelado(p) || isPixErro(p)) return false;
+            const st = (p.status || '').toUpperCase();
+            const label = p.status_label || '';
+            return ['SCHEDULED', 'AUTHORIZED', 'PAYMENT_COMPLETED', 'WAITING_PAYER', 'IN_PROGRESS', 'PENDING'].includes(st) ||
+                   ['Autorizado', 'Concluído', 'Agendado', 'Aguardando'].includes(label);
+        }
 
         function mudarFiltroAmbientePix(ambiente) {
             filtroAmbientePix = ambiente;
             const tabAtivos = document.getElementById('tab-ambiente-ativos');
             const tabRevogados = document.getElementById('tab-ambiente-revogados');
+            const tabErros = document.getElementById('tab-ambiente-erros');
             const tabTodos = document.getElementById('tab-ambiente-todos');
 
-            const styleInativo = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
-            const styleAtivoGreen = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-2 cursor-pointer";
-            const styleAtivoRed = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-rose-50 text-rose-800 border border-rose-300 shadow-xs flex items-center gap-2 cursor-pointer";
-            const styleAtivoTodos = "px-3 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-1.5 cursor-pointer";
-            const styleInativoTodos = "px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer";
+            const stInativo = "whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer";
+            const stAtivo = "whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition bg-white text-[#010157] shadow-xs flex items-center gap-1.5 cursor-pointer";
 
-            if (tabAtivos) tabAtivos.className = (ambiente === 'ativos') ? styleAtivoGreen : styleInativo;
-            if (tabRevogados) tabRevogados.className = (ambiente === 'revogados') ? styleAtivoRed : styleInativo;
-            if (tabTodos) tabTodos.className = (ambiente === 'todos') ? styleAtivoTodos : styleInativoTodos;
+            if (tabAtivos) tabAtivos.className = (ambiente === 'ativos') ? stAtivo : stInativo;
+            if (tabRevogados) tabRevogados.className = (ambiente === 'revogados') ? stAtivo : stInativo;
+            if (tabErros) tabErros.className = (ambiente === 'erros') ? stAtivo : stInativo;
+            if (tabTodos) tabTodos.className = (ambiente === 'todos') ? stAtivo : stInativo;
 
             paginaAtualPluggy = 1;
             renderizarLista('pix');
+        }
+
+        function limparOcultarErros() {
+            ocultarErrosAtivos = !ocultarErrosAtivos;
+            const btn = document.getElementById('btn-limpar-erros');
+            if (btn) {
+                if (ocultarErrosAtivos) {
+                    btn.className = "ml-auto whitespace-nowrap px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs";
+                    btn.innerHTML = `<i class="fa-solid fa-check text-amber-600"></i> Erros Ocultados`;
+                    MC_CONFIG.showToast("Tentativas com erro ocultadas da tela.", "info");
+                } else {
+                    btn.className = "ml-auto whitespace-nowrap px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 transition flex items-center gap-1.5 cursor-pointer border border-transparent hover:border-slate-300";
+                    btn.innerHTML = `<i class="fa-solid fa-broom text-amber-500"></i> Limpar Erros`;
+                    MC_CONFIG.showToast("Exibindo todas as tentativas novamente.", "info");
+                }
+            }
+            renderizarLista('pix');
+        }
+
+        function abrirModalConfirmarCancelamento(reqId, clienteNome) {
+            contratoParaCancelar = { id: reqId, nome: clienteNome };
+            const modal = document.getElementById('modal-confirmar-cancelamento');
+            const elNome = document.getElementById('modal-cancel-cliente-nome');
+            const elId = document.getElementById('modal-cancel-contrato-id');
+            if (elNome) elNome.textContent = clienteNome || 'Cliente';
+            if (elId) elId.textContent = reqId;
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function fecharModalConfirmarCancelamento() {
+            contratoParaCancelar = null;
+            const modal = document.getElementById('modal-confirmar-cancelamento');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function executarCancelamentoPixModal() {
+            if (!contratoParaCancelar || !contratoParaCancelar.id) return;
+            const reqId = contratoParaCancelar.id;
+            const btnExec = document.getElementById('btn-confirmar-cancelamento-exec');
+            if (btnExec) {
+                btnExec.disabled = true;
+                btnExec.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Cancelando...`;
+            }
+
+            try {
+                const resp = await MC_CONFIG.authFetch(`/api/pix-cancelar/${reqId}`, { method: 'POST' });
+                const resData = await resp.json();
+                if (resp.ok && resData.sucesso) {
+                    MC_CONFIG.showToast(resData.mensagem || "Mandato de Pix cancelado com sucesso!", "success");
+                    fecharModalConfirmarCancelamento();
+                    fecharModalDetalhesPluggy();
+                    if (typeof carregarDadosPixPluggy === 'function') {
+                        await carregarDadosPixPluggy(true);
+                    }
+                } else {
+                    MC_CONFIG.showToast(resData.erro || "Falha ao cancelar contrato.", "error");
+                }
+            } catch (e) {
+                MC_CONFIG.showToast("Erro ao comunicar cancelamento: " + e.message, "error");
+            } finally {
+                if (btnExec) {
+                    btnExec.disabled = false;
+                    btnExec.innerHTML = `<i class="fa-solid fa-ban"></i> Confirmar Cancelamento`;
+                }
+            }
         }
 
         function alternarModoExibicao(modo) {
@@ -433,50 +557,78 @@ let todosOsClientes = [];
         }
 
         function exportarPixExcel() {
-            if (!todosOsPix || todosOsPix.length === 0) {
-                MC_CONFIG.showToast("Nenhum contrato Pix disponível para exportação.", "warning");
+            const itensParaExportar = (pixFiltradosAtuais && pixFiltradosAtuais.length > 0)
+                ? pixFiltradosAtuais
+                : (todosOsPix || []);
+
+            if (!itensParaExportar || itensParaExportar.length === 0) {
+                MC_CONFIG.showToast("Nenhum contrato Pix disponível para exportação com os filtros atuais.", "warning");
                 return;
             }
 
+            const ordenados = [...itensParaExportar].sort((a, b) => obterTimestampSeguro(b) - obterTimestampSeguro(a));
+
             const colunas = [
-                "ID da Solicitação",
                 "Nome do Cliente",
                 "Tipo Documento",
-                "Documento",
+                "Documento (CPF/CNPJ)",
                 "Instituição Bancária",
-                "Recebedor",
-                "Valor Recorrência (R$)",
-                "Periodicidade",
-                "Status do Contrato",
+                "Código Banco",
+                "Status Oficial Pluggy",
+                "Rótulo Status",
                 "Liberação Operacional",
+                "Valor Parcela (R$)",
+                "Qtd de Parcelas",
+                "1ª Validação Teste (R$)",
+                "Periodicidade",
                 "Data de Criação",
-                "Data 1º Débito",
-                "Diagnóstico / Motivo",
-                "Link de Pagamento"
+                "Data 1º Vencimento",
+                "Data Término",
+                "ID da Solicitação (PaymentRequest)",
+                "ID da Intenção (PaymentIntent)",
+                "ID Externo",
+                "Recebedor",
+                "Diagnóstico / Motivo Pluggy",
+                "Link de Pagamento / WhatsApp"
             ];
 
-            const linhas = todosOsPix.map(p => {
+            const linhas = ordenados.map(p => {
                 let val = p.valor || p.valor_parcela || 0;
                 if (val === 26997) val = 269.97;
-                const valStr = val.toFixed(2).replace('.', ',');
-                const lib = p.liberacao_operacional?.status || (p.status_label === 'Concluído' ? 'LIBERADO' : (['Cancelado', 'Rejeitado', 'Expirado', 'Erro', 'Falha no Banco'].includes(p.status_label) ? 'RECUSADO' : 'BLOQUEADO'));
-                const motivoErro = p.erro?.detalhe || p.erro?.titulo || '';
+                const valStr = Number(val).toFixed(2).replace('.', ',');
+
+                const valTeste = p.validacao_inicial ? "0,01" : "0,00";
+                const parcelas = p.parcelas_total || p.schedule?.occurrences || 12;
+                const statusOficial = p.status_oficial_pluggy || p.status || p.status_label || '';
+                const libStatus = p.liberacao_operacional?.status || (p.status_label === 'Concluído' ? 'LIBERADO' : (isPixCancelado(p) || isPixErro(p) ? 'RECUSADO' : 'BLOQUEADO'));
+                const motivoDiag = p.erro?.detalhe || p.erro?.titulo || p.liberacao_operacional?.motivo || '';
                 const link = p.payment_url || p.consent_url || '';
 
+                const dataCriacaoFmt = p.criado_em || (p.data_criacao ? MC_CONFIG.formatDate(p.data_criacao) : '');
+                const data1oDebitoFmt = p.data_inicio_formatada || (p.data_inicio ? MC_CONFIG.formatDate(p.data_inicio) : '');
+                const dataFimFmt = p.data_termino ? MC_CONFIG.formatDate(p.data_termino) : '';
+
                 return [
-                    `"${p.id || ''}"`,
                     `"${(p.cliente || '').replace(/"/g, '""')}"`,
                     `"${p.tipo_documento || (p.documento?.length > 14 ? 'CNPJ' : 'CPF')}"`,
                     `"${p.documento || p.cpf || p.cnpj || ''}"`,
                     `"${(p.banco_nome || '').replace(/"/g, '""')}"`,
-                    `"${(p.recebedor || 'MC Minhaconta Securitizadora C SA').replace(/"/g, '""')}"`,
-                    `"${valStr}"`,
-                    `"Mensal"`,
+                    `"${p.banco_codigo || ''}"`,
+                    `"${statusOficial}"`,
                     `"${p.status_label || ''}"`,
-                    `"${lib}"`,
-                    `"${p.criado_em || formatarDataPluggy(p.data_criacao)}"`,
-                    `"${p.data_inicio_formatada || p.data_inicio || ''}"`,
-                    `"${motivoErro.replace(/"/g, '""')}"`,
+                    `"${libStatus}"`,
+                    `"${valStr}"`,
+                    `"${parcelas}"`,
+                    `"${valTeste}"`,
+                    `"Mensal"`,
+                    `"${dataCriacaoFmt}"`,
+                    `"${data1oDebitoFmt}"`,
+                    `"${dataFimFmt}"`,
+                    `"${p.id || ''}"`,
+                    `"${p.intent_id || ''}"`,
+                    `"${p.id_externo || ''}"`,
+                    `"${(p.recebedor || 'MC MINHACONTA SECURITIZADORA S/A').replace(/"/g, '""')}"`,
+                    `"${motivoDiag.replace(/"/g, '""')}"`,
                     `"${link}"`
                 ].join(";");
             });
@@ -485,12 +637,13 @@ let todosOsClientes = [];
             const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
             const linkEl = document.createElement("a");
             const dataHoje = new Date().toISOString().split("T")[0];
+            const sufixoAmb = filtroAmbientePix ? `_${filtroAmbientePix}` : '';
             linkEl.href = URL.createObjectURL(blob);
-            linkEl.download = `MC_Securitizadora_Contratos_Pix_${dataHoje}.csv`;
+            linkEl.download = `MC_Securitizadora_Contratos_Pix${sufixoAmb}_${dataHoje}.csv`;
             document.body.appendChild(linkEl);
             linkEl.click();
             document.body.removeChild(linkEl);
-            MC_CONFIG.showToast("Planilha de contratos Pix exportada com sucesso!", "success");
+            MC_CONFIG.showToast(`Planilha exportada com sucesso (${ordenados.length} contratos)!`, "success");
         }
 
         function exportarOpenFinanceExcel() {
@@ -508,7 +661,9 @@ let todosOsClientes = [];
             ];
 
             const conexoesOf = todosOsClientes.filter(c => (c.tipo === 'open_finance' || c.tipo === 'securitizadora' || (!c.payment_intent_id && Boolean(c.item_id))));
-            const linhas = conexoesOf.map(c => {
+            const ordenadasOf = [...conexoesOf].sort((a, b) => obterTimestampSeguro(b) - obterTimestampSeguro(a));
+
+            const linhas = ordenadasOf.map(c => {
                 return [
                     `"${(c.cliente || '').replace(/"/g, '""')}"`,
                     `"${c.tipo === 'securitizadora' ? 'Conta Securitizadora MC' : 'Open Finance'}"`,
@@ -531,6 +686,10 @@ let todosOsClientes = [];
         }
 
         window.mudarFiltroAmbientePix = mudarFiltroAmbientePix;
+        window.limparOcultarErros = limparOcultarErros;
+        window.abrirModalConfirmarCancelamento = abrirModalConfirmarCancelamento;
+        window.fecharModalConfirmarCancelamento = fecharModalConfirmarCancelamento;
+        window.executarCancelamentoPixModal = executarCancelamentoPixModal;
         window.toggleAccordionCliente = toggleAccordionCliente;
         window.exportarPixExcel = exportarPixExcel;
         window.exportarOpenFinanceExcel = exportarOpenFinanceExcel;
@@ -805,13 +964,21 @@ let todosOsClientes = [];
             ).toLowerCase().trim();
 
             if (filtroAba === 'pix') {
-                // Atualização dos contadores dinâmicos de ambiente
-                const countRevogados = todosOsPix.filter(p => isPixRevogado(p)).length;
-                const countAtivos = todosOsPix.length - countRevogados;
+                // Atualização dos contadores dinâmicos dos 4 ambientes
+                const countCancelados = todosOsPix.filter(p => isPixCancelado(p)).length;
+                const countErros = todosOsPix.filter(p => isPixErro(p)).length;
+                const countAtivos = todosOsPix.filter(p => isPixAtivo(p)).length;
+                const countTodos = todosOsPix.length;
+
                 const elBadgeAtivos = document.getElementById('badge-count-ativos');
                 const elBadgeRevogados = document.getElementById('badge-count-revogados');
+                const elBadgeErros = document.getElementById('badge-count-erros');
+                const elBadgeTodos = document.getElementById('badge-count-todos');
+
                 if (elBadgeAtivos) elBadgeAtivos.textContent = countAtivos;
-                if (elBadgeRevogados) elBadgeRevogados.textContent = countRevogados;
+                if (elBadgeRevogados) elBadgeRevogados.textContent = countCancelados;
+                if (elBadgeErros) elBadgeErros.textContent = countErros;
+                if (elBadgeTodos) elBadgeTodos.textContent = countTodos;
 
                 const buscaTexto = termoBusca;
                 const statusFiltro = (document.getElementById('filtro-pluggy-status')?.value || 'todos');
@@ -824,11 +991,18 @@ let todosOsClientes = [];
                 };
 
                 const pixFiltrados = todosOsPix.filter(p => {
-                    // 1. Filtro de ambiente (Ativos vs Revogados vs Todos)
+                    // 1. Filtro estrito de ambiente segregado
                     if (filtroAmbientePix === 'ativos') {
-                        if (isPixRevogado(p)) return false;
+                        if (!isPixAtivo(p)) return false;
                     } else if (filtroAmbientePix === 'revogados') {
-                        if (!isPixRevogado(p)) return false;
+                        if (!isPixCancelado(p)) return false;
+                    } else if (filtroAmbientePix === 'erros') {
+                        if (!isPixErro(p)) return false;
+                    }
+
+                    // Ação de Limpar Erros da visualização
+                    if (ocultarErrosAtivos && isPixErro(p)) {
+                        return false;
                     }
 
                     // 2. Filtro textual
@@ -845,23 +1019,22 @@ let todosOsClientes = [];
                     let matchStatus = true;
                     if (statusFiltro !== 'todos') {
                         if (statusFiltro === 'Erro') {
-                            matchStatus = (p.status_label === 'Erro' || p.status_label === 'Falha no Banco' || p.status_classe === 'erro');
+                            matchStatus = isPixErro(p);
+                        } else if (statusFiltro === 'Cancelado') {
+                            matchStatus = isPixCancelado(p);
                         } else {
-                            matchStatus = (p.status_label === statusFiltro || p.status === statusFiltro);
+                            matchStatus = (p.status_label === statusFiltro || p.status === statusFiltro || p.status_oficial_pluggy === statusFiltro);
                         }
                     }
                     let matchPeriodo = true;
                     if (periodoFiltro !== 'todos' && limitesDias[periodoFiltro]) {
-                        if (p.data_criacao) {
-                            const t = new Date(p.data_criacao).getTime();
-                            matchPeriodo = !isNaN(t) && ((agoraMs - t) <= limitesDias[periodoFiltro]);
-                        } else {
-                            matchPeriodo = false;
-                        }
+                        const t = obterTimestampSeguro(p);
+                        matchPeriodo = (t > 0) && ((agoraMs - t) <= limitesDias[periodoFiltro]);
                     }
                     return matchTexto && matchStatus && matchPeriodo;
                 });
 
+                pixFiltradosAtuais = pixFiltrados;
                 atualizarPeriodosDinamicos(pixFiltrados.length > 0 ? pixFiltrados : todosOsPix);
 
                 // ================================================================
@@ -892,20 +1065,19 @@ let todosOsClientes = [];
 
                 const listaClientesPix = Object.values(mapaClientesPix);
                 listaClientesPix.forEach(cli => {
-                    cli.itens.sort((a, b) => {
-                        const ta = new Date(a.data_criacao || a.criado_em || 0).getTime() || 0;
-                        const tb = new Date(b.data_criacao || b.criado_em || 0).getTime() || 0;
-                        return tb - ta;
-                    });
+                    cli.itens.sort((a, b) => obterTimestampSeguro(b) - obterTimestampSeguro(a));
                 });
                 listaClientesPix.sort((a, b) => {
-                    const ta = new Date(a.itens[0]?.data_criacao || a.itens[0]?.criado_em || 0).getTime() || 0;
-                    const tb = new Date(b.itens[0]?.data_criacao || b.itens[0]?.criado_em || 0).getTime() || 0;
+                    const ta = obterTimestampSeguro(a.itens[0]);
+                    const tb = obterTimestampSeguro(b.itens[0]);
                     return tb - ta;
                 });
 
-                const sufixoAmbiente = filtroAmbientePix === 'ativos' ? ' (Ativos & Em Andamento)' : (filtroAmbientePix === 'revogados' ? ' (Revogados & Cancelados)' : '');
-                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${listaClientesPix.length}</strong> clientes consolidados (<strong class="text-[#0985ff] font-bold">${pixFiltrados.length}</strong> contratos)${sufixoAmbiente}`;
+                let labelAmbiente = '';
+                if (filtroAmbientePix === 'ativos') labelAmbiente = ' (Contratos Ativos & Agendados)';
+                else if (filtroAmbientePix === 'revogados') labelAmbiente = ' (Revogados & Cancelados)';
+                else if (filtroAmbientePix === 'erros') labelAmbiente = ' (Tentativas com Erro / Rejeitados)';
+                badgeTotal.innerHTML = `Exibindo <strong class="text-[#010157] font-bold">${listaClientesPix.length}</strong> clientes consolidados (<strong class="text-[#0985ff] font-bold">${pixFiltrados.length}</strong> contratos)${labelAmbiente}`;
 
                 // Cálculo da paginação baseado em clientes consolidados
                 const totalClientes = listaClientesPix.length;
@@ -1100,6 +1272,11 @@ let todosOsClientes = [];
                                         <td class="py-2.5 px-3 text-center">
                                             <div class="flex items-center justify-center gap-1">
                                                 ${subBtnWhats}
+                                                ${(isPixAtivo(subItem) || subItem.pode_cancelar || ['SCHEDULED', 'AUTHORIZED', 'WAITING_PAYER', 'PENDING'].includes((subItem.status || '').toUpperCase())) ? `
+                                                    <button onclick="abrirModalConfirmarCancelamento('${subItem.id}', '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold cursor-pointer flex items-center gap-1" title="Cancelar este mandato/agendamento na Pluggy">
+                                                        <i class="fa-solid fa-ban text-rose-600"></i> Cancelar
+                                                    </button>
+                                                ` : ''}
                                                 <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer" title="Ver Detalhes Oficiais da Pluggy">
                                                     <i class="fa-solid fa-eye"></i> <span class="hidden sm:inline">Detalhes</span>
                                                 </button>
@@ -1357,9 +1534,16 @@ let todosOsClientes = [];
                                         </span>
                                     </td>
                                     <td class="py-2.5 px-3 text-center">
-                                        <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer">
-                                            <i class="fa-solid fa-eye"></i> Detalhes
-                                        </button>
+                                        <div class="flex items-center justify-center gap-1">
+                                            ${(isPixAtivo(subItem) || subItem.pode_cancelar || ['SCHEDULED', 'AUTHORIZED', 'WAITING_PAYER', 'PENDING'].includes((subItem.status || '').toUpperCase())) ? `
+                                                <button onclick="abrirModalConfirmarCancelamento('${subItem.id}', '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold cursor-pointer flex items-center gap-1" title="Cancelar este contrato">
+                                                    <i class="fa-solid fa-ban text-rose-600"></i> Cancelar
+                                                </button>
+                                            ` : ''}
+                                            <button onclick="consultarPix('${subItem.id}', null, '${nomeSeguro}')" class="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 text-[11px] font-bold cursor-pointer">
+                                                <i class="fa-solid fa-eye"></i> Detalhes
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             `;
@@ -1461,15 +1645,11 @@ let todosOsClientes = [];
 
                 const listaClientesOf = Object.values(mapaClientesOf);
                 listaClientesOf.forEach(cli => {
-                    cli.conexoes.sort((a, b) => {
-                        const ta = new Date(a.data_conexao || 0).getTime() || 0;
-                        const tb = new Date(b.data_conexao || 0).getTime() || 0;
-                        return tb - ta;
-                    });
+                    cli.conexoes.sort((a, b) => obterTimestampSeguro(b) - obterTimestampSeguro(a));
                 });
                 listaClientesOf.sort((a, b) => {
-                    const ta = new Date(a.conexoes[0]?.data_conexao || 0).getTime() || 0;
-                    const tb = new Date(b.conexoes[0]?.data_conexao || 0).getTime() || 0;
+                    const ta = obterTimestampSeguro(a.conexoes[0]);
+                    const tb = obterTimestampSeguro(b.conexoes[0]);
                     return tb - ta;
                 });
 
@@ -1953,10 +2133,22 @@ let todosOsClientes = [];
                         iconeBadge = '<i class="fa-solid fa-hourglass-half text-amber-600"></i>';
                     }
 
+                    const podeCanc = (isPixAtivo(pix) || pix.pode_cancelar || ['SCHEDULED', 'AUTHORIZED', 'WAITING_PAYER', 'PENDING'].includes((pix.status || '').toUpperCase()));
+                    let btnCancTopo = '';
+                    if (podeCanc) {
+                        btnCancTopo = `
+                            <button onclick="abrirModalConfirmarCancelamento('${pix.id || intentId}', '${MC_CONFIG.escapeHtml(nomeCliente || pix.cliente?.nome || 'Cliente')}')" class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 transition flex items-center gap-1.5 cursor-pointer ml-1" title="Revogar ou cancelar este contrato na Pluggy">
+                                <i class="fa-solid fa-ban text-rose-600"></i> Cancelar Mandato
+                            </button>
+                        `;
+                    }
                     elBadgeTopo.innerHTML = `
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${classeBadge}">
-                            ${iconeBadge} ${pix.status_label || 'Pendente'}
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${classeBadge}">
+                                ${iconeBadge} ${pix.status_label || 'Pendente'}
+                            </span>
+                            ${btnCancTopo}
+                        </div>
                     `;
                 }
 
