@@ -90,13 +90,27 @@ let contasSecuritizadora = [];
                     `;
                     buscarExtratoSecuritizadora();
                 } else {
+                    contaSelecionadaId = null;
+                    document.getElementById('subtitulo-extrato').innerHTML = `
+                        Nenhuma conta corporativa ativa conectada. Clique em <strong class="text-[#0985ff]">+ Vincular Novo Banco</strong> acima.
+                    `;
                     document.getElementById('tabela-extrato-corpo').innerHTML = `
                         <tr>
                             <td colspan="5" class="py-12 text-center text-slate-400 text-xs">
-                                Nenhuma conta corporativa encontrada vinculada à Securitizadora.
+                                <i class="fa-solid fa-building-columns text-2xl text-slate-300 mb-2 block"></i>
+                                Nenhuma movimentação disponível. Vincule uma nova conta corporativa da Securitizadora para consultar o extrato.
                             </td>
                         </tr>
                     `;
+                    const badgeTotal = document.getElementById('badge-total-filtrado');
+                    if (badgeTotal) badgeTotal.textContent = '0 movimentações';
+                    const rodapeTotais = document.getElementById('rodape-totais');
+                    if (rodapeTotais) {
+                        rodapeTotais.innerHTML = `
+                            Entradas: <span class="text-emerald-600 font-black mr-3">R$ 0,00</span>
+                            Saídas: <span class="text-slate-800 font-black">R$ 0,00</span>
+                        `;
+                    }
                 }
 
             } catch (err) {
@@ -109,8 +123,17 @@ let contasSecuritizadora = [];
             const grid = document.getElementById('grid-contas-securitizadora');
             if (!contasSecuritizadora.length) {
                 grid.innerHTML = `
-                    <div class="col-span-full py-8 text-center text-slate-400 text-xs">
-                        Nenhuma conta bancária cadastrada. Clique em "Vincular Novo Banco" para adicionar.
+                    <div class="col-span-full py-12 px-6 text-center bg-slate-50/80 border-2 border-dashed border-slate-200 rounded-3xl">
+                        <div class="w-14 h-14 rounded-2xl bg-blue-50 text-[#0985ff] flex items-center justify-center text-2xl mx-auto mb-3 shadow-xs">
+                            <i class="fa-solid fa-landmark"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-[#010157] mb-1">Nenhuma Conta Bancária Ativa Vinculada</h3>
+                        <p class="text-xs text-slate-500 max-w-md mx-auto mb-5 leading-relaxed">
+                            A conta anterior foi removida com sucesso. Conecte a nova conta bancária da Securitizadora (Itaú, Banco do Brasil, Santander, Bradesco, etc.) para sincronizar saldos e extratos corporativos em tempo real.
+                        </p>
+                        <button type="button" onclick="abrirConectarNovaContaMC()" class="btn-brand-primary text-white text-xs font-bold px-5 py-3 rounded-xl transition shadow-sm inline-flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-plus text-xs"></i> Vincular Novo Banco Corporativo
+                        </button>
                     </div>
                 `;
                 return;
@@ -158,15 +181,21 @@ let contasSecuritizadora = [];
                             </div>
                         </div>
 
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                             <div>
                                 <span class="text-[10px] text-slate-400 uppercase font-bold block">${c.tem_bloqueio ? 'Último Saldo Coletado' : 'Saldo Disponível'}</span>
                                 <strong class="text-base font-black text-[#010157]">${c.saldo_formatado}</strong>
                             </div>
-                            <button class="text-xs font-bold ${isSelected ? 'text-[#0985ff]' : 'text-slate-500'} flex items-center gap-1 hover:underline">
-                                <span>${isSelected ? 'Selecionada' : 'Ver Extrato'}</span>
-                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="event.stopPropagation(); confirmarDesvincularConta('${c.item_id || c.id}', '${MC_CONFIG.escapeHtml(c.banco)} (Agência ${c.agencia} | Conta ${c.numero})')" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/80 px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Remover e desvincular esta conta bancária">
+                                    <i class="fa-regular fa-trash-can text-[11px]"></i>
+                                    <span class="text-[11px]">Remover</span>
+                                </button>
+                                <button type="button" class="text-xs font-bold ${isSelected ? 'text-[#0985ff]' : 'text-slate-500'} flex items-center gap-1 hover:underline">
+                                    <span>${isSelected ? 'Selecionada' : 'Ver Extrato'}</span>
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -438,6 +467,59 @@ let contasSecuritizadora = [];
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             MC_CONFIG.showToast('Extrato exportado em CSV com sucesso!', 'success');
+        }
+
+        // ====================================================================
+        // GESTÃO E DESVINCULAÇÃO DE CONTAS DA SECURITIZADORA
+        // ====================================================================
+
+        let contaParaDesvincularId = null;
+
+        function confirmarDesvincularConta(itemId, nomeConta) {
+            contaParaDesvincularId = itemId;
+            const elInfo = document.getElementById('desvincular-info-conta');
+            if (elInfo) elInfo.textContent = nomeConta || 'Conta Bancária Corporativa MC';
+            const modal = document.getElementById('modal-desvincular-mc');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function fecharModalDesvincularMC() {
+            contaParaDesvincularId = null;
+            const modal = document.getElementById('modal-desvincular-mc');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function executarDesvinculacaoContaMC() {
+            if (!contaParaDesvincularId) return;
+            const btn = document.getElementById('btn-confirmar-desvincular-mc');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Desvinculando...`;
+            }
+
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/desvincular-conta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: contaParaDesvincularId })
+                });
+                const dados = await res.json();
+                if (!res.ok || !dados.sucesso) {
+                    throw new Error(dados.erro || 'Falha ao desvincular conta bancária');
+                }
+
+                fecharModalDesvincularMC();
+                MC_CONFIG.showToast('Conta corporativa removida e desvinculada com sucesso!', 'success');
+                await carregarResumoSecuritizadora();
+            } catch (err) {
+                console.error(err);
+                MC_CONFIG.showToast('Erro ao remover conta: ' + err.message, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-regular fa-trash-can"></i> Sim, Remover Conta`;
+                }
+            }
         }
 
         window.onload = () => {

@@ -11,6 +11,7 @@
 | **Fase 2** | Arquitetura de Layout Base, Viewport Fluida e Responsividade | ✅ Concluída | 100% |
 | **Fase 3** | Telas Internas e Interface do Usuário (Deduplicação & Roadmap) | ✅ Concluída | 100% |
 | **Fase 4** | Testes Automatizados, Segurança HTTP e Deploy em Nuvem | ✅ Concluída | 100% |
+| **Fase Pluggy** | Reconciliação e Sincronização com API Pluggy (Fonte Única da Verdade) | ✅ Concluída | 100% |
 
 ---
 
@@ -83,10 +84,16 @@
   - [x] Colunas ricas e completas com status oficial Pluggy, IDs, diagnósticos e links.
 
 #### 3.2 Ambiente Corporativo da Securitizadora ([`securitizadora.html`](file:///c:/meu-frontend-plugg/securitizadora.html) / [`securitizadora.js`](file:///c:/meu-frontend-plugg/securitizadora.js))
-- [x] Visualização de saldo consolidado em caixa (R$ 2.815,47) e contas vinculadas da Securitizadora MC no Bradesco.
+- [x] Visualização de saldo consolidado em caixa e contas vinculadas da Securitizadora MC.
 - [x] Extrato bancário analítico em tempo real com filtros por tipo (crédito/débito), categoria e busca de contraparte.
 - [x] Exportação do extrato bancário corporativo para Excel (.CSV compatível com Windows).
 - [x] Modal de conexão de novas contas MC via widget Pluggy Connect v2 com `avoidDuplicates: False` e `updateItem`.
+- [x] **Remoção da Conta Antiga Bloqueada & Endpoint de Desvinculação**:
+  - [x] Exclusão definitiva dos itens bloqueados do Bradesco Empresas (`75cfdce4...` e `585b5487...`) da Pluggy e marcação como `desvinculado` no Supabase.
+  - [x] Remoção do ID chumbado (*hardcoded*) em `obter_contas_securitizadora()` no backend.
+  - [x] Criação de rota oficial autenticada no backend (`POST /api/securitizadora/desvincular-conta`).
+  - [x] Adição de botão de remoção em cada card e modal de confirmação no frontend (`modal-desvincular-mc`).
+  - [x] Estado vazio inteligente (*empty state*) com call-to-action para vincular nova conta bancária (Itaú, BB, Santander, etc.).
 - [x] **Harmonização do cabeçalho da Securitizadora**:
   - [x] Alinhar o cabeçalho superior e navegação de retorno com o design system do Portal do Gestor.
   - [x] Ajustar a largura mínima das colunas da tabela de extrato corporativo para evitar compressão em telas compactas.
@@ -108,10 +115,12 @@
 
 ### Fase 4: Testes Automatizados, Segurança & Infraestrutura
 - [x] **Suíte de Testes do Backend (`test_backend.py`)**:
-  - [x] 33 de 33 testes automatizados executando e aprovados com 100% de sucesso.
+  - [x] 34 de 34 testes automatizados executando e aprovados com 100% de sucesso.
   - [x] Testes de segurança contra Directory Traversal (bloqueio de `/.env`, `/backend.py`, `/schema.sql`, `/.git` com HTTP 403).
   - [x] Testes de autenticação e proteção de rotas com token Bearer HMAC.
   - [x] Testes de validação de CPF/CNPJ em `/gerar-token-pix`.
+  - [x] Teste de cancelamento oficial com token HMAC (`/api/pix-cancelar/<id>`).
+  - [x] Teste de desvinculação de conta corporativa com token HMAC (`/api/securitizadora/desvincular-conta`).
   - [x] Teste de cancelamento oficial com token HMAC (`/api/pix-cancelar/<id>`).
   - [x] Teste de ordenação cronológica determinística decrescente.
   - [x] Testes de integridade de conciliação analítica e KPIs da Pluggy.
@@ -121,3 +130,21 @@
 - [x] **Deploy Contínuo e Sincronização em Nuvem**:
   - [x] Repositório oficial no GitHub: `https://github.com/Muolis/integracao-pluggy-frontend.git` (Branch `main`).
   - [x] Render Cloud configurado com deploy automático dos serviços `motor-openfinance` e `vitrine-openfinance`.
+
+---
+
+### [Fase Pluggy]: Reconciliação e Sincronização com API Pluggy (Fonte Única da Verdade)
+- [x] **1. Auditoria do Fluxo de Ingestão e Payload Bruto (Pluggy)**:
+  - [x] Mapeamento e inspeção de chamadas aos endpoints `/payments/requests`, `/payments/intents`, `/transactions`, `/items` e webhooks.
+  - [x] Inspeção dos JSONs brutos (*raw payload*) retornados pela Pluggy para verificar todos os campos nativos.
+  - [x] Criação de matriz de mapeamento De/Para (Schema Mapping): Pluggy API ➔ Banco Supabase ➔ Frontend.
+- [x] **2. Correção de Campos Ausentes (Início, Término e Prazos)**:
+  - [x] Mapeamento e persistência explícita de `data_inicio` (`startDate`), `data_fim` / `expiresAt` e `periodicidade` (`interval`).
+  - [x] Exibição na interface da data da 1ª cobrança / autorização, data final prevista e periodicidade.
+  - [x] Resgate de status reais, IDs da transação/consentimento no banco de origem e comprovantes vazios (`null`/`undefined`).
+- [x] **3. Eliminação de Dados Fantasmas e Duplicidades (Parcelas a Mais)**:
+  - [x] Identificação da causa raiz de parcelas excedentes/infladas (loops artificiais 1..12 hardcoded, sync sem idempotência, filtros de status).
+  - [x] Implementação de `UPSERT` rigoroso e idempotente no banco local com base no `id` único da Pluggy (`externalId`).
+- [x] **4. Script de Higienização (Data Cleanup) e Validação**:
+  - [x] Criação de rotina/script de saneamento para expurgar parcelas fantasmas e registros duplicados gerados nos syncs anteriores ([`higienizar_dados_pluggy.py`](file:///c:/meu-frontend-plugg/higienizar_dados_pluggy.py)).
+  - [x] Teste de paridade e relatório Diff comparando um cliente específico ponta a ponta (Pluggy vs. Local: 100% PAR comprovado).

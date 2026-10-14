@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS public.conexoes (
 -- Garante que colunas adicionadas recentemente existam caso a tabela já tenha sido criada anteriormente
 ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS tipo VARCHAR(50) DEFAULT NULL;
 ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ativo';
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS data_inicio DATE DEFAULT NULL;
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS data_fim DATE DEFAULT NULL;
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS periodicidade VARCHAR(50) DEFAULT NULL;
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS parcelas_total INTEGER DEFAULT NULL;
+ALTER TABLE public.conexoes ADD COLUMN IF NOT EXISTS valor NUMERIC(15,2) DEFAULT NULL;
 
 -- 2. Criação de índices para consultas rápidas
 CREATE INDEX IF NOT EXISTS idx_conexoes_data_conexao ON public.conexoes (data_conexao DESC);

@@ -756,6 +756,106 @@ def gerar_token_pix():
     except Exception as e:
         return jsonify({'erro': f'Erro interno ao processar Pix: {str(e)}'}), 500
 
+def extrair_vigencia_e_parcelas(pr: dict, intent: dict = None) -> dict:
+    """
+    Extrai e projeta com precisão matemática e paridade absoluta com a Pluggy:
+    - Data da 1ª cobrança / Início (startDate)
+    - Data final prevista de término dos débitos (endDate / expiresAt)
+    - Periodicidade (Mensal, Semanal, etc.)
+    - Quantidade real de parcelas contratadas (occurrences / prazos)
+    """
+    from datetime import date
+    import calendar
+
+    pr = pr or {}
+    schedule = pr.get('schedule') or (intent.get('schedule') if isinstance(intent, dict) else {}) or {}
+    auto_pix = pr.get('automaticPix') or (intent.get('automaticPix') if isinstance(intent, dict) else {}) or {}
+    created_at = pr.get('createdAt') or (intent.get('createdAt') if isinstance(intent, dict) else '') or ''
+
+    # 1. Periodicidade e tipo de agendamento
+    tipo_sched = str(schedule.get('type') or auto_pix.get('interval') or '').upper()
+    if 'MONTH' in tipo_sched or tipo_sched == 'MONTHLY':
+        periodicidade = 'Mensal'
+    elif 'WEEK' in tipo_sched or tipo_sched == 'WEEKLY':
+        periodicidade = 'Semanal'
+    elif 'DAILY' in tipo_sched or tipo_sched == 'DAILY':
+        periodicidade = 'Diário'
+    elif 'YEAR' in tipo_sched or tipo_sched == 'YEARLY':
+        periodicidade = 'Anual'
+    elif schedule or auto_pix:
+        periodicidade = 'Mensal'
+    else:
+        periodicidade = 'Única (Avulso)'
+
+    # 2. Data de Início / 1ª Cobrança
+    data_inicio_raw = schedule.get('startDate') or auto_pix.get('startDate') or (created_at[:10] if created_at else None)
+    if not data_inicio_raw:
+        data_inicio_raw = date.today().strftime('%Y-%m-%d')
+    data_inicio_fmt = format_data_simples_pluggy(data_inicio_raw)
+
+    # 3. Quantidade real de parcelas (sem loops artificiais hardcoded)
+    occurrences = 1
+    if schedule.get('occurrences'):
+        try:
+            occurrences = int(schedule.get('occurrences'))
+        except (ValueError, TypeError):
+            occurrences = 1
+    elif auto_pix.get('expiresAt') and (auto_pix.get('startDate') or schedule.get('startDate')):
+        try:
+            ini_str = str(auto_pix.get('startDate') or schedule.get('startDate'))[:10]
+            exp_str = str(auto_pix.get('expiresAt'))[:10]
+            p_s = [int(x) for x in ini_str.split('-')[:3]]
+            p_e = [int(x) for x in exp_str.split('-')[:3]]
+            if periodicidade == 'Semanal':
+                d_s = date(p_s[0], p_s[1], p_s[2])
+                d_e = date(p_e[0], p_e[1], p_e[2])
+                occurrences = max(1, (d_e - d_s).days // 7 + 1)
+            else:
+                meses_diff = (p_e[0] - p_s[0]) * 12 + (p_e[1] - p_s[1]) + 1
+                occurrences = max(1, meses_diff)
+        except Exception:
+            occurrences = 1
+    elif schedule or auto_pix:
+        occurrences = 12 if (schedule and schedule.get('dayOfMonth')) else 1
+    else:
+        occurrences = 1
+
+    # 4. Data de Término / Vencimento Final Previsto
+    data_termino_raw = auto_pix.get('expiresAt')
+    if data_termino_raw:
+        data_termino_raw = str(data_termino_raw)[:10]
+    elif occurrences > 1 and data_inicio_raw:
+        try:
+            p_ini = [int(x) for x in str(data_inicio_raw)[:10].split('-')[:3]]
+            d_base = date(p_ini[0], p_ini[1], p_ini[2])
+            if periodicidade == 'Semanal':
+                from datetime import timedelta
+                d_fim = d_base + timedelta(days=7 * (occurrences - 1))
+            else:
+                m_tot = (d_base.month - 1) + (occurrences - 1)
+                ano_f = d_base.year + (m_tot // 12)
+                mes_f = (m_tot % 12) + 1
+                max_d = calendar.monthrange(ano_f, mes_f)[1]
+                dia_f = min(d_base.day, max_d)
+                d_fim = date(ano_f, mes_f, dia_f)
+            data_termino_raw = d_fim.strftime('%Y-%m-%d')
+        except Exception:
+            data_termino_raw = data_inicio_raw
+    else:
+        data_termino_raw = data_inicio_raw
+
+    data_termino_fmt = format_data_simples_pluggy(data_termino_raw) if data_termino_raw else data_inicio_fmt
+
+    return {
+        'data_inicio': data_inicio_raw,
+        'data_inicio_formatada': data_inicio_fmt,
+        'data_termino': data_termino_raw,
+        'data_termino_formatada': data_termino_fmt,
+        'periodicidade': periodicidade,
+        'parcelas_total': occurrences,
+        'is_recorrente': bool(schedule or auto_pix or occurrences > 1)
+    }
+
 def calcular_extrato_pix(intent_data: dict) -> dict:
     from datetime import date
     import calendar
@@ -779,24 +879,9 @@ def calcular_extrato_pix(intent_data: dict) -> dict:
         except (ValueError, TypeError):
             pass
 
-    start_date_str = auto_pix.get('startDate') or schedule.get('startDate') or time.strftime('%Y-%m-%d')
-    expires_at_str = auto_pix.get('expiresAt') or ''
-
-    occurrences = 12
-    if schedule.get('occurrences'):
-        try:
-            occurrences = int(schedule.get('occurrences'))
-        except (ValueError, TypeError):
-            occurrences = 12
-    elif expires_at_str and start_date_str:
-        try:
-            p_start = [int(x) for x in str(start_date_str).split('-')[:3]]
-            p_exp = [int(x) for x in str(expires_at_str)[:10].split('-')[:3]]
-            meses_diff = (p_exp[0] - p_start[0]) * 12 + (p_exp[1] - p_start[1]) + 1
-            if meses_diff > 0:
-                occurrences = meses_diff
-        except Exception:
-            occurrences = 12
+    vigencia = extrair_vigencia_e_parcelas(req, intent_data)
+    occurrences = vigencia['parcelas_total']
+    start_date_str = vigencia['data_inicio']
 
     try:
         partes = [int(x) for x in str(start_date_str).split('-')[:3]]
@@ -904,8 +989,12 @@ def calcular_extrato_pix(intent_data: dict) -> dict:
         'total_pago': round(parcelas_pagas * valor, 2),
         'total_restante': round(parcelas_restantes * valor, 2),
         'proximo_vencimento': proximo_vencimento,
-        'data_inicio': start_date_str,
-        'data_termino': expires_at_str,
+        'data_inicio': vigencia['data_inicio'],
+        'data_inicio_formatada': vigencia['data_inicio_formatada'],
+        'data_termino': vigencia['data_termino'],
+        'data_termino_formatada': vigencia['data_termino_formatada'],
+        'periodicidade': vigencia['periodicidade'],
+        'vigencia': vigencia,
         'debtor': debtor,
         'cronograma': cronograma,
         'raw': intent_data
@@ -995,6 +1084,22 @@ def salvar_conexao():
                     supabase.table('conexoes').update(updates).eq('id', existente[0]['id']).execute()
                 print(f'[SALVAR-CONEXAO] Conexão já existente ({tipo_final}): {cliente} ({item_id})')
                 return jsonify({'sucesso': True, 'tipo': tipo_final, 'mensagem': 'Conexão já registrada'}), 200
+        elif payment_intent_id:
+            existente = supabase.table('conexoes').select('id, cliente, tipo, status, data_conexao').or_(f'payment_intent_id.eq.{payment_intent_id},item_id.eq.{payment_intent_id}').execute().data
+            if existente:
+                updates = {}
+                cliente_antigo = existente[0].get('cliente', '')
+                if cliente and cliente != cliente_antigo and not str(cliente).startswith(('Cliente-', 'Pix-')):
+                    updates['cliente'] = str(cliente)[:255]
+                if data_real and data_real != existente[0].get('data_conexao'):
+                    updates['data_conexao'] = data_real
+                st_novo = dados.get('status')
+                if st_novo and st_novo != existente[0].get('status'):
+                    updates['status'] = st_novo
+                if updates:
+                    supabase.table('conexoes').update(updates).eq('id', existente[0]['id']).execute()
+                print(f'[SALVAR-CONEXAO] Pix já existente atualizado com idempotência: {cliente} ({payment_intent_id})')
+                return jsonify({'sucesso': True, 'tipo': tipo_final, 'mensagem': 'Pix atualizado com idempotência'}), 200
 
         registro = {
             'cliente': str(cliente)[:255],
@@ -1605,6 +1710,8 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'criterio': 'COMPLETED na 1ª cobrança'
             }
 
+            vigencia = extrair_vigencia_e_parcelas(r, matched_intent)
+
             formatados.append({
                 'id': req_id,
                 'intent_id': intent_id,
@@ -1630,14 +1737,17 @@ def obter_todos_intents_pix(forcar_atualizacao=False):
                 'banco_codigo': compe,
                 'valor_parcela': valor_parcela,
                 'valor': valor_parcela,
-                'data_inicio': auto_pix.get('startDate') or schedule.get('startDate') or '',
-                'data_inicio_formatada': format_data_simples_pluggy(auto_pix.get('startDate') or schedule.get('startDate')) if (auto_pix.get('startDate') or schedule.get('startDate')) else '',
-                'data_termino': auto_pix.get('expiresAt') or '',
+                'data_inicio': vigencia['data_inicio'],
+                'data_inicio_formatada': vigencia['data_inicio_formatada'],
+                'data_termino': vigencia['data_termino'],
+                'data_termino_formatada': vigencia['data_termino_formatada'],
+                'periodicidade': vigencia['periodicidade'],
+                'parcelas_total': vigencia['parcelas_total'],
+                'vigencia': vigencia,
                 'data_criacao': r.get('createdAt') or '',
                 'timestamp_criacao': converter_para_timestamp_ms(r.get('createdAt')),
                 'criado_em': format_data_pluggy(r.get('createdAt')),
                 'status_oficial_pluggy': raw_status,
-                'parcelas_total': schedule.get('occurrences') or 12,
                 'validacao_inicial': bool(r.get('firstPayment') or auto_pix.get('firstPayment')),
                 'pode_cancelar': raw_status in ['SCHEDULED', 'AUTHORIZED', 'WAITING_PAYER', 'PENDING', 'IN_PROGRESS'],
                 'payment_url': payment_url,
@@ -1815,16 +1925,22 @@ def consultar_pix_detalhado(operacao_id):
         except Exception as e:
             print(f'[AVISO BUSCA INTENT]: {e}')
 
-    # 3. Se temos o PR mas não temos o intent correspondente, busca o intent do PR
-    if pr and not intent and req_id:
+    # 3. Busca a lista completa de intents reais vinculados a este paymentRequest na Pluggy
+    intents_reais = []
+    if req_id:
         try:
             r_all_intents = pluggy_http_client('GET', f'https://api.pluggy.ai/payments/intents?paymentRequestId={req_id}', headers=headers, timeout=12)
             if r_all_intents.status_code == 200:
-                intents_list = r_all_intents.json().get('results', [])
-                if intents_list:
-                    intent = intents_list[0]
+                intents_reais = r_all_intents.json().get('results', [])
+                if intents_reais and not intent:
+                    intent = intents_reais[0]
         except Exception as e:
             print(f'[AVISO BUSCA INTENTS BY PR]: {e}')
+
+    if not intents_reais and intent:
+        intents_reais = [intent]
+    elif not intent and intents_reais:
+        intent = intents_reais[0]
 
     if not pr and not intent:
         return jsonify({'erro': 'Operação de Pix não encontrada na Pluggy'}), 404
@@ -1985,28 +2101,38 @@ def consultar_pix_detalhado(operacao_id):
     total_concluidos = 0
 
     # 1. Se houver firstPayment (Taxa de confirmação/adesão R$ 0,01)
+    intent_adesao = None
+    fp_date = None
     if first_payment:
         fp_amount = float(first_payment.get('amount') or 0.01)
         fp_date = first_payment.get('date') or (str(pr.get('createdAt'))[:10] if pr.get('createdAt') else None)
         
-        if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+        # Localiza se há intent real correspondente à adesão
+        for it in intents_reais:
+            it_dt = str(it.get('scheduledDate') or it.get('referenceDate') or it.get('createdAt') or '')[:10]
+            if (it_dt == fp_date) or (it.get('amount') is not None and abs(float(it.get('amount')) - fp_amount) < 0.001) or (it.get('amount') is None and it_dt == str(pr.get('createdAt'))[:10]):
+                intent_adesao = it
+                break
+
+        fp_status_orig = (intent_adesao.get('status') if intent_adesao else status_raw) or 'PENDING'
+        if fp_status_orig in ['AUTHORIZED', 'PAYMENT_COMPLETED', 'COMPLETED']:
             fp_status = 'CONCLUIDO'
             fp_status_label = 'Concluído'
             fp_status_cor = 'emerald'
             total_concluidos += 1
-        elif status_raw in ['REJECTED', 'CONSENT_REJECTED'] or (status_raw == 'ERROR' and status_label == 'Rejeitado'):
+        elif fp_status_orig in ['REJECTED', 'CONSENT_REJECTED'] or (fp_status_orig == 'ERROR' and status_label == 'Rejeitado'):
             fp_status = 'REJEITADO'
             fp_status_label = 'Rejeitado pelo Cliente'
             fp_status_cor = 'rose'
-        elif status_raw == 'EXPIRED' or (status_raw == 'ERROR' and status_label == 'Expirado'):
+        elif fp_status_orig == 'EXPIRED' or (fp_status_orig == 'ERROR' and status_label == 'Expirado'):
             fp_status = 'EXPIRADO'
             fp_status_label = 'Expirado no Banco'
             fp_status_cor = 'slate'
-        elif status_raw in ['CANCELED', 'REVOKED']:
+        elif fp_status_orig in ['CANCELED', 'REVOKED']:
             fp_status = 'CANCELADO'
             fp_status_label = 'Cancelado'
             fp_status_cor = 'slate'
-        elif status_raw == 'ERROR':
+        elif fp_status_orig == 'ERROR':
             fp_status = 'ERRO'
             fp_status_label = 'Falha na Adesão'
             fp_status_cor = 'rose'
@@ -2015,8 +2141,12 @@ def consultar_pix_detalhado(operacao_id):
             fp_status_label = 'Aguardando Autorização'
             fp_status_cor = 'amber'
 
+        fp_id = intent_adesao.get('id') if intent_adesao else None
+        fp_e2e = (intent_adesao.get('endToEndId') or (intent_adesao.get('paymentData') or {}).get('endToEndId')) if intent_adesao else ''
+
         pagamentos_lista.append({
             'numero': 1,
+            'id': fp_id,
             'titulo': 'Confirmação / Adesão do Pix Automático',
             'descricao': first_payment.get('description') or 'Adesão de Crédito',
             'data': format_data_simples_pluggy(fp_date) if fp_date else '---',
@@ -2024,99 +2154,114 @@ def consultar_pix_detalhado(operacao_id):
             'valor_formatado': f"R$ {fp_amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
             'status': fp_status,
             'status_label': fp_status_label,
-            'status_cor': fp_status_cor
+            'status_cor': fp_status_cor,
+            'end_to_end_id': fp_e2e,
+            'is_adesao': True
         })
 
-    # 2. Cronograma completo das cobranças mensais recorrentes com datas distintas
+    # 2. Vigência contratual fiel e cronograma analítico (Single Source of Truth)
     from datetime import date
     import calendar
 
-    data_inicio_parcela = auto_pix.get('startDate') or schedule.get('startDate')
-    data_inicio_fmt = format_data_simples_pluggy(data_inicio_parcela) if data_inicio_parcela else '---'
-    expira_em_fmt = format_data_pluggy(auto_pix.get('expiresAt'))
+    vigencia = extrair_vigencia_e_parcelas(pr, intent)
+    data_inicio_fmt = vigencia['data_inicio_formatada']
+    expira_em_fmt = vigencia['data_termino_formatada']
+    occurrences = vigencia['parcelas_total']
+    intervalo_pt = vigencia['periodicidade']
 
-    occurrences = schedule.get('occurrences')
-    if not occurrences:
-        if auto_pix.get('expiresAt') and data_inicio_parcela:
-            try:
-                p_s = [int(x) for x in str(data_inicio_parcela)[:10].split('-')]
-                p_e = [int(x) for x in str(auto_pix.get('expiresAt'))[:10].split('-')]
-                occurrences = max((p_e[0] - p_s[0]) * 12 + (p_e[1] - p_s[1]) + 1, 1)
-            except Exception:
-                occurrences = 12
-        else:
-            occurrences = 12
-    else:
-        try:
-            occurrences = int(occurrences)
-        except (ValueError, TypeError):
-            occurrences = 12
-
-    occurrences = min(max(occurrences, 1), 36)
+    # 3. Mapeamento das parcelas do contrato com datas distintas e status fiel
+    intents_restantes = [it for it in intents_reais if (not intent_adesao or it.get('id') != intent_adesao.get('id'))]
+    intents_por_data = {}
+    for it in intents_restantes:
+        it_dt_str = str(it.get('scheduledDate') or it.get('referenceDate') or it.get('createdAt') or '')[:10]
+        if it_dt_str and it_dt_str != fp_date:
+            intents_por_data[it_dt_str] = it
 
     try:
-        if data_inicio_parcela:
-            p_ini = [int(x) for x in str(data_inicio_parcela)[:10].split('-')]
-            data_base_cron = date(p_ini[0], p_ini[1], p_ini[2])
-        else:
-            data_base_cron = date.today()
+        dt_ini_str = vigencia['data_inicio']
+        partes_ini = [int(x) for x in str(dt_ini_str)[:10].split('-')[:3]]
+        d_base = date(partes_ini[0], partes_ini[1], partes_ini[2])
     except Exception:
-        data_base_cron = date.today()
+        d_base = date.today()
 
-    hoje_data = date.today()
-    for i in range(1, occurrences + 1):
-        m_total = (data_base_cron.month - 1) + (i - 1)
-        ano_c = data_base_cron.year + (m_total // 12)
-        mes_c = (m_total % 12) + 1
-        max_dias_mes = calendar.monthrange(ano_c, mes_c)[1]
-        dia_c = min(data_base_cron.day, max_dias_mes)
-        venc_data = date(ano_c, mes_c, dia_c)
-        venc_fmt = format_data_simples_pluggy(venc_data.strftime('%Y-%m-%d'))
+    cronograma_projetado = []
+    if occurrences >= 1:
+        for i in range(1, occurrences + 1):
+            if vigencia['periodicidade'] == 'Semanal':
+                from datetime import timedelta
+                venc_d = d_base + timedelta(days=7 * (i - 1))
+            else:
+                m_tot = (d_base.month - 1) + (i - 1)
+                ano_c = d_base.year + (m_tot // 12)
+                mes_c = (m_tot % 12) + 1
+                max_dias = calendar.monthrange(ano_c, mes_c)[1]
+                dia_c = min(d_base.day, max_dias)
+                venc_d = date(ano_c, mes_c, dia_c)
 
-        if status_raw in ['REJECTED', 'CONSENT_REJECTED', 'ERROR', 'EXPIRED', 'CANCELED', 'REVOKED']:
-            p_status = 'CANCELADO'
-            p_status_label = 'Não Autorizado'
-            p_status_cor = 'slate'
-        elif status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
-            if venc_data < hoje_data:
+            venc_iso = venc_d.strftime('%Y-%m-%d')
+            venc_fmt = format_data_simples_pluggy(venc_iso)
+
+            # Verifica se há intent real na Pluggy para esta data de vencimento
+            it_real = intents_por_data.get(venc_iso)
+            it_id = it_real.get('id') if it_real else None
+            e2e = (it_real.get('endToEndId') or (it_real.get('paymentData') or {}).get('endToEndId')) if it_real else ''
+
+            if it_real and str(it_real.get('status')).upper() in ['COMPLETED', 'PAYMENT_COMPLETED']:
                 p_status = 'CONCLUIDO'
                 p_status_label = 'Concluído'
                 p_status_cor = 'emerald'
                 total_concluidos += 1
-            else:
+            elif status_raw in ['REJECTED', 'CONSENT_REJECTED', 'ERROR', 'EXPIRED', 'CANCELED', 'REVOKED']:
+                p_status = 'CANCELADO'
+                p_status_label = 'Não Autorizado'
+                p_status_cor = 'slate'
+            elif status_raw in ['AUTHORIZED', 'SCHEDULED', 'PAYMENT_COMPLETED']:
                 p_status = 'AGENDADO'
-                p_status_label = 'Agendado'
+                p_status_label = 'Agendado no Banco'
                 p_status_cor = 'sky'
-        else:
-            p_status = 'PENDENTE'
-            p_status_label = 'Aguardando Autorização'
-            p_status_cor = 'amber'
+            else:
+                p_status = 'PENDENTE'
+                p_status_label = 'Aguardando Autorização'
+                p_status_cor = 'amber'
 
-        pagamentos_lista.append({
-            'numero': len(pagamentos_lista) + 1,
-            'titulo': f'Mensalidade {i} ({intervalo_pt})',
-            'descricao': pr.get('description') or 'CREDITO PESSOAL MC MINHACONTA',
-            'data': venc_fmt,
-            'valor': val_fixo,
-            'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-            'status': p_status,
-            'status_label': p_status_label,
-            'status_cor': p_status_cor
-        })
+            p_item = {
+                'numero': len(pagamentos_lista) + 1,
+                'id': it_id,
+                'titulo': f'Mensalidade {i} ({intervalo_pt})' if occurrences > 1 else 'Cobrança Pix',
+                'descricao': pr.get('description') or 'CREDITO PESSOAL MC MINHACONTA',
+                'data': venc_fmt,
+                'valor': val_fixo,
+                'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                'status': p_status,
+                'status_label': p_status_label,
+                'status_cor': p_status_cor,
+                'end_to_end_id': e2e,
+                'is_real_intent': bool(it_real)
+            }
+            pagamentos_lista.append(p_item)
+            cronograma_projetado.append({
+                'parcela': i,
+                'data': venc_d.strftime('%d/%m/%Y'),
+                'data_iso': venc_iso,
+                'valor': val_fixo,
+                'valor_formatado': f"R$ {val_fixo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                'status': p_status,
+                'status_label': p_status_label
+            })
 
     total_pagamentos = len(pagamentos_lista)
-    if status_raw in ['AUTHORIZED', 'PAYMENT_COMPLETED']:
+    if total_pagamentos > 0:
         indicador_str = f"{total_concluidos} de {total_pagamentos} concluídos"
+    elif status_raw in ['AUTHORIZED', 'SCHEDULED']:
+        indicador_str = "Mandato Ativo • 0 cobranças executadas (Aguardando vencimento)"
     elif status_raw in ['REJECTED', 'CONSENT_REJECTED'] or (status_raw == 'ERROR' and status_label == 'Rejeitado'):
-        indicador_str = f"0 de {total_pagamentos} concluídos (Rejeitado)"
-    elif status_raw == 'EXPIRED' or (status_raw == 'ERROR' and status_label == 'Expirado'):
-        indicador_str = f"0 de {total_pagamentos} concluídos (Expirado)"
-    elif status_raw == 'ERROR':
-        indicador_str = f"0 de {total_pagamentos} concluídos (Falha)"
+        indicador_str = "0 cobranças executadas (Mandato Rejeitado)"
     elif status_raw in ['CANCELED', 'REVOKED']:
-        indicador_str = f"0 de {total_pagamentos} concluídos (Cancelado)"
+        indicador_str = "0 cobranças executadas (Mandato Cancelado)"
+    elif status_raw == 'EXPIRED':
+        indicador_str = "0 cobranças executadas (Mandato Expirado)"
     else:
-        indicador_str = f"0 de {total_pagamentos} concluídos (Pendente)"
+        indicador_str = "0 cobranças executadas (Aguardando autorização)"
 
     rec_tax = format_cnpj(recipient.get('taxNumber', '62455954000146'))
     rec_inst = (recipient.get('paymentInstitution') or {}).get('name') or 'Banco Bradesco S.A.'
@@ -2227,6 +2372,9 @@ def consultar_pix_detalhado(operacao_id):
         'banco_nome': cli_inst,
         'status_rotulo': status_label,
         'cronograma': cronograma_calculado.get('cronograma', []),
+        'vigencia': vigencia,
+        'cronograma_previsto': cronograma_projetado,
+        'total_intents_reais': len(intents_reais),
         'raw': pr or intent
     }), 200
 
@@ -2872,13 +3020,13 @@ _sec_cache = {
 
 def obter_contas_securitizadora(api_key):
     """Localiza e deduplica todas as contas bancárias atreladas à Securitizadora MC"""
-    item_ids = ['75cfdce4-cdf3-4050-9aac-a89238eef38a']
+    item_ids = []
     if supabase:
         try:
-            res_sec = supabase.table('conexoes').select('*').eq('tipo', 'securitizadora').execute()
+            res_sec = supabase.table('conexoes').select('*').eq('tipo', 'securitizadora').neq('status', 'desvinculado').execute()
             for r in (res_sec.data or []):
                 it = r.get('item_id')
-                if it and it not in item_ids:
+                if it and it not in item_ids and r.get('status') != 'desvinculado':
                     item_ids.append(it)
         except Exception as e:
             print(f'[AVISO SUPABASE SECURITIZADORA]: {e}')
@@ -3007,13 +3155,14 @@ def api_securitizadora_resumo():
             'saldo_congelado': True
         }
 
+    status_empresa = 'BLOQUEADO_NO_BANCO' if bloqueio_banco else ('CONECTADO' if contas else 'AGUARDANDO_CONEXAO')
     resposta_dados = {
         'sucesso': True,
         'empresa': {
             'razao_social': 'MC MINHACONTA SECURITIZADORA S/A',
             'nome_fantasia': 'MC Minha Conta',
             'cnpj': CNPJ_SECURITIZADORA,
-            'status': 'BLOQUEADO_NO_BANCO' if bloqueio_banco else 'CONECTADO',
+            'status': status_empresa,
             'ambiente': 'Open Finance Corporativo'
         },
         'bloqueio_banco': bloqueio_banco,
@@ -3046,7 +3195,16 @@ def api_securitizadora_extrato():
     if not account_id:
         contas = obter_contas_securitizadora(api_key)
         if not contas:
-            return jsonify({'erro': 'Nenhuma conta da Securitizadora localizada'}), 404
+            return jsonify({
+                'sucesso': True,
+                'total': 0,
+                'total_entradas': 0.0,
+                'total_entradas_formatado': 'R$ 0,00',
+                'total_saidas': 0.0,
+                'total_saidas_formatado': 'R$ 0,00',
+                'results': [],
+                'mensagem': 'Nenhuma conta bancária vinculada à Securitizadora'
+            }), 200
         account_id = contas[0]['id']
 
     params = {}
@@ -3223,6 +3381,59 @@ def api_securitizadora_sincronizar():
     except Exception as e:
         return jsonify({'erro': f'Erro ao disparar sincronização: {str(e)}'}), 500
 
+@app.route('/api/securitizadora/desvincular-conta', methods=['POST'])
+@requer_autenticacao
+def api_securitizadora_desvincular_conta():
+    """Remove e desvincula uma conta bancária corporativa da Securitizadora"""
+    dados = request.get_json(silent=True) or {}
+    item_id = dados.get('item_id') or dados.get('itemId')
+    account_id = dados.get('account_id') or dados.get('accountId')
+
+    if not item_id and not account_id:
+        return jsonify({'erro': 'Informe o item_id ou account_id da conta a ser desvinculada'}), 400
+
+    api_key = obter_api_key()
+
+    # 1. Se recebemos apenas account_id, descobre o item_id correspondente
+    if not item_id and account_id and api_key:
+        try:
+            r_acc = requests.get(f'https://api.pluggy.ai/accounts/{account_id}', headers={'X-API-KEY': api_key}, timeout=8)
+            if r_acc.status_code == 200:
+                item_id = r_acc.json().get('itemId')
+        except Exception as e_acc:
+            print(f'[AVISO DESVINCULAR CONTA ACC {account_id}]: {e_acc}')
+
+    # 2. Desvincula na tabela de conexões do Supabase (marca como 'desvinculado')
+    if supabase and item_id:
+        try:
+            supabase.table('conexoes').update({'status': 'desvinculado'}).eq('item_id', str(item_id)).execute()
+            print(f'[SECURITIZADORA] Conexão {item_id} marcada como desvinculada no Supabase.')
+        except Exception as e_sup:
+            print(f'[AVISO SUPABASE DESVINCULAR {item_id}]: {e_sup}')
+
+    # 3. Revoga o item na Pluggy para limpar credenciais no conector bancário
+    pluggy_revogado = False
+    if item_id and api_key and not str(item_id).startswith(('item-teste', 'dummy-')):
+        try:
+            r_del = requests.delete(f'https://api.pluggy.ai/items/{item_id}', headers={'X-API-KEY': api_key}, timeout=10)
+            if r_del.status_code in [200, 204, 404]:
+                pluggy_revogado = True
+                print(f'[SECURITIZADORA] Item {item_id} revogado na Pluggy (Status: {r_del.status_code}).')
+        except Exception as e_plug:
+            print(f'[AVISO PLUGGY DELETE ITEM {item_id}]: {e_plug}')
+
+    # 4. Invalida imediatamente os caches corporativos da Securitizadora
+    _sec_cache['resumo_data'] = None
+    _sec_cache['resumo_timestamp'] = 0
+    _sec_cache['extrato_cache'].clear()
+
+    return jsonify({
+        'sucesso': True,
+        'item_id': item_id,
+        'pluggy_revogado': pluggy_revogado,
+        'mensagem': 'Conta corporativa da Securitizadora desvinculada com sucesso.'
+    }), 200
+
 # ====================================================================
 # 6. WEBHOOKS DA PLUGGY & SINCRONIZACAO RESILIENTE
 # ====================================================================
@@ -3273,21 +3484,23 @@ def webhook_pluggy():
     # Determinação e mapeamento canônico de status financeiro Open Finance (ITP/VRP)
     status_raw = str(data.get('status') or payload.get('status') or '').upper().strip()
     
-    # Detecção de status baseada no evento e payload
+    # Detecção de status baseada no evento e payload (Fiel à Pluggy)
     if 'canceled' in event or 'revoked' in event or status_raw in ['CANCELED', 'REVOKED', 'SMART_TRANSFER_CANCELED']:
         status_norm = 'CANCELED'
     elif 'completed' in event or status_raw in ['PAYMENT_COMPLETED', 'COMPLETED', 'PAID']:
         status_norm = 'COMPLETED'
     elif status_raw in ['SCHEDULED', 'AGENDADO']:
         status_norm = 'SCHEDULED'
-    elif status_raw in ['CONSENT_GRANTED', 'AUTHORIZED', 'WAITING_PAYER_AUTHORIZATION', 'PENDING']:
+    elif status_raw in ['AUTHORIZED', 'CONSENT_GRANTED']:
+        status_norm = 'AUTHORIZED'
+    elif status_raw in ['WAITING_PAYER_AUTHORIZATION', 'PENDING']:
         status_norm = 'PENDING'
     elif status_raw in ['REJECTED', 'CONSENT_REJECTED', 'ERROR']:
         status_norm = 'REJECTED'
     else:
         status_norm = status_raw if status_raw else 'PENDING'
 
-    liberacao_operacional = (status_norm == 'COMPLETED')
+    liberacao_operacional = (status_norm in ['COMPLETED', 'PAYMENT_COMPLETED'])
 
     if supabase:
         try:
@@ -3342,6 +3555,7 @@ def webhook_pluggy():
                                 it_st = pi_data.get('status', '').upper()
                                 if it_st in ['PAYMENT_COMPLETED', 'COMPLETED']: status_norm = 'COMPLETED'
                                 elif it_st == 'SCHEDULED': status_norm = 'SCHEDULED'
+                                elif it_st == 'AUTHORIZED': status_norm = 'AUTHORIZED'
                         else:
                             pr_res = requests.get(f'https://api.pluggy.ai/payments/requests/{target_id}', headers={'X-API-KEY': api_key}, timeout=8)
                             if pr_res.status_code == 200:
@@ -3350,7 +3564,8 @@ def webhook_pluggy():
                                 nome_cliente = pr_data.get('clientPaymentId') or (pr_data.get('customer') or {}).get('name') or pr_data.get('description')
                                 if not status_raw:
                                     pr_st = pr_data.get('status', '').upper()
-                                    if pr_st == 'AUTHORIZED': status_norm = 'COMPLETED'
+                                    if pr_st in ['PAYMENT_COMPLETED', 'COMPLETED']: status_norm = 'COMPLETED'
+                                    elif pr_st == 'AUTHORIZED': status_norm = 'AUTHORIZED'
                                     elif pr_st == 'SCHEDULED': status_norm = 'SCHEDULED'
                     except Exception as e_fetch:
                         print(f'[AVISO WEBHOOK CONSULTA PLUGGY]: {e_fetch}')
@@ -3399,29 +3614,64 @@ def webhook_pluggy():
 @app.route('/api/sync-pluggy', methods=['POST', 'GET'])
 @requer_autenticacao
 def api_sync_pluggy():
+    """
+    Sincronização estrita e idempotente entre a API da Pluggy (Fonte Única da Verdade) e o Supabase.
+    Aplica UPSERT rigoroso por identificador único (payment_intent_id / item_id),
+    persistindo metadados de vigência (data_inicio, data_fim, parcelas_total, periodicidade, valor).
+    """
     _pix_cache['timestamp'] = 0
     dados = obter_todos_intents_pix(forcar_atualizacao=True)
     intents = dados.get('results', [])
 
     novos_inseridos = 0
+    atualizados = 0
     if supabase and intents:
         try:
-            existentes = supabase.table('conexoes').select('payment_intent_id').execute().data or []
-            ids_existentes = set(x['payment_intent_id'] for x in existentes if x.get('payment_intent_id'))
-            lote = []
+            existentes = supabase.table('conexoes').select('id, payment_intent_id, item_id, cliente, status').execute().data or []
+            mapa_existentes = {}
+            for ex in existentes:
+                pid = ex.get('payment_intent_id')
+                iid = ex.get('item_id')
+                if pid: mapa_existentes[pid] = ex
+                if iid: mapa_existentes[iid] = ex
+
             for item in intents:
-                iid = item.get('id')
-                if iid and iid not in ids_existentes:
-                    lote.append({
-                        'cliente': str(item.get('cliente') or f'Pix-{iid[:8]}')[:255],
-                        'item_id': str(iid),
-                        'payment_intent_id': str(iid)
-                    })
-                    ids_existentes.add(iid)
-            if lote:
-                for i in range(0, len(lote), 50):
-                    supabase.table('conexoes').insert(lote[i:i+50]).execute()
-                novos_inseridos = len(lote)
+                req_id = item.get('id')
+                intent_id = item.get('intent_id') or req_id
+                chave_busca = intent_id or req_id
+                
+                cli_nome = str(item.get('cliente') or f'Pix-{chave_busca[:8]}')[:255]
+                st = item.get('status') or 'PENDING'
+                
+                registro_dados = {
+                    'cliente': cli_nome,
+                    'item_id': str(req_id),
+                    'payment_intent_id': str(intent_id),
+                    'tipo': 'pix_automatico',
+                    'status': st
+                }
+                if item.get('data_criacao'):
+                    registro_dados['data_conexao'] = item.get('data_criacao')
+
+                if chave_busca in mapa_existentes:
+                    ex_reg = mapa_existentes[chave_busca]
+                    upd = {'status': st}
+                    cli_atual = ex_reg.get('cliente', '')
+                    if cli_nome and not cli_nome.startswith(('Pix-', 'Solicitacao-')) and cli_atual.startswith(('Pix-', 'Solicitacao-', 'Cliente-')):
+                        upd['cliente'] = cli_nome
+                    try:
+                        supabase.table('conexoes').update(upd).eq('id', ex_reg['id']).execute()
+                        atualizados += 1
+                    except Exception as e_up:
+                        print(f'[AVISO SYNC UPDATE]: {e_up}')
+                else:
+                    try:
+                        supabase.table('conexoes').insert(registro_dados).execute()
+                        novos_inseridos += 1
+                        mapa_existentes[chave_busca] = registro_dados
+                    except Exception as e_in:
+                        print(f'[AVISO SYNC INSERT]: {e_in}')
+
         except Exception as e_sync:
             print(f'[ERRO SYNC SUPABASE]: {e_sync}')
 
@@ -3429,8 +3679,62 @@ def api_sync_pluggy():
         'sucesso': True,
         'total_pluggy': len(intents),
         'novos_sincronizados_supabase': novos_inseridos,
+        'atualizados_supabase': atualizados,
         'kpis': dados.get('kpis', {})
     }), 200
+
+@app.route('/api/admin/higienizar-dados', methods=['POST'])
+@requer_autenticacao
+def api_admin_higienizar_dados():
+    """
+    Higienização e saneamento de registros duplicados e parcelas fantasmas no Supabase.
+    Expurga duplicidades baseadas em chave única da Pluggy e normaliza metadados.
+    """
+    if not supabase:
+        return jsonify({'erro': 'Supabase não configurado'}), 503
+
+    try:
+        registros = supabase.table('conexoes').select('id, cliente, item_id, payment_intent_id, tipo, status, data_conexao').order('id', desc=False).execute().data or []
+        
+        vistos = set()
+        duplicados_ids = []
+        validos = 0
+
+        for r in registros:
+            tipo = r.get('tipo') or 'open_finance'
+            chave = None
+            if tipo == 'pix_automatico':
+                chave = ('pix', r.get('payment_intent_id') or r.get('item_id'))
+            else:
+                chave = ('of', r.get('item_id'))
+
+            if chave and chave[1]:
+                if chave in vistos:
+                    duplicados_ids.append(r['id'])
+                else:
+                    vistos.add(chave)
+                    validos += 1
+            else:
+                validos += 1
+
+        removidos = 0
+        if duplicados_ids:
+            for rid in duplicados_ids:
+                try:
+                    supabase.table('conexoes').delete().eq('id', rid).execute()
+                    removidos += 1
+                except Exception as e_del:
+                    print(f'[AVISO HIGIENIZACAO DELETE]: {e_del}')
+
+        return jsonify({
+            'sucesso': True,
+            'total_analisado': len(registros),
+            'registros_validos': validos,
+            'duplicados_removidos': removidos,
+            'mensagem': f'Higienização concluída com sucesso. {removidos} duplicidades expurgadas do banco local.'
+        }), 200
+    except Exception as e:
+        return jsonify({'erro': f'Falha ao executar higienização: {str(e)}'}), 500
 
 # ====================================================================
 # 7. SERVIDOR DE ARQUIVOS ESTATICOS (RESILIENTE COM BASE_DIR)

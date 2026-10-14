@@ -1131,9 +1131,26 @@ let todosOsClientes = [];
 
                             const dataFmt = itemRecente.criado_em || formatarDataPluggy(itemRecente.data_criacao);
                             const dataInicioFmt = itemRecente.data_inicio_formatada || (itemRecente.data_inicio ? formatarDataSimplesPluggy(itemRecente.data_inicio) : null);
-                            const badgeInicio = (dataInicioFmt && dataInicioFmt !== '---')
-                                ? `<div class="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-medium"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioFmt}</strong></div>`
-                                : '';
+                            const dataTerminoFmt = itemRecente.data_termino_formatada || (itemRecente.data_termino ? formatarDataSimplesPluggy(itemRecente.data_termino) : null);
+                            const parcelasFmt = itemRecente.parcelas_total ? `${itemRecente.parcelas_total}x` : '12x';
+
+                            let badgeInicio = '';
+                            if (dataInicioFmt && dataInicioFmt !== '---') {
+                                badgeInicio = `
+                                    <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                                        <span class="inline-flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                            <i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioFmt}</strong>
+                                        </span>
+                                        ${(dataTerminoFmt && dataTerminoFmt !== '---') ? `
+                                        <span class="inline-flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                            <i class="fa-regular fa-calendar-xmark text-slate-400"></i> Término: <strong class="text-slate-700">${dataTerminoFmt}</strong>
+                                        </span>` : ''}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
+                                            ${parcelasFmt}
+                                        </span>
+                                    </div>
+                                `;
+                            }
 
                             const docDisplay = cli.documento 
                                 ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">${cli.tipo_documento || 'DOC'}: ${cli.documento}</span>`
@@ -2094,6 +2111,7 @@ let todosOsClientes = [];
                 
                 const pix = await resposta.json();
                 const cfg = pix.configuracao_pix || {};
+                const vig = pix.vigencia || {};
                 const cli = pix.cliente || {};
                 const rec = pix.recebedor || {};
                 const pag = pix.pagamentos || {};
@@ -2299,45 +2317,112 @@ let todosOsClientes = [];
                     `;
                 }
 
-                (pag.itens || []).forEach(item => {
-                    let badgeItem = 'bg-slate-100 text-slate-700 border-slate-200';
-                    let iconeItem = '<i class="fa-regular fa-clock"></i>';
-                    if (item.status === 'CONCLUIDO' || item.status === 'COMPLETED') {
-                        badgeItem = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                        iconeItem = '<i class="fa-solid fa-check text-emerald-600"></i>';
-                    } else if (item.status === 'AGENDADO' || item.status === 'SCHEDULED' || item.status === 'EM_PROCESSAMENTO') {
-                        badgeItem = 'bg-sky-50 text-sky-700 border-sky-200';
-                        iconeItem = '<i class="fa-regular fa-calendar-check text-sky-600"></i>';
-                    } else if (item.status === 'REJEITADO' || item.status === 'ERRO') {
-                        badgeItem = 'bg-rose-50 text-rose-700 border-rose-200';
-                        iconeItem = '<i class="fa-solid fa-triangle-exclamation text-rose-600"></i>';
-                    } else if (item.status === 'CANCELADO' || item.status === 'EXPIRADO') {
-                        badgeItem = 'bg-slate-100 text-slate-600 border-slate-200';
-                        iconeItem = '<i class="fa-solid fa-ban text-slate-400"></i>';
-                    } else if (item.status === 'PENDENTE' || item.status === 'CONSENT_GRANTED') {
-                        badgeItem = 'bg-amber-50 text-amber-700 border-amber-200';
-                        iconeItem = '<i class="fa-solid fa-hourglass-half text-amber-600"></i>';
-                    }
-
-                    htmlLinhasPagamentos += `
-                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition text-xs">
-                            <td class="py-3 px-4 font-semibold text-[#010157]">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[11px]">${item.numero}</span>
-                                    <span>${MC_CONFIG.escapeHtml(item.titulo)}</span>
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-slate-600 font-mono text-[11px]">${item.data}</td>
-                            <td class="py-3 px-4 font-black text-slate-900 font-mono">${item.valor_formatado}</td>
-                            <td class="py-3 px-4 text-slate-500 max-w-[200px] truncate" title="${MC_CONFIG.escapeHtml(item.descricao)}">${MC_CONFIG.escapeHtml(item.descricao)}</td>
-                            <td class="py-3 px-4 text-center">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeItem}">
-                                    ${iconeItem} ${MC_CONFIG.escapeHtml(item.status_label)}
-                                </span>
+                if (!pag.itens || pag.itens.length === 0) {
+                    htmlLinhasPagamentos = `
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-slate-400">
+                                <i class="fa-regular fa-clock text-2xl text-slate-300 block mb-2"></i>
+                                <div class="font-bold text-slate-700 text-xs">Nenhuma execução / cobrança realizada ainda na Pluggy</div>
+                                <div class="text-[11px] text-slate-400 mt-1">Este contrato está ativo no Open Finance. Os débitos ocorrerão conforme o cronograma contratual previsto.</div>
                             </td>
                         </tr>
                     `;
-                });
+                } else {
+                    (pag.itens || []).forEach(item => {
+                        let badgeItem = 'bg-slate-100 text-slate-700 border-slate-200';
+                        let iconeItem = '<i class="fa-regular fa-clock"></i>';
+                        if (item.status === 'CONCLUIDO' || item.status === 'COMPLETED') {
+                            badgeItem = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                            iconeItem = '<i class="fa-solid fa-check text-emerald-600"></i>';
+                        } else if (item.status === 'AGENDADO' || item.status === 'SCHEDULED' || item.status === 'EM_PROCESSAMENTO') {
+                            badgeItem = 'bg-sky-50 text-sky-700 border-sky-200';
+                            iconeItem = '<i class="fa-regular fa-calendar-check text-sky-600"></i>';
+                        } else if (item.status === 'REJEITADO' || item.status === 'ERRO') {
+                            badgeItem = 'bg-rose-50 text-rose-700 border-rose-200';
+                            iconeItem = '<i class="fa-solid fa-triangle-exclamation text-rose-600"></i>';
+                        } else if (item.status === 'CANCELADO' || item.status === 'EXPIRADO') {
+                            badgeItem = 'bg-slate-100 text-slate-600 border-slate-200';
+                            iconeItem = '<i class="fa-solid fa-ban text-slate-400"></i>';
+                        } else if (item.status === 'PENDENTE' || item.status === 'CONSENT_GRANTED') {
+                            badgeItem = 'bg-amber-50 text-amber-700 border-amber-200';
+                            iconeItem = '<i class="fa-solid fa-hourglass-half text-amber-600"></i>';
+                        }
+
+                        const idSubPluggy = item.id ? `<span class="font-mono text-[10px] text-slate-400 block mt-0.5">ID: ${item.id}</span>` : '';
+                        const e2eComprovante = item.end_to_end_id ? `<span class="font-mono text-[10px] text-emerald-700 font-semibold block mt-0.5"><i class="fa-solid fa-receipt text-[9px]"></i> BACEN: ${item.end_to_end_id}</span>` : '';
+
+                        htmlLinhasPagamentos += `
+                            <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition text-xs">
+                                <td class="py-3 px-4 font-semibold text-[#010157]">
+                                    <div class="flex items-start gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">${item.numero}</span>
+                                        <div>
+                                            <span>${MC_CONFIG.escapeHtml(item.titulo)}</span>
+                                            ${idSubPluggy}
+                                            ${e2eComprovante}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-slate-600 font-mono text-[11px] whitespace-nowrap">${item.data}</td>
+                                <td class="py-3 px-4 font-black text-slate-900 font-mono">${item.valor_formatado}</td>
+                                <td class="py-3 px-4 text-slate-500 max-w-[200px] truncate" title="${MC_CONFIG.escapeHtml(item.descricao)}">${MC_CONFIG.escapeHtml(item.descricao)}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeItem}">
+                                        ${iconeItem} ${MC_CONFIG.escapeHtml(item.status_label)}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                let htmlCronogramaPrevisto = '';
+                const cronProjetado = pix.cronograma_previsto || [];
+                if (cronProjetado.length > 0) {
+                    let linhasCron = '';
+                    cronProjetado.forEach(cp => {
+                        linhasCron += `
+                            <tr class="border-b border-slate-100 text-[11px] text-slate-600 hover:bg-slate-50/80">
+                                <td class="py-2.5 px-3 font-semibold text-slate-800">Parcela ${cp.parcela}</td>
+                                <td class="py-2.5 px-3 font-mono">${cp.data}</td>
+                                <td class="py-2.5 px-3 font-mono font-bold text-slate-900">${cp.valor_formatado}</td>
+                                <td class="py-2.5 px-3 text-center">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                        <i class="fa-regular fa-calendar text-[9px]"></i> ${cp.status_label}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    htmlCronogramaPrevisto = `
+                        <!-- 4. BLOCO PREVISÃO CONTRATUAL DAS PARCELAS -->
+                        <details class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden group">
+                            <summary class="px-6 py-4 flex justify-between items-center cursor-pointer select-none bg-slate-50/60 hover:bg-slate-100/60 transition">
+                                <div class="flex items-center gap-2 text-xs font-bold text-[#010157] uppercase tracking-wider">
+                                    <i class="fa-regular fa-calendar-days text-[#0985ff]"></i>
+                                    <span>Previsão Contratual de Parcelas (${cronProjetado.length})</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">Projeção Futura</span>
+                                </div>
+                                <span class="text-xs text-slate-400 group-open:rotate-180 transition"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <div class="p-4 overflow-x-auto bg-white border-t border-slate-100">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100">
+                                            <th class="py-2 px-3">Nº Parcela</th>
+                                            <th class="py-2 px-3">Vencimento Previsto</th>
+                                            <th class="py-2 px-3">Valor Previsto</th>
+                                            <th class="py-2 px-3 text-center">Tipo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${linhasCron}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    `;
+                }
 
                 const isEncerrado = (
                     pix.status_classe === 'rejeitado' ||
@@ -2354,50 +2439,57 @@ let todosOsClientes = [];
                     ${bannerLiberacao}
                     ${bannerDiagnostico}
 
-                    <!-- 1. BLOCO CONFIGURAÇÃO PIX AUTOMÁTICO -->
+                    <!-- 1. BLOCO CONFIGURAÇÃO PIX AUTOMÁTICO & VIGÊNCIA -->
                     <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm">
                         <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
                             <h4 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                                 <i class="fa-solid fa-sliders text-[#0985ff]"></i>
-                                CONFIGURAÇÃO PIX AUTOMÁTICO
+                                CONFIGURAÇÃO DO CONTRATO & VIGÊNCIA (PLUGGY)
                             </h4>
                             <span class="text-slate-400 text-xs"><i class="fa-solid fa-chevron-up"></i></span>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs">
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-6 text-xs">
                             <!-- Coluna 1 -->
                             <div class="space-y-4">
                                 <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Intervalo</span>
-                                    <span class="text-sm font-bold text-[#010157]">${cfg.intervalo || 'Mensal'}</span>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Intervalo / Periodicidade</span>
+                                    <span class="text-sm font-bold text-[#010157]">${cfg.intervalo || vig.periodicidade || 'Mensal'}</span>
                                 </div>
                                 <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Data de Início</span>
-                                    <span class="text-xs font-semibold text-slate-800">${cfg.data_inicio || '---'}</span>
-                                </div>
-                                <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Expira em</span>
-                                    <span class="text-xs font-semibold text-slate-800">${cfg.expira_em || '---'}</span>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Data da 1ª Cobrança / Início</span>
+                                    <span class="text-xs font-bold text-slate-800 font-mono">${vig.data_inicio_formatada || cfg.data_inicio || '---'}</span>
                                 </div>
                             </div>
                             <!-- Coluna 2 -->
                             <div class="space-y-4">
                                 <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Valor Fixo</span>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Valor da Parcela Fixa</span>
                                     <span class="text-base font-black text-[#010157] font-mono">${cfg.valor_fixo_formatado || 'R$ 0,00'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Data de Término Previsto</span>
+                                    <span class="text-xs font-bold text-slate-800 font-mono">${vig.data_termino_formatada || cfg.expira_em || '---'}</span>
                                 </div>
                             </div>
                             <!-- Coluna 3 -->
                             <div class="space-y-4">
                                 <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Aceita Retentativa</span>
-                                    <span class="text-xs font-semibold text-slate-800">${cfg.aceita_retentativa || 'Sim'}</span>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Parcelas Contratadas</span>
+                                    <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">${vig.parcelas_previstas || pix.parcelas_total || 12}x parcelas</span>
                                 </div>
                                 <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Dias de Retentativa Automática</span>
-                                    <span class="text-xs font-semibold text-slate-800 font-mono">${cfg.dias_retentativa || '1, 2, 3'}</span>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Execuções Reais Pluggy</span>
+                                    <span class="text-xs font-bold text-slate-800">${pix.total_intents_reais || (pag.itens ? pag.itens.length : 0)} intent(s)</span>
+                                </div>
+                            </div>
+                            <!-- Coluna 4 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Retentativa Automática</span>
+                                    <span class="text-xs font-semibold text-slate-800">${cfg.aceita_retentativa || 'Sim'} (Dias: ${cfg.dias_retentativa || '1, 2, 3'})</span>
                                 </div>
                                 <div>
-                                    <span class="text-[11px] text-slate-400 block font-medium">Agendador</span>
+                                    <span class="text-[11px] text-slate-400 block font-medium">Agendador Ativo</span>
                                     <span class="text-xs font-semibold text-slate-800">${cfg.agendador || 'Sim'}</span>
                                 </div>
                             </div>
@@ -2498,7 +2590,7 @@ let todosOsClientes = [];
                         <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-white">
                             <h4 class="text-xs font-bold text-[#010157] uppercase tracking-wider flex items-center gap-2">
                                 <i class="fa-solid fa-money-bill-transfer text-emerald-600"></i>
-                                PAGAMENTOS (${pag.total || 0})
+                                COBRANÇAS / EXECUÇÕES REAIS PLUGGY (${pag.total || 0})
                             </h4>
                             <div class="flex items-center gap-3">
                                 <span class="text-xs text-slate-500 font-medium">${pag.indicador || ''}</span>
@@ -2525,6 +2617,8 @@ let todosOsClientes = [];
                             </table>
                         </div>
                     </div>
+
+                    ${htmlCronogramaPrevisto}
                 `;
 
                 if (corpoModal) corpoModal.innerHTML = htmlDetalhesPluggy;

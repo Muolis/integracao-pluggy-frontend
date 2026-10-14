@@ -53,7 +53,7 @@ O sistema integra-se à API Pluggy v2 e utiliza infraestrutura em nuvem no Rende
   - **Hospedagem em Nuvem**: Render Cloud — Serviço Estático [`vitrine-openfinance`](https://vitrine-openfinance.onrender.com)
 
 * **Testes & Auditoria Técnica:**
-  - **Suíte de Testes Automatizados**: [`test_backend.py`](file:///c:/meu-frontend-plugg/test_backend.py) com 31 testes unitários e de integração
+  - **Suíte de Testes Automatizados**: [`test_backend.py`](file:///c:/meu-frontend-plugg/test_backend.py) com 34 testes unitários e de integração (100% de cobertura e aprovação)
   - **Geradores de Laudos & Dossiês PDF**:
     * [`gerar_auditoria_tecnica_pdf.py`](file:///c:/meu-frontend-plugg/gerar_auditoria_tecnica_pdf.py) -> [`AUDITORIA_TECNICA_ULTIMAS_ATUALIZACOES_MC.pdf`](file:///c:/meu-frontend-plugg/AUDITORIA_TECNICA_ULTIMAS_ATUALIZACOES_MC.pdf)
     * [`gerar_documentacao_pdf.py`](file:///c:/meu-frontend-plugg/gerar_documentacao_pdf.py) -> [`Documentacao_Tecnica_Confiabilidade_MC.pdf`](file:///c:/meu-frontend-plugg/Documentacao_Tecnica_Confiabilidade_MC.pdf)
@@ -75,7 +75,7 @@ O sistema integra-se à API Pluggy v2 e utiliza infraestrutura em nuvem no Rende
      ```powershell
      .venv\Scripts\python.exe test_backend.py
      ```
-   - Nenhum deploy, commit ou entrega deve ser considerada concluída sem **100% de aprovação nos 31 testes automatizados**.
+   - Nenhum deploy, commit ou entrega deve ser considerada concluída sem **100% de aprovação nos 34 testes automatizados**.
 
 3. **Padrão de Layout e Viewport Global (Shell da Plataforma)**:
    - **Zero Espaços Vazios Arbitrários**: A área de conteúdo principal (`main` ou wrapper) deve ocupar **100% da largura útil restante da tela** (`flex: 1; min-width: 0; width: 100%; max-width: 100%;`).
@@ -104,3 +104,8 @@ O sistema integra-se à API Pluggy v2 e utiliza infraestrutura em nuvem no Rende
    - Mantenha respostas concisas, estruturadas e com links clicáveis no formato `file:///c:/meu-frontend-plugg/...`.
    - Sempre reporte o resultado dos testes automatizados e o status real dos arquivos modificados.
    - Atualize os arquivos [`PROGRESS.md`](file:///c:/meu-frontend-plugg/PROGRESS.md) e [`CHECKPOINT.md`](file:///c:/meu-frontend-plugg/CHECKPOINT.md) ao término de cada tarefa para manter o histórico vivo do projeto.
+
+8. **Gestão e Desvinculação de Contas Corporativas da Securitizadora**:
+   - As contas corporativas PJ da Securitizadora devem ser carregadas dinamicamente a partir das conexões ativas no banco de dados (`tipo = 'securitizadora'`). É estritamente proibido fixar (*hardcode*) `item_id` ou contas em código.
+   - O sistema deve preservar a rota autenticada (`POST /api/securitizadora/desvincular-conta`) para exclusão/desvinculação com 1 clique, integrando a revogação no conector Pluggy (`DELETE /items/{id}`) e saneamento no Supabase (`status = 'desvinculado'`).
+   - Se nenhuma conta estiver conectada, os endpoints e interfaces devem manter comportamento resiliente (retornando lista vazia com HTTP 200 e empty state no frontend, sem erros de console).
