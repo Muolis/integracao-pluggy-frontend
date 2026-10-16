@@ -502,6 +502,9 @@
                         
                         <div class="flex items-center justify-between sm:justify-end gap-2.5 flex-wrap">
                             <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
+                            <button type="button" id="btn-toggle-foco" onclick="alternarFocoPainel()" class="bg-white hover:bg-slate-100 text-[#010157] border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Alternar visualização em tela cheia (oculta/exibe gerador lateral)">
+                                <i class="fa-solid fa-arrows-left-right-to-line text-[#0985ff]"></i> <span id="label-toggle-foco">Tela Cheia</span>
+                            </button>
                             <button type="button" id="btn-exportar-openfinance" onclick="exportarOpenFinanceExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar dados de clientes Open Finance para Excel (.csv)">
                                 <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Excel
                             </button>
@@ -962,24 +965,24 @@
                         </div>
                     </div>
 
-                    <!-- TABELA DE DADOS DO EXTRATO DETALHADO -->
-                    <div class="overflow-x-auto border border-slate-200/90 rounded-2xl bg-white shadow-xs custom-scrollbar w-full">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                                    <th class="py-3 px-3.5">Cliente & Documento</th>
-                                    <th class="py-3 px-3 text-center">Método</th>
-                                    <th class="py-3 px-3">Progresso das Parcelas</th>
-                                    <th class="py-3 px-3">Vigência (Início / Fim)</th>
-                                    <th class="py-3 px-3 text-right">Valor Parcela / Total</th>
-                                    <th class="py-3 px-3 text-center">Adimplência</th>
-                                    <th class="py-3 px-3 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-extrato-detalhado" class="divide-y divide-slate-100">
-                                <!-- Inserido dinamicamente via JS -->
-                            </tbody>
-                        </table>
+                    <!-- TABELA DE DADOS DO EXTRATO DETALHADO (LAYOUT PRÁTICO INTEGRADO SEM CORTE) -->
+                    <div class="border border-slate-200/90 rounded-2xl bg-white shadow-xs w-full overflow-hidden">
+                        <div class="overflow-x-auto custom-scrollbar w-full">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                        <th class="py-3 px-4 w-4/12">Cliente & Operação</th>
+                                        <th class="py-3 px-3 w-3/12">Parcelas & Vigência</th>
+                                        <th class="py-3 px-3 text-right w-2/12">Valores</th>
+                                        <th class="py-3 px-3 text-center w-2/12">Situação</th>
+                                        <th class="py-3 px-3 text-center w-1/12">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-extrato-detalhado" class="divide-y divide-slate-100">
+                                    <!-- Inserido dinamicamente via JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -987,7 +990,7 @@
         </main>
     </div>
 
-    <script src="gestor.js?v=20261016_2"></script>
+    <script src="gestor.js?v=20261016_3"></script>
 
 
     <!-- MODAL OFICIAL DETALHES DA OPERAÇÃO PLUGGY (IMAGEM 3) -->

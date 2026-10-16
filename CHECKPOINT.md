@@ -5,14 +5,18 @@
 
 ## 🛑 Ponto de Parada Atual
 
-* **Data / Hora**: 16 de Outubro de 2026, 11:15 (Horário de Brasília)
-* **Status**: ✅ **VINCULAÇÃO DA CONTA DA SECURITIZADORA, CORREÇÃO DE ADIMPLÊNCIA/PARCELAS E RESPONSIVIDADE SEM CORTES CONCLUÍDOS COM SUCESSO**.
+* **Data / Hora**: 16 de Outubro de 2026, 11:45 (Horário de Brasília)
+* **Status**: ✅ **ELIMINAÇÃO DEFINITIVA DE CORTE DE TELA: LARGURA TOTAL AUTOMÁTICA (MODO FOCO), TABELA INTEGRADA EM 5 COLUNAS E ZERO SCROLL HORIZONTAL**.
 * **Foco Imediato**: 
-  1. Identificação e vinculação definitiva da conta corporativa PJ da Securitizadora MC no Supabase (Bradesco Empresas, item `d20e96bd-d341-445f-8d00-4fd0d3c472b9`, C/C `03201/0079613-1`, Saldo Real R$ 506,88, 471 movimentações).
-  2. Exibição do card corporativo completo na aba "Contas Vinculadas (MC)" com histórico recente de movimentações em tempo real e blindagem contra vazamento na listagem de tomadores do Open Finance.
-  3. Correção da lógica de adimplência: contratos futuros (como 03/11/2026 com 0 pagas) agora recebem status real `Agendado (A iniciar)` em vez de "Em dia".
-  4. Resolução da tela cortada no Extrato Detalhado através de grid responsivo fluido e ficha completa do cliente no acordeão.
-  5. Deduplicação de clientes no Extrato Detalhado (Taciana Souza de lima consolidada em 1 linha com auditoria de tentativas anteriores).
+  1. Eliminação definitiva da necessidade de scroll horizontal ("colocar para o lado"): o Extrato Detalhado e Contas Vinculadas agora ocupam automaticamente 100% da tela (`xl:col-span-12`), recolhendo o formulário de geração lateral.
+  2. Adição do botão "Tela Cheia / Exibir Gerador" no topo do painel para alternância rápida a qualquer momento.
+  3. Reestruturação da tabela do Extrato Detalhado de 7 para 5 colunas integradas de alto aproveitamento:
+     - Coluna 1: `Cliente & Operação` (Avatar/Logo, Nome, Documento, Banco e Badge do Método Pix/Boleto).
+     - Coluna 2: `Parcelas & Vigência` (X/Y pagas, barra de progresso e datas de início/fim).
+     - Coluna 3: `Valores` (Parcela mensal e Total).
+     - Coluna 4: `Situação` (Badge de adimplência).
+     - Coluna 5: `Ações` (Botão Pluggy e Botão Ficha).
+  4. Expansão da linha ao clicar em qualquer lugar da célula do cliente, revelando a Ficha Cadastral e Bancária Completa + Cronograma de Parcelas fluido.
 * **Conta de Autoria Git**: `TI Suporte MC Minhaconta <ti.suportemcminhaconta@gmail.com>`
 * **Branch**: `main`
 * **Integridade dos Testes Automatizados**: **34 de 34 testes aprovados** (`.venv\Scripts\python.exe test_backend.py`).

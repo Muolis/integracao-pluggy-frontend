@@ -878,6 +878,43 @@ let todosOsClientes = [];
             }, 180);
         }
 
+        let modoFocoManual = false;
+
+        function alternarFocoPainel() {
+            modoFocoManual = !modoFocoManual;
+            aplicarModoFoco(modoFocoManual);
+        }
+
+        function aplicarModoFoco(ativar) {
+            const cardGerador = document.getElementById('card-gerador-acesso');
+            const painelPrincipal = document.getElementById('painel-clientes-principal');
+            const labelToggle = document.getElementById('label-toggle-foco');
+            const btnToggle = document.getElementById('btn-toggle-foco');
+            if (!painelPrincipal) return;
+
+            if (ativar) {
+                if (cardGerador) cardGerador.classList.add('hidden');
+                painelPrincipal.classList.remove('xl:col-span-8', '2xl:col-span-9');
+                painelPrincipal.classList.add('xl:col-span-12', '2xl:col-span-12');
+                if (labelToggle) labelToggle.textContent = 'Exibir Gerador';
+                if (btnToggle) {
+                    btnToggle.classList.add('bg-blue-50', 'text-[#0985ff]', 'border-blue-200');
+                    btnToggle.classList.remove('bg-white', 'text-[#010157]');
+                    btnToggle.title = 'Mostrar formulário Gerar Novo Acesso ao lado';
+                }
+            } else {
+                if (cardGerador) cardGerador.classList.remove('hidden');
+                painelPrincipal.classList.remove('xl:col-span-12', '2xl:col-span-12');
+                painelPrincipal.classList.add('xl:col-span-8', '2xl:col-span-9');
+                if (labelToggle) labelToggle.textContent = 'Tela Cheia';
+                if (btnToggle) {
+                    btnToggle.classList.remove('bg-blue-50', 'text-[#0985ff]', 'border-blue-200');
+                    btnToggle.classList.add('bg-white', 'text-[#010157]');
+                    btnToggle.title = 'Expandir tabela para largura total';
+                }
+            }
+        }
+
         function mudarAbaLista(abaSelecionada) {
             abaAtual = abaSelecionada;
             const btnExtrato = document.getElementById('aba-lista-extrato');
@@ -913,6 +950,15 @@ let todosOsClientes = [];
             if (btnExpOf) btnExpOf.classList.add("hidden");
             if (btnExpSec) btnExpSec.classList.add("hidden");
 
+            // Controle inteligente de largura total da tela (elimina cortes e rolagem horizontal desnecessária)
+            if (abaSelecionada === 'sec_extrato' || abaSelecionada === 'sec_contas') {
+                aplicarModoFoco(true);
+            } else {
+                if (!modoFocoManual) {
+                    aplicarModoFoco(false);
+                }
+            }
+
             if (abaSelecionada === 'extrato') {
                 if (btnExtrato) btnExtrato.className = stAtivo;
                 if (divLista) divLista.classList.remove("hidden");
@@ -938,7 +984,7 @@ let todosOsClientes = [];
                 if (cSecExtrato) cSecExtrato.classList.remove("hidden");
                 if (btnExpSec) btnExpSec.classList.remove("hidden");
                 if (tituloPainel) tituloPainel.textContent = "Extrato Detalhado de Clientes";
-                if (subtituloPainel) subtituloPainel.textContent = "Histórico detalhado de pagamentos, progresso de parcelas e status de adimplência.";
+                if (subtituloPainel) subtituloPainel.textContent = "Histórico consolidado com fichas cadastrais, parcelas e controle de adimplência.";
                 renderizarExtratoDetalhadoSecuritizadora();
             }
         }
@@ -3350,7 +3396,7 @@ let todosOsClientes = [];
             if (paginados.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-slate-400">
+                        <td colspan="5" class="py-12 text-center text-slate-400">
                             <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300"></i>
                             <p class="text-xs">Nenhum contrato encontrado para os filtros selecionados.</p>
                         </td>
@@ -3364,26 +3410,26 @@ let todosOsClientes = [];
                 const rowId = `sub-contrato-det-${idx}-${c.id.slice(0, 8)}`;
                 
                 const badgeMetodo = c.isBoleto
-                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs"><i class="fa-solid fa-barcode text-amber-600"></i> Boleto</span>`
-                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-bolt text-emerald-600"></i> Pix Automático</span>`;
+                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300"><i class="fa-solid fa-barcode text-amber-600"></i> Boleto</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-bolt text-emerald-600"></i> Pix Automático</span>`;
 
                 let badgeAdimplencia = '';
                 let corBarra = 'bg-sky-500';
 
                 if (c.adimplencia === 'agendado') {
-                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-300 shadow-2xs"><i class="fa-regular fa-clock text-sky-600"></i> Agendado</span>`;
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-300 shadow-2xs whitespace-nowrap"><i class="fa-regular fa-clock text-sky-600"></i> Agendado</span>`;
                     corBarra = 'bg-sky-500';
                 } else if (c.adimplencia === 'em_dia') {
-                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-circle-check text-emerald-600"></i> Em dia</span>`;
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs whitespace-nowrap"><i class="fa-solid fa-circle-check text-emerald-600"></i> Em dia</span>`;
                     corBarra = 'bg-emerald-500';
                 } else if (c.adimplencia === 'concluido') {
-                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-300 shadow-2xs"><i class="fa-solid fa-flag-checkered text-indigo-600"></i> Concluído</span>`;
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-300 shadow-2xs whitespace-nowrap"><i class="fa-solid fa-flag-checkered text-indigo-600"></i> Concluído</span>`;
                     corBarra = 'bg-indigo-600';
                 } else if (c.adimplencia === 'cancelado') {
-                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs"><i class="fa-solid fa-ban text-slate-500"></i> Cancelado</span>`;
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs whitespace-nowrap"><i class="fa-solid fa-ban text-slate-500"></i> Cancelado</span>`;
                     corBarra = 'bg-slate-400';
                 } else {
-                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs animate-pulse"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Em atraso</span>`;
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs whitespace-nowrap animate-pulse"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Em atraso</span>`;
                     corBarra = 'bg-rose-500';
                 }
 
@@ -3394,67 +3440,85 @@ let todosOsClientes = [];
                 const safeContratoId = MC_CONFIG.escapeHtml(c.id);
                 const imgBancoHtml = (c.banco_imagem && c.banco_imagem.startsWith('http')) 
                     ? `<img src="${MC_CONFIG.escapeHtml(c.banco_imagem)}" alt="" class="w-4 h-4 object-contain">` 
-                    : `<i class="fa-regular fa-user text-xs"></i>`;
+                    : `<i class="fa-solid fa-building-columns text-slate-400 text-xs"></i>`;
 
                 const tentativasBadge = (c.tentativasAnteriores && c.tentativasAnteriores.length > 0)
-                    ? `<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono ml-1.5" title="${c.tentativasAnteriores.length} tentativas anteriores arquivadas">+${c.tentativasAnteriores.length} audit</span>`
+                    ? `<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono ml-1.5" title="${c.tentativasAnteriores.length} tentativas anteriores registradas">+${c.tentativasAnteriores.length} audit</span>`
                     : '';
 
                 htmlLinhas += `
-                    <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
-                        <td class="py-3 px-3.5">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                    <tr class="hover:bg-slate-50/90 transition border-b border-slate-100">
+                        <!-- COLUNA 1: CLIENTE & OPERAÇÃO (INTEGRADA E SEM CORTES) -->
+                        <td class="py-3.5 px-4 cursor-pointer" onclick="toggleSubtabelaContratoDet('${safeRowId}')" title="Clique para expandir a ficha cadastral e cronograma">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5 border border-slate-200/60 shadow-2xs">
                                     ${imgBancoHtml}
                                 </div>
-                                <div class="min-w-0">
-                                    <div class="flex items-center">
-                                        <span class="font-bold text-[#010157] text-xs block leading-tight truncate">${MC_CONFIG.escapeHtml(c.cliente)}</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <strong class="font-bold text-[#010157] text-xs leading-tight hover:text-[#0985ff] transition">${MC_CONFIG.escapeHtml(c.cliente)}</strong>
                                         ${tentativasBadge}
                                     </div>
-                                    <span class="text-[10px] text-slate-400 font-mono block mt-0.5 truncate">${MC_CONFIG.escapeHtml(c.documento)} • ${MC_CONFIG.escapeHtml(c.banco_nome)}</span>
+                                    <div class="flex items-center gap-2 mt-1 flex-wrap text-[11px]">
+                                        <span class="text-slate-500 font-mono">${MC_CONFIG.escapeHtml(c.documento)}</span>
+                                        <span class="text-slate-300">•</span>
+                                        <span class="text-slate-600 font-medium">${MC_CONFIG.escapeHtml(c.banco_nome)}</span>
+                                        <span class="text-slate-300">•</span>
+                                        ${badgeMetodo}
+                                    </div>
                                 </div>
                             </div>
                         </td>
-                        <td class="py-3 px-3 text-center whitespace-nowrap">
-                            ${badgeMetodo}
-                        </td>
-                        <td class="py-3 px-3 whitespace-nowrap">
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold text-xs ${c.adimplencia === 'em_atraso' ? 'text-rose-700' : 'text-[#010157]'}">${c.parcelasPagas}/${c.totalParcelas} pagas</span>
-                                <span class="text-[10px] text-slate-400 font-mono">(${c.pctProgresso}%)</span>
+
+                        <!-- COLUNA 2: PARCELAS & VIGÊNCIA (UNIFICADO) -->
+                        <td class="py-3.5 px-3">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-xs ${c.adimplencia === 'em_atraso' ? 'text-rose-700' : 'text-[#010157]'}">
+                                        ${c.parcelasPagas}/${c.totalParcelas} pagas
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-mono">(${c.pctProgresso}%)</span>
+                                </div>
+                                <div class="w-24 sm:w-28 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200/50">
+                                    <div class="${corBarra} h-full rounded-full transition-all duration-300" style="width: ${c.pctProgresso}%"></div>
+                                </div>
+                                <span class="text-[11px] text-slate-500 font-mono block pt-0.5">
+                                    <i class="fa-regular fa-calendar text-slate-400 text-[10px] mr-1"></i>${MC_CONFIG.escapeHtml(c.vigenciaTexto)}
+                                </span>
                             </div>
-                            <div class="w-28 bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1 border border-slate-200/50">
-                                <div class="${corBarra} h-full rounded-full transition-all duration-300" style="width: ${c.pctProgresso}%"></div>
-                            </div>
                         </td>
-                        <td class="py-3 px-3 whitespace-nowrap">
-                            <span class="text-xs text-slate-700 font-medium flex items-center gap-1.5">
-                                <i class="fa-regular fa-calendar text-slate-400 text-[11px]"></i>
-                                ${MC_CONFIG.escapeHtml(c.vigenciaTexto)}
+
+                        <!-- COLUNA 3: VALORES (MENSAL & TOTAL) -->
+                        <td class="py-3.5 px-3 text-right">
+                            <span class="font-extrabold text-xs text-[#010157] block font-mono">
+                                ${valorParcelaFmt}<span class="text-[10px] font-normal text-slate-400 font-sans">/mês</span>
+                            </span>
+                            <span class="text-[10px] text-slate-400 block font-mono mt-0.5">
+                                Total: ${valorTotalFmt}
                             </span>
                         </td>
-                        <td class="py-3 px-3 text-right whitespace-nowrap">
-                            <span class="font-extrabold text-xs text-[#010157] block font-mono">${valorParcelaFmt}<span class="text-[10px] font-normal text-slate-400 font-sans">/mês</span></span>
-                            <span class="text-[10px] text-slate-400 block font-mono">Total: ${valorTotalFmt}</span>
-                        </td>
-                        <td class="py-3 px-3 text-center whitespace-nowrap">
+
+                        <!-- COLUNA 4: SITUAÇÃO (ADIMPLÊNCIA) -->
+                        <td class="py-3.5 px-3 text-center">
                             ${badgeAdimplencia}
                         </td>
-                        <td class="py-3 px-3 text-center whitespace-nowrap">
+
+                        <!-- COLUNA 5: AÇÕES PRÁTICAS -->
+                        <td class="py-3.5 px-3 text-center">
                             <div class="flex items-center justify-center gap-1.5">
-                                <button type="button" onclick="abrirModalOperacaoPluggy('${safeContratoId}')" class="bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Ver detalhes completos do contrato na Pluggy">
-                                    <i class="fa-solid fa-magnifying-glass"></i> Detalhes
+                                <button type="button" onclick="abrirModalOperacaoPluggy('${safeContratoId}')" class="bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Ver detalhes técnicos na Pluggy">
+                                    <i class="fa-solid fa-magnifying-glass"></i> <span class="hidden sm:inline">Pluggy</span>
                                 </button>
-                                <button type="button" onclick="toggleSubtabelaContratoDet('${safeRowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Ver ficha completa do cliente e cronograma de parcelas">
-                                    <i id="icon-chev-${safeRowId}" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
+                                <button type="button" onclick="toggleSubtabelaContratoDet('${safeRowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1" title="Ver ficha completa do cliente e parcelas">
+                                    <span>Ficha</span> <i id="icon-chev-${safeRowId}" class="fa-solid fa-chevron-down text-[9px] transition-transform duration-200"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
+
                     <!-- LINHA EXPANSÍVEL: FICHA CADASTRAL, BANCÁRIA E CRONOGRAMA DE PARCELAS SEM CORTAR -->
                     <tr id="${safeRowId}" class="hidden bg-slate-50/60 border-b border-slate-200/60">
-                        <td colspan="7" class="p-3 sm:p-5">
+                        <td colspan="5" class="p-3 sm:p-5">
                             <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 space-y-4 shadow-sm w-full min-w-0">
                                 
                                 <!-- 1. FICHA COMPLETA DO CLIENTE E CONTRATO -->
@@ -3657,6 +3721,8 @@ let todosOsClientes = [];
         window.mudarAbaLista = mudarAbaLista;
         window.navegarPara = navegarPara;
         window.alternarCascata = alternarCascata;
+        window.alternarFocoPainel = alternarFocoPainel;
+        window.aplicarModoFoco = aplicarModoFoco;
 
         // Inicializacao com verificacao de autenticacao e integridade
         document.addEventListener('DOMContentLoaded', () => {

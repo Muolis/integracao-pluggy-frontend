@@ -89,8 +89,8 @@
   - [x] Novo submenu "Extrato Detalhado" sob o acordeão "Securitizadora MC" no menu lateral (sidebar do gestor).
   - [x] Tabela de extrato analítico por cliente com progresso de parcelas (`X/Y pagas`), vigência (`data_inicio` / `data_fim`), adimplência real (`Agendado (A iniciar)`, `Em dia`, `Em atraso`, `Concluído`) e método (`Pix Automático` / `Boleto`).
   - [x] Correção de status de contratos com início futuro: categorizados como `Agendado (A iniciar)` em azul sem check verde prematuro de `Em dia`.
-  - [x] Resolução de corte de tela nas parcelas: grid fluído responsivo (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 w-full min-w-0`), sem estouro horizontal.
-  - [x] Inclusão de Ficha Cadastral e Bancária do Cliente no acordeão (Nome, CPF/CNPJ, Banco COMPE, Agência/Conta, ID Pluggy e Beneficiário MC Securitizadora).
+  - [x] Resolução de corte de tela e eliminação definitiva de scroll horizontal: largura total automática (`xl:col-span-12`), botão de alternância "Tela Cheia / Exibir Gerador", e reestruturação da tabela em 5 colunas integradas de alto aproveitamento.
+  - [x] Inclusão de Ficha Cadastral e Bancária do Cliente no acordeão (Nome, CPF/CNPJ, Banco COMPE, Agência/Conta, ID Pluggy e Beneficiário MC Securitizadora) com expansão com 1 clique.
   - [x] Deduplicação completa de clientes no Extrato Detalhado com subtabela de tentativas anteriores.
   - [x] Filtros reativos por adimplência, método, busca de texto, paginação e exportação para Excel Brasil (.csv).
 
