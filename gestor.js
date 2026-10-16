@@ -74,6 +74,13 @@ let todosOsClientes = [];
                     mudarSubVisaoPix('solicitacoes');
                 }
                 document.getElementById('painel-clientes-principal')?.scrollIntoView({ behavior: 'smooth' });
+            } else if (secao === 'securitizadora') {
+                if (subopcao === 'extrato_detalhado' || subopcao === 'extrato') {
+                    mudarAbaLista('sec_extrato');
+                } else {
+                    mudarAbaLista('sec_contas');
+                }
+                document.getElementById('painel-clientes-principal')?.scrollIntoView({ behavior: 'smooth' });
             } else if (secao === 'sync') {
                 carregarClientes(true);
                 MC_CONFIG.showToast('Sincronização com a Pluggy solicitada!', 'info');
@@ -660,13 +667,17 @@ let todosOsClientes = [];
                 "Status Conexão"
             ];
 
-            const conexoesOf = todosOsClientes.filter(c => (c.tipo === 'open_finance' || c.tipo === 'securitizadora' || (!c.payment_intent_id && Boolean(c.item_id))));
+            const conexoesOf = todosOsClientes.filter(c => {
+                const isSec = c.tipo === 'securitizadora' || (c.cliente && c.cliente.toUpperCase().includes('SECURITIZADORA')) || (c.documento && c.documento.replace(/\D/g, '') === '62455954000146');
+                if (isSec) return false;
+                return (c.tipo === 'open_finance' || (!c.payment_intent_id && Boolean(c.item_id)));
+            });
             const ordenadasOf = [...conexoesOf].sort((a, b) => obterTimestampSeguro(b) - obterTimestampSeguro(a));
 
             const linhas = ordenadasOf.map(c => {
                 return [
                     `"${(c.cliente || '').replace(/"/g, '""')}"`,
-                    `"${c.tipo === 'securitizadora' ? 'Conta Securitizadora MC' : 'Open Finance'}"`,
+                    `"Open Finance"`,
                     `"${c.item_id || ''}"`,
                     `"${MC_CONFIG.formatDate(c.data_conexao)}"`,
                     `"${c.status || 'Ativo'}"`
@@ -868,35 +879,78 @@ let todosOsClientes = [];
         }
 
         function mudarAbaLista(abaSelecionada) {
+            abaAtual = abaSelecionada;
             const btnExtrato = document.getElementById('aba-lista-extrato');
             const btnPix = document.getElementById('aba-lista-pix');
+            const btnSecContas = document.getElementById('aba-lista-sec-contas');
+            const btnSecExtrato = document.getElementById('aba-lista-sec-extrato');
             const subNavPix = document.getElementById('subnavegacao-pix');
             const cPag = document.getElementById('container-painel-pagamentos');
             const cSol = document.getElementById('container-painel-solicitacoes');
+            const cSecContas = document.getElementById('container-painel-sec-contas');
+            const cSecExtrato = document.getElementById('container-painel-sec-extrato');
             const divLista = document.getElementById('lista-clientes');
-            
-            btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
-            btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center gap-2 cursor-pointer";
-            
+            const btnExpOf = document.getElementById('btn-exportar-openfinance');
+            const btnExpSec = document.getElementById('btn-exportar-sec-extrato');
+            const tituloPainel = document.querySelector('#painel-clientes-principal h2');
+            const subtituloPainel = document.querySelector('#painel-clientes-principal p');
+
+            const stInativo = "whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center justify-center gap-2 cursor-pointer";
+            const stAtivo = "whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer";
+
+            if (btnExtrato) btnExtrato.className = stInativo;
+            if (btnPix) btnPix.className = stInativo;
+            if (btnSecContas) btnSecContas.className = stInativo;
+            if (btnSecExtrato) btnSecExtrato.className = stInativo;
+
+            // Oculta todos os containers específicos
+            if (subNavPix) subNavPix.classList.add("hidden");
+            if (cPag) cPag.classList.add("hidden");
+            if (cSol) cSol.classList.add("hidden");
+            if (cSecContas) cSecContas.classList.add("hidden");
+            if (cSecExtrato) cSecExtrato.classList.add("hidden");
+            if (divLista) divLista.classList.add("hidden");
+            if (btnExpOf) btnExpOf.classList.add("hidden");
+            if (btnExpSec) btnExpSec.classList.add("hidden");
+
             if (abaSelecionada === 'extrato') {
-                btnExtrato.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
-                if (subNavPix) subNavPix.classList.add("hidden");
-                if (cPag) cPag.classList.add("hidden");
-                if (cSol) cSol.classList.add("hidden");
+                if (btnExtrato) btnExtrato.className = stAtivo;
                 if (divLista) divLista.classList.remove("hidden");
+                if (btnExpOf) btnExpOf.classList.remove("hidden");
+                if (tituloPainel) tituloPainel.textContent = "Clientes Conectados (Open Finance)";
+                if (subtituloPainel) subtituloPainel.textContent = "Acompanhe extratos e conexões bancárias autorizadas via Open Finance.";
                 renderizarLista('extrato');
-            } else {
-                btnPix.className = "px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center gap-2 cursor-pointer";
+            } else if (abaSelecionada === 'pix') {
+                if (btnPix) btnPix.className = stAtivo;
                 if (subNavPix) subNavPix.classList.remove("hidden");
+                if (tituloPainel) tituloPainel.textContent = "Contratos & Cobranças Pix Automático";
+                if (subtituloPainel) subtituloPainel.textContent = "Acompanhe solicitações, parcelas recorrentes e KPIs do Pix Automático.";
                 mudarSubVisaoPix(subVisaoPix);
                 alternarModoExibicao(modoExibicaoPix);
+            } else if (abaSelecionada === 'sec_contas') {
+                if (btnSecContas) btnSecContas.className = stAtivo;
+                if (cSecContas) cSecContas.classList.remove("hidden");
+                if (tituloPainel) tituloPainel.textContent = "Contas Vinculadas (Securitizadora MC)";
+                if (subtituloPainel) subtituloPainel.textContent = "Gestão da conta corporativa PJ para recebimento do Pix Automático e conciliação bancária.";
+                carregarContasVinculadasSecuritizadora();
+            } else if (abaSelecionada === 'sec_extrato') {
+                if (btnSecExtrato) btnSecExtrato.className = stAtivo;
+                if (cSecExtrato) cSecExtrato.classList.remove("hidden");
+                if (btnExpSec) btnExpSec.classList.remove("hidden");
+                if (tituloPainel) tituloPainel.textContent = "Extrato Detalhado de Clientes";
+                if (subtituloPainel) subtituloPainel.textContent = "Histórico detalhado de pagamentos, progresso de parcelas e status de adimplência.";
+                renderizarExtratoDetalhadoSecuritizadora();
             }
         }
 
         function filtrarClientes() {
-            const btnPix = document.getElementById('aba-lista-pix');
-            const abaAtiva = (btnPix && btnPix.classList.contains('bg-[#010157]')) ? 'pix' : 'extrato';
-            renderizarLista(abaAtiva);
+            if (abaAtual === 'sec_extrato') {
+                filtrarExtratoDetalhado();
+            } else if (abaAtual === 'sec_contas') {
+                carregarContasVinculadasSecuritizadora();
+            } else {
+                renderizarLista(abaAtual);
+            }
         }
 
         // ============================================================
@@ -1636,8 +1690,14 @@ let todosOsClientes = [];
                 // RENDERIZAÇÃO DEDUPLICADA E AGRUPADA DE OPEN FINANCE (FASE 2)
                 // =========================================================================
                 const ofFiltrados = todosOsClientes.filter(cliente => {
-                    const matchTexto = (cliente.cliente || '').toLowerCase().includes(termoBusca);
-                    const matchTipo = (cliente.tipo === 'open_finance') || (cliente.tipo === 'securitizadora') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
+                    // 1. Exclui estritamente a conta corporativa da Securitizadora da listagem de Open Finance
+                    const isSecuritizadora = cliente.tipo === 'securitizadora' || 
+                                             (cliente.cliente && cliente.cliente.toUpperCase().includes('SECURITIZADORA')) ||
+                                             (cliente.documento && cliente.documento.replace(/\D/g, '') === '62455954000146');
+                    if (isSecuritizadora) return false;
+
+                    const matchTexto = (cliente.cliente || '').toLowerCase().includes(termoBusca) || (cliente.documento || '').includes(termoBusca);
+                    const matchTipo = (cliente.tipo === 'open_finance') || (!cliente.payment_intent_id && Boolean(cliente.item_id));
                     return matchTexto && matchTipo;
                 });
 
@@ -1645,9 +1705,7 @@ let todosOsClientes = [];
                 const mapaClientesOf = {};
                 ofFiltrados.forEach(cli => {
                     const nomeNormalizado = (cli.cliente || 'CLIENTE').toUpperCase().trim().replace(/\s+/g, ' ');
-                    const chave = (cli.tipo === 'securitizadora' || (cli.cliente && cli.cliente.toUpperCase().includes('SECURITIZADORA')))
-                        ? 'securitizadora_mc'
-                        : `of_${nomeNormalizado}`;
+                    const chave = `of_${nomeNormalizado}`;
 
                     if (!mapaClientesOf[chave]) {
                         mapaClientesOf[chave] = {
@@ -1689,11 +1747,8 @@ let todosOsClientes = [];
                     const dataFormatada = MC_CONFIG.formatDate(conexaoRecente.data_conexao);
                     const nomeSeguro = MC_CONFIG.escapeHtml(cli.nome);
                     const idOf = `of-accordion-${idx}-${cli.chave.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                    const isSecuritizadora = cli.tipo === 'securitizadora' || (cli.nome && cli.nome.toUpperCase().includes('SECURITIZADORA'));
 
-                    const badgeOf = isSecuritizadora
-                        ? `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase font-bold rounded-md border border-emerald-200 flex items-center gap-1"><i class="fa-solid fa-building-shield"></i> Conta Securitizadora MC</span>`
-                        : `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
+                    const badgeOf = `<span class="px-2.5 py-0.5 bg-blue-50 text-[#0985ff] text-[10px] uppercase font-bold rounded-md border border-blue-200">Open Finance</span>`;
 
                     const badgeTotalConexoes = `
                         <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-[#0985ff] border border-blue-200 flex items-center gap-1">
@@ -1726,32 +1781,23 @@ let todosOsClientes = [];
                         `;
                     });
 
-                    const botoesAcao = isSecuritizadora
-                        ? `
-                            <a href="securitizadora.html" class="btn-brand-primary text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer shadow-sm">
-                                <i class="fa-solid fa-landmark"></i> Abrir Ambiente Securitizadora
-                            </a>
-                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(conexaoRecente.item_id)}', 'detalhe-of-${idx}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
-                                <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia Rápida
+                    const botoesAcao = `
+                        <a href="extratos.html?item=${encodeURIComponent(conexaoRecente.item_id)}&cliente=${encodeURIComponent(cli.nome)}" target="_blank" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm" title="Abrir Dossiê Cadastral e Extrato Completo">
+                            <i class="fa-solid fa-address-card"></i> Dossiê & Extrato
+                        </a>
+                        <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(conexaoRecente.item_id)}', 'detalhe-of-${idx}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir prévia rápida inline">
+                            <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia
+                        </button>
+                        ${totalConexoes > 1 ? `
+                            <button type="button" onclick="toggleAccordionOf('${idOf}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                                <i class="fa-solid fa-network-wired text-[#0985ff]"></i>
+                                <span>Conexões (${totalConexoes})</span>
+                                <i id="chev-${idOf}" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
                             </button>
-                        `
-                        : `
-                            <a href="extratos.html?item=${encodeURIComponent(conexaoRecente.item_id)}&cliente=${encodeURIComponent(cli.nome)}" target="_blank" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm" title="Abrir Dossiê Cadastral e Extrato Completo">
-                                <i class="fa-solid fa-address-card"></i> Dossiê & Extrato
-                            </a>
-                            <button onclick="buscarExtratos('${MC_CONFIG.escapeHtml(conexaoRecente.item_id)}', 'detalhe-of-${idx}', '${nomeSeguro}')" class="bg-white hover:bg-slate-50 text-[#010157] border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm" title="Abrir prévia rápida inline">
-                                <i class="fa-solid fa-magnifying-glass-chart text-[#0985ff]"></i> Prévia
-                            </button>
-                            ${totalConexoes > 1 ? `
-                                <button type="button" onclick="toggleAccordionOf('${idOf}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
-                                    <i class="fa-solid fa-network-wired text-[#0985ff]"></i>
-                                    <span>Conexões (${totalConexoes})</span>
-                                    <i id="chev-${idOf}" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
-                                </button>
-                            ` : ''}
-                        `;
+                        ` : ''}
+                    `;
 
-                    const cardBg = isSecuritizadora ? 'bg-gradient-to-r from-emerald-50/30 via-white to-white border-emerald-300/80 shadow-md ring-1 ring-emerald-200/50' : 'bg-white border-slate-200/90 shadow-sm';
+                    const cardBg = 'bg-white border-slate-200/90 shadow-sm';
 
                     htmlOf += `
                         <div class="${cardBg} border rounded-2xl p-5 hover:border-[#0985ff]/50 transition duration-200">
@@ -2689,6 +2735,540 @@ let todosOsClientes = [];
                 atualizarDataFimPorParcelas();
             }
         }
+
+        // ====================================================================
+        // GESTÃO DE CONTAS VINCULADAS: SECURITIZADORA MC
+        // ====================================================================
+
+        let contasSecuritizadoraCache = [];
+
+        async function carregarContasVinculadasSecuritizadora(forcar = false) {
+            const containerContas = document.getElementById('sec-lista-contas-container');
+            const elSaldo = document.getElementById('sec-saldo-consolidado');
+            const elTotal = document.getElementById('sec-total-contas');
+            const elStatusBadge = document.getElementById('sec-status-badge-container');
+
+            if (!containerContas) return;
+
+            if (containerContas.innerHTML.trim() === '' || forcar) {
+                containerContas.innerHTML = `
+                    <div class="flex items-center justify-center py-12 text-slate-400 gap-3">
+                        <i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-xl"></i>
+                        <span class="text-xs">Carregando contas corporativas da Securitizadora MC...</span>
+                    </div>
+                `;
+            }
+
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/resumo');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const dados = await res.json();
+
+                const kpis = dados.kpis || {};
+                const contas = dados.contas || [];
+                contasSecuritizadoraCache = contas;
+
+                if (elSaldo) elSaldo.textContent = kpis.saldo_consolidado_formatado || 'R$ 0,00';
+                if (elTotal) elTotal.textContent = `${contas.length} ${contas.length === 1 ? 'Conectada' : 'Conectadas'}`;
+
+                if (elStatusBadge) {
+                    if (contas.length > 0) {
+                        elStatusBadge.innerHTML = `
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Conectada & Operacional
+                            </span>
+                        `;
+                    } else {
+                        elStatusBadge.innerHTML = `
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Aguardando Conexão
+                            </span>
+                        `;
+                    }
+                }
+
+                if (contas.length === 0) {
+                    containerContas.innerHTML = `
+                        <div class="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
+                            <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 border border-amber-200 flex items-center justify-center text-2xl mb-4 shadow-2xs">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </div>
+                            <h4 class="text-base sm:text-lg font-bold text-[#010157]">Nenhuma Conta Vinculada Ativa</h4>
+                            <p class="text-xs text-slate-500 max-w-md mt-1.5 leading-relaxed">
+                                A conta bancária corporativa da <strong>MC MINHACONTA SECURITIZADORA S/A</strong> (CNPJ: 62.455.954/0001-46) deve ser conectada para viabilizar a liquidação e conciliação em tempo real.
+                            </p>
+                            <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                                <a href="securitizadora.html" class="bg-[#010157] hover:bg-[#080868] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
+                                    <i class="fa-solid fa-plus-circle text-emerald-400"></i> Vincular Novo Banco (Itaú, BB, Santander...)
+                                </a>
+                                <a href="securitizadora.html" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-landmark text-amber-600"></i> Ir para Painel Securitizadora
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let htmlContas = '';
+                contas.forEach((cta) => {
+                    const bancoNome = cta.banco_nome || 'Banco Corporativo';
+                    const bancoImg = cta.banco_imagem || '';
+                    const agencia = cta.agencia || '---';
+                    const numConta = cta.numero_conta || '---';
+                    const saldoFormatado = cta.saldo_formatado || 'R$ 0,00';
+                    const tipoConta = cta.tipo || 'Conta Corrente PJ';
+                    const statusConta = cta.status || 'Ativo';
+                    const itemId = cta.item_id || '';
+
+                    htmlContas += `
+                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-[#0985ff]/50 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center p-1.5 shrink-0">
+                                    ${bancoImg ? `<img src="${bancoImg}" alt="${MC_CONFIG.escapeHtml(bancoNome)}" class="w-8 h-8 object-contain">` : `<i class="fa-solid fa-building-columns text-slate-400 text-xl"></i>`}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h4 class="font-bold text-[#010157] text-sm md:text-base">${MC_CONFIG.escapeHtml(bancoNome)}</h4>
+                                        <span class="text-[10px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200 px-2 py-0.5 rounded-md">${MC_CONFIG.escapeHtml(tipoConta)}</span>
+                                        <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">${MC_CONFIG.escapeHtml(statusConta)}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mt-1 font-mono">
+                                        Agência: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(agencia)}</strong> | Conta: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(numConta)}</strong>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
+                                <div class="text-left md:text-right">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase block">Saldo Disponível</span>
+                                    <span class="text-base md:text-lg font-black text-[#010157]">${saldoFormatado}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a href="securitizadora.html" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer" title="Ver Extrato Bancário Completo">
+                                        <i class="fa-solid fa-receipt"></i> Extrato
+                                    </a>
+                                    <button type="button" onclick="confirmarDesvinculacaoContaSecuritizadora('${itemId}', '${MC_CONFIG.escapeHtml(bancoNome)} - C/C ${MC_CONFIG.escapeHtml(numConta)}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Desvincular esta conta">
+                                        <i class="fa-solid fa-trash-can text-rose-600"></i> Desvincular
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                containerContas.innerHTML = htmlContas;
+
+            } catch (err) {
+                containerContas.innerHTML = `
+                    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center text-rose-800">
+                        <i class="fa-solid fa-circle-exclamation text-rose-600 text-2xl mb-2"></i>
+                        <p class="text-xs font-semibold">Falha ao consultar as contas vinculadas da Securitizadora MC.</p>
+                        <button type="button" onclick="carregarContasVinculadasSecuritizadora(true)" class="mt-3 bg-white border border-rose-300 text-rose-700 px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-rose-100 transition cursor-pointer">
+                            Tentar Novamente
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        async function confirmarDesvinculacaoContaSecuritizadora(itemId, nomeConta) {
+            if (!confirm(`Atenção: Deseja realmente desvincular a conta corporativa:\n\n${nomeConta}?\n\nEsta ação revogará o consentimento bancário e removerá a conta do painel.`)) {
+                return;
+            }
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/desvincular-conta', {
+                    method: 'POST',
+                    body: JSON.stringify({ item_id: itemId })
+                });
+                const ret = await res.json();
+                if (res.ok && ret.sucesso) {
+                    MC_CONFIG.showToast('Conta corporativa desvinculada com sucesso!', 'success');
+                    carregarContasVinculadasSecuritizadora(true);
+                    carregarClientes(true);
+                } else {
+                    MC_CONFIG.showToast(ret.erro || 'Falha ao desvincular conta.', 'error');
+                }
+            } catch (e) {
+                MC_CONFIG.showToast(`Erro na requisição: ${e.message}`, 'error');
+            }
+        }
+
+        // ====================================================================
+        // EXTRATO DETALHADO DE CLIENTES (SECURITIZADORA MC)
+        // ====================================================================
+
+        let paginaAtualDet = 1;
+        let linhasPorPaginaDet = 100;
+        let listaContratosDetCache = [];
+
+        function calcularParcelasDecorridas(dataInicioStr, totalParcelas) {
+            if (!dataInicioStr) return 0;
+            try {
+                const agora = new Date();
+                const inicio = new Date(dataInicioStr);
+                if (isNaN(inicio.getTime())) return 0;
+                if (inicio > agora) return 0;
+                let meses = (agora.getFullYear() - inicio.getFullYear()) * 12 + (agora.getMonth() - inicio.getMonth());
+                if (agora.getDate() >= inicio.getDate()) meses += 1;
+                return Math.max(0, Math.min(totalParcelas, meses));
+            } catch {
+                return 0;
+            }
+        }
+
+        function extrairContratosParaExtratoDetalhado() {
+            if (!todosOsPix || todosOsPix.length === 0) return [];
+            return todosOsPix.map(p => {
+                const desc = (p.descricao || '').toLowerCase();
+                const tipo = (p.tipo || '').toLowerCase();
+                const isBoleto = desc.includes('boleto') || tipo.includes('boleto');
+                const metodo = isBoleto ? 'Boleto' : 'Pix Automático';
+
+                const dtInicio = p.data_inicio_formatada || formatarDataSimplesPluggy(p.data_inicio) || '---';
+                const dtFim = p.data_termino_formatada || formatarDataSimplesPluggy(p.data_termino) || '---';
+                const vigenciaTexto = (dtInicio !== '---' && dtFim !== '---') ? `${dtInicio} até ${dtFim}` : (p.vigencia || '---');
+
+                const totalParcelas = parseInt(p.parcelas_total, 10) || 12;
+                const st = (p.status || '').toUpperCase();
+                const stOficial = (p.status_oficial_pluggy || '').toUpperCase();
+                const temErro = p.tem_erro || isPixRevogado(p) || ['ERROR', 'REJECTED', 'EXPIRED', 'CANCELED', 'REVOKED', 'CONSENT_REJECTED'].includes(st);
+
+                let adimplencia = 'em_dia';
+                if (temErro || ['REJEITADO', 'ERRO', 'EXPIRADO', 'CANCELADO'].includes((p.status_label || '').toUpperCase())) {
+                    adimplencia = 'em_atraso';
+                }
+
+                let parcelasPagas = 0;
+                if (st === 'PAYMENT_COMPLETED' || st === 'COMPLETED' || stOficial === 'PAYMENT_COMPLETED') {
+                    parcelasPagas = Math.min(totalParcelas, calcularParcelasDecorridas(p.data_inicio, totalParcelas) || 1);
+                    if (parcelasPagas === 0) parcelasPagas = 1;
+                    adimplencia = 'em_dia';
+                } else if (st === 'AUTHORIZED' || st === 'SCHEDULED' || stOficial === 'AUTHORIZED') {
+                    const decorridas = calcularParcelasDecorridas(p.data_inicio, totalParcelas);
+                    parcelasPagas = Math.max(0, Math.min(totalParcelas, decorridas));
+                    adimplencia = 'em_dia';
+                } else {
+                    parcelasPagas = 0;
+                    adimplencia = 'em_atraso';
+                }
+
+                const pctProgresso = totalParcelas > 0 ? Math.round((parcelasPagas / totalParcelas) * 100) : 0;
+                const valorParcela = parseFloat(p.valor) || 0;
+                const valorTotal = valorParcela * totalParcelas;
+
+                return {
+                    id: p.id || p.intent_id || '',
+                    id_externo: p.id_externo || '',
+                    cliente: p.cliente || 'Cliente',
+                    documento: p.documento || p.cpf || p.cnpj || '---',
+                    banco_nome: p.banco_nome || 'Banco',
+                    banco_imagem: p.banco_imagem || '',
+                    metodo,
+                    isBoleto,
+                    dt_inicio: dtInicio,
+                    dt_fim: dtFim,
+                    vigenciaTexto,
+                    totalParcelas,
+                    parcelasPagas,
+                    pctProgresso,
+                    valorParcela,
+                    valorTotal,
+                    adimplencia,
+                    status_label: p.status_label || p.status || 'Ativo',
+                    status_classe: p.status_classe || 'agendado',
+                    status_oficial: p.status_oficial_pluggy || st,
+                    item_original: p
+                };
+            });
+        }
+
+        function renderizarExtratoDetalhadoSecuritizadora() {
+            const tbody = document.getElementById('tbody-extrato-detalhado');
+            if (!tbody) return;
+
+            const listaBase = extrairContratosParaExtratoDetalhado();
+            listaContratosDetCache = listaBase;
+
+            const termoBusca = (document.getElementById('filtro-det-busca')?.value || '').toLowerCase().trim();
+            const filtroAdimplencia = document.getElementById('filtro-det-adimplencia')?.value || 'todos';
+            const filtroMetodo = document.getElementById('filtro-det-metodo')?.value || 'todos';
+
+            const filtrados = listaBase.filter(it => {
+                const matchTexto = (
+                    it.cliente.toLowerCase().includes(termoBusca) ||
+                    it.documento.includes(termoBusca) ||
+                    it.id.toLowerCase().includes(termoBusca) ||
+                    it.id_externo.toLowerCase().includes(termoBusca) ||
+                    it.banco_nome.toLowerCase().includes(termoBusca)
+                );
+
+                let matchAdimplencia = true;
+                if (filtroAdimplencia === 'em_dia') {
+                    matchAdimplencia = (it.adimplencia === 'em_dia');
+                } else if (filtroAdimplencia === 'em_atraso') {
+                    matchAdimplencia = (it.adimplencia === 'em_atraso');
+                }
+
+                let matchMetodo = true;
+                if (filtroMetodo === 'pix') {
+                    matchMetodo = (!it.isBoleto);
+                } else if (filtroMetodo === 'boleto') {
+                    matchMetodo = it.isBoleto;
+                }
+
+                return matchTexto && matchAdimplencia && matchMetodo;
+            });
+
+            // Atualização dos 4 KPIs superiores
+            const totalContratos = filtrados.length;
+            const totalEmDia = filtrados.filter(i => i.adimplencia === 'em_dia').length;
+            const totalEmAtraso = filtrados.filter(i => i.adimplencia === 'em_atraso').length;
+            const pctEmDia = totalContratos > 0 ? Math.round((totalEmDia / totalContratos) * 100) : 0;
+            const pctEmAtraso = totalContratos > 0 ? Math.round((totalEmAtraso / totalContratos) * 100) : 0;
+            const somaParcelas = filtrados.reduce((acc, cur) => acc + cur.valorParcela, 0);
+            const mediaParcela = totalContratos > 0 ? (somaParcelas / totalContratos) : 0;
+
+            const elTotal = document.getElementById('kpi-det-total-contratos');
+            const elEmDia = document.getElementById('kpi-det-em-dia');
+            const elEmAtraso = document.getElementById('kpi-det-em-atraso');
+            const elValor = document.getElementById('kpi-det-valor-parcela');
+
+            if (elTotal) elTotal.textContent = totalContratos;
+            if (elEmDia) elEmDia.textContent = `${totalEmDia} (${pctEmDia}%)`;
+            if (elEmAtraso) elEmAtraso.textContent = `${totalEmAtraso} (${pctEmAtraso}%)`;
+            if (elValor) elValor.textContent = mediaParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+            // Paginação
+            const totalPaginas = Math.max(1, Math.ceil(totalContratos / linhasPorPaginaDet));
+            if (paginaAtualDet > totalPaginas) paginaAtualDet = totalPaginas;
+            if (paginaAtualDet < 1) paginaAtualDet = 1;
+
+            const inicio = (paginaAtualDet - 1) * linhasPorPaginaDet;
+            const fim = Math.min(inicio + linhasPorPaginaDet, totalContratos);
+            const paginados = filtrados.slice(inicio, fim);
+
+            const elResumo = document.getElementById('det-resumo-paginacao');
+            const elIndicador = document.getElementById('det-indicador-pag');
+            const btnAnt = document.getElementById('btn-det-pag-ant');
+            const btnProx = document.getElementById('btn-det-pag-prox');
+
+            if (elResumo) elResumo.textContent = `Mostrando ${totalContratos ? inicio + 1 : 0}-${fim} de ${totalContratos} contratos`;
+            if (elIndicador) elIndicador.textContent = `${paginaAtualDet}/${totalPaginas}`;
+            if (btnAnt) btnAnt.disabled = (paginaAtualDet <= 1);
+            if (btnProx) btnProx.disabled = (paginaAtualDet >= totalPaginas);
+
+            if (paginados.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-slate-400">
+                            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300"></i>
+                            <p class="text-xs">Nenhum contrato encontrado para os filtros selecionados.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let htmlLinhas = '';
+            paginados.forEach((c, idx) => {
+                const rowId = `sub-contrato-det-${idx}-${c.id.slice(0, 8)}`;
+                const isEmDia = (c.adimplencia === 'em_dia');
+
+                const badgeMetodo = c.isBoleto
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs"><i class="fa-solid fa-barcode text-amber-600"></i> Boleto</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-bolt text-emerald-600"></i> Pix Automático</span>`;
+
+                const badgeAdimplencia = isEmDia
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-circle-check text-emerald-600"></i> Em dia</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs animate-pulse"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Em atraso</span>`;
+
+                const corBarra = isEmDia ? 'bg-emerald-500' : 'bg-rose-500';
+                const valorParcelaFmt = c.valorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const valorTotalFmt = c.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                htmlLinhas += `
+                    <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+                        <td class="py-3 px-3.5">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                                    ${c.banco_imagem ? `<img src="${c.banco_imagem}" alt="" class="w-4 h-4 object-contain">` : `<i class="fa-regular fa-user text-xs"></i>`}
+                                </div>
+                                <div>
+                                    <span class="font-bold text-[#010157] text-xs block leading-tight">${MC_CONFIG.escapeHtml(c.cliente)}</span>
+                                    <span class="text-[10px] text-slate-400 font-mono block mt-0.5">${MC_CONFIG.escapeHtml(c.documento)} • ${MC_CONFIG.escapeHtml(c.banco_nome)}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">
+                            ${badgeMetodo}
+                        </td>
+                        <td class="py-3 px-3 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-xs ${isEmDia ? 'text-[#010157]' : 'text-rose-700'}">${c.parcelasPagas}/${c.totalParcelas} pagas</span>
+                                <span class="text-[10px] text-slate-400 font-mono">(${c.pctProgresso}%)</span>
+                            </div>
+                            <div class="w-28 bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1 border border-slate-200/50">
+                                <div class="${corBarra} h-full rounded-full transition-all duration-300" style="width: ${c.pctProgresso}%"></div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 whitespace-nowrap">
+                            <span class="text-xs text-slate-700 font-medium flex items-center gap-1.5">
+                                <i class="fa-regular fa-calendar text-slate-400 text-[11px]"></i>
+                                ${c.vigenciaTexto}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right whitespace-nowrap">
+                            <span class="font-extrabold text-xs text-[#010157] block">${valorParcelaFmt}<span class="text-[10px] font-normal text-slate-400">/mês</span></span>
+                            <span class="text-[10px] text-slate-400 block font-mono">Total: ${valorTotalFmt}</span>
+                        </td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">
+                            ${badgeAdimplencia}
+                        </td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <button type="button" onclick="abrirModalOperacaoPluggy('${c.id}')" class="bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Ver detalhes completos do contrato na Pluggy">
+                                    <i class="fa-solid fa-magnifying-glass"></i> Detalhes
+                                </button>
+                                <button type="button" onclick="toggleSubtabelaContratoDet('${rowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Ver cronograma de parcelas">
+                                    <i id="icon-chev-${rowId}" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr id="${rowId}" class="hidden bg-slate-50/60 border-b border-slate-200/60">
+                        <td colspan="7" class="p-3 sm:p-4">
+                            <div class="bg-white rounded-xl border border-slate-200 p-3.5 space-y-3">
+                                <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-100 flex-wrap gap-2">
+                                    <span class="font-bold text-[#010157] flex items-center gap-1.5">
+                                        <i class="fa-solid fa-list-ol text-[#0985ff]"></i>
+                                        Cronograma de Parcelas do Contrato (${c.id.slice(0, 16)}..)
+                                    </span>
+                                    <span class="text-[11px] text-slate-500">
+                                        Beneficiário: <strong class="text-slate-800">MC MINHACONTA SECURITIZADORA S/A</strong>
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                    ${Array.from({ length: c.totalParcelas }).map((_, pIdx) => {
+                                        const pNum = pIdx + 1;
+                                        const foiPaga = pNum <= c.parcelasPagas;
+                                        const stBadge = foiPaga ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (isEmDia ? 'bg-slate-50 text-slate-600 border-slate-200' : 'bg-rose-50 text-rose-700 border-rose-200');
+                                        const icon = foiPaga ? 'fa-check' : (isEmDia ? 'fa-clock' : 'fa-xmark');
+                                        return `
+                                            <div class="p-2 rounded-lg border text-center ${stBadge}">
+                                                <span class="text-[10px] font-bold block">Parcela ${pNum}/${c.totalParcelas}</span>
+                                                <span class="text-[11px] font-extrabold block mt-0.5">${valorParcelaFmt}</span>
+                                                <span class="text-[9px] font-medium flex items-center justify-center gap-1 mt-1">
+                                                    <i class="fa-solid ${icon}"></i> ${foiPaga ? 'Paga' : (isEmDia ? 'Agendada' : 'Atrasada')}
+                                                </span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = htmlLinhas;
+        }
+
+        function toggleSubtabelaContratoDet(rowId) {
+            const el = document.getElementById(rowId);
+            const icon = document.getElementById(`icon-chev-${rowId}`);
+            if (!el) return;
+            const oculto = el.classList.contains('hidden');
+            if (oculto) {
+                el.classList.remove('hidden');
+                if (icon) icon.style.transform = 'rotate(180deg)';
+            } else {
+                el.classList.add('hidden');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function filtrarExtratoDetalhado() {
+            paginaAtualDet = 1;
+            renderizarExtratoDetalhadoSecuritizadora();
+        }
+
+        function mudarPaginaExtratoDetalhado(delta) {
+            paginaAtualDet += delta;
+            renderizarExtratoDetalhadoSecuritizadora();
+        }
+
+        function mudarLinhasPaginaExtratoDetalhado(val) {
+            linhasPorPaginaDet = parseInt(val, 10) || 100;
+            paginaAtualDet = 1;
+            renderizarExtratoDetalhadoSecuritizadora();
+        }
+
+        function exportarExtratoDetalhadoExcel() {
+            const listaBase = extrairContratosParaExtratoDetalhado();
+            if (!listaBase || listaBase.length === 0) {
+                MC_CONFIG.showToast('Nenhum contrato disponível para exportação.', 'warning');
+                return;
+            }
+
+            const colunas = [
+                "Nome do Cliente",
+                "CPF/CNPJ",
+                "Instituição Financeira",
+                "Método de Pagamento",
+                "Parcelas Pagas",
+                "Total de Parcelas",
+                "Progresso (%)",
+                "Início da Vigência",
+                "Fim da Vigência",
+                "Valor da Parcela (R$)",
+                "Valor Total (R$)",
+                "Status de Adimplência",
+                "Status Oficial Pluggy",
+                "ID do Contrato"
+            ];
+
+            const linhas = listaBase.map(c => {
+                return [
+                    `"${c.cliente.replace(/"/g, '""')}"`,
+                    `"${c.documento}"`,
+                    `"${c.banco_nome.replace(/"/g, '""')}"`,
+                    `"${c.metodo}"`,
+                    c.parcelasPagas,
+                    c.totalParcelas,
+                    `"${c.pctProgresso}%"`,
+                    `"${c.dt_inicio}"`,
+                    `"${c.dt_fim}"`,
+                    `"${c.valorParcela.toFixed(2).replace('.', ',')}"`,
+                    `"${c.valorTotal.toFixed(2).replace('.', ',')}"`,
+                    `"${c.adimplencia === 'em_dia' ? 'Em dia' : 'Em atraso'}"`,
+                    `"${c.status_oficial}"`,
+                    `"${c.id}"`
+                ].join(";");
+            });
+
+            const csvContent = "\uFEFF" + colunas.join(";") + "\r\n" + linhas.join("\r\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const linkEl = document.createElement("a");
+            const dataHoje = new Date().toISOString().split("T")[0];
+            linkEl.href = URL.createObjectURL(blob);
+            linkEl.download = `MC_Securitizadora_Extrato_Detalhado_Clientes_${dataHoje}.csv`;
+            document.body.appendChild(linkEl);
+            linkEl.click();
+            document.body.removeChild(linkEl);
+            MC_CONFIG.showToast(`Extrato Detalhado exportado com sucesso (${listaBase.length} contratos)!`, "success");
+        }
+
+        window.carregarContasVinculadasSecuritizadora = carregarContasVinculadasSecuritizadora;
+        window.confirmarDesvinculacaoContaSecuritizadora = confirmarDesvinculacaoContaSecuritizadora;
+        window.renderizarExtratoDetalhadoSecuritizadora = renderizarExtratoDetalhadoSecuritizadora;
+        window.filtrarExtratoDetalhado = filtrarExtratoDetalhado;
+        window.mudarPaginaExtratoDetalhado = mudarPaginaExtratoDetalhado;
+        window.mudarLinhasPaginaExtratoDetalhado = mudarLinhasPaginaExtratoDetalhado;
+        window.exportarExtratoDetalhadoExcel = exportarExtratoDetalhadoExcel;
+        window.toggleSubtabelaContratoDet = toggleSubtabelaContratoDet;
+        window.mudarAbaLista = mudarAbaLista;
+        window.navegarPara = navegarPara;
+        window.alternarCascata = alternarCascata;
 
         // Inicializacao com verificacao de autenticacao e integridade
         document.addEventListener('DOMContentLoaded', () => {

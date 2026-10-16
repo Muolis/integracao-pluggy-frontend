@@ -5,9 +5,9 @@
 
 ## 🛑 Ponto de Parada Atual
 
-* **Data / Hora**: 14 de Outubro de 2026, 12:45 (Horário de Brasília)
-* **Status**: ✅ **AUDITORIA COMPLETA CONCLUÍDA & REMOÇÃO DEFINITIVA DA CONTA ANTIGA DA SECURITIZADORA**.
-* **Foco Imediato**: Auditoria global de prontidão da plataforma (98% concluída), exclusão das contas antigas bloqueadas (Bradesco Empresas), adição da rota de desvinculação com 1 clique e homologação de 34 testes automatizados com 100% de sucesso.
+* **Data / Hora**: 16 de Outubro de 2026, 09:45 (Horário de Brasília)
+* **Status**: ✅ **REALOCAÇÃO DA CONTA SECURITIZADORA & SUBMENU EXTRATO DETALHADO CONCLUÍDOS**.
+* **Foco Imediato**: Expurgada a conta corporativa da Securitizadora da listagem de Open Finance, criada a visualização dedicada "Contas Vinculadas (MC)" no Gestor, e implementado o novo submenu e painel "Extrato Detalhado de Clientes" (progresso de parcelas X/Y, vigência, adimplência [em dia/em atraso], método [Pix Automático/Boleto], filtros e exportação Excel).
 * **Conta de Autoria Git**: `TI Suporte MC Minhaconta <ti.suportemcminhaconta@gmail.com>`
 * **Branch**: `main`
 * **Integridade dos Testes Automatizados**: **34 de 34 testes aprovados** (`.venv\Scripts\python.exe test_backend.py`).
@@ -16,38 +16,35 @@
 
 ## 📦 O Que Foi Concluído Nesta Rodada
 
-1. **Auditoria Técnica Completa da Plataforma**:
-   - **Prontidão Geral**: Plataforma em estágio final avançado (~98% concluída tecnicamente).
-   - **Frontend**: Telas operacionais 100% integradas (`gestor.html`, `securitizadora.html`, `extratos.html`, `cliente.html`), layout fluido com viewport 100%, sem `max-w-7xl`, mobile drawer responsivo e tabelas com rolagem horizontal dedicada.
-   - **Backend & APIs**: Flask BFF com CORS estrito, proteção contra Directory Traversal (HTTP 403 em `.env`, `.git`, `backend.py`, `schema.sql`), autenticação por sessão HMAC-SHA256, senhas PBKDF2.
-   - **Open Finance & Pix Automático**: Reconciliação canônica com a API Pluggy v2 (Fonte Única da Verdade), deduplicação por CPF/CNPJ, ordenação determinística decrescente, trava antiduplicidade de 7 dias, rota oficial de cancelamento de mandatos e expurgo de parcelas fictícias/fantasmas.
-   - **Banco de Dados Supabase**: Schema íntegro com tabelas de conexões, mandatos, histórico de parcelas e metadados contratuais.
+1. **Correção de Alocação da Conta da Securitizadora**:
+   - **Remoção da Lista Open Finance**: A conta PJ da Securitizadora foi totalmente expurgada da listagem do módulo Open Finance em [`gestor.js`](file:///c:/meu-frontend-plugg/gestor.js) (travas estritas por `tipo === 'securitizadora'`, razão social e CNPJ `62.455.954/0001-46`), além da remoção de qualquer menção da conta corporativa nas exportações de Open Finance.
+   - **Aba Dedicada "Contas Vinculadas (MC)"**: Criada visualização exclusiva na área do Gestor com cartões detalhados das contas corporativas ativas, saldo consolidado, métricas de conexões e botão de desvinculação com 1 clique integrado com `/api/securitizadora/desvincular-conta`.
 
-2. **Remoção Definitiva da Conta Antiga da Securitizadora**:
-   - **Expurgo na Origem (Pluggy)**: Itens bloqueados do Bradesco Empresas (`75cfdce4-cdf3-4050-9aac-a89238eef38a` e `585b5487-608b-4f10-9e58-45c3cddb7501`) excluídos via `DELETE /items/{id}` com HTTP 200 na API Pluggy.
-   - **Saneamento no Banco (Supabase)**: Registros 212 e 214 atualizados para `status = 'desvinculado'` na tabela `conexoes`.
-   - **Desacoplamento no Backend**: Removido o `item_id` que estava fixo (*hardcoded*) em `obter_contas_securitizadora()`. A listagem de contas agora é 100% dinâmica a partir das conexões ativas no Supabase.
-   - **Nova Rota de Desvinculação**: Implementado endpoint autenticado `POST /api/securitizadora/desvincular-conta` que revoga no conector Pluggy, desvincula no Supabase e limpa os caches em tempo real.
+2. **Novo Submenu e Painel: Extrato Detalhado de Clientes**:
+   - **Menu Lateral Expansível (Sidebar)**: Adicionado o item `Extrato Detalhado` sob o menu acordeão `Securitizadora MC` em [`gestor.html`](file:///c:/meu-frontend-plugg/gestor.html), mantendo o padrão visual e de indentação idêntico aos subitens de Open Finance.
+   - **Painel Analítico Completo**:
+     - **Progresso de Parcelas**: Exibição da contagem `X/Y pagas` com barra de progresso visual percentual.
+     - **Vigência**: Data de início e data de término do parcelamento/contrato.
+     - **Status de Adimplência**: Indicador visual claro informando se o cliente está **Em dia** (badge verde esmeralda) ou **Em atraso** (badge vermelho alerta com efeito pulsante).
+     - **Método de Pagamento**: Badges distintos com ícones para **Pix Automático** (ícone de raio em esmeralda) e **Boleto Bancário** (ícone de código de barras em âmbar).
+     - **Linhas Expansíveis**: Cronograma analítico detalhado de parcelas por cliente acessível via acordeão.
+   - **Filtros e Exportação Excel**:
+     - Filtros em tempo real por busca de cliente/CPF/contrato, status de adimplência (*Todos*, *Em dia*, *Em atraso*) e método de pagamento (*Todos*, *Pix Automático*, *Boleto*).
+     - Paginação dinâmica configurável (10, 25, 50, 100 itens).
+     - Exportação oficial para Excel em formato CSV Brasil (delimitador `;` e BOM UTF-8 `\uFEFF`).
 
-3. **Interface e UX do Painel Corporativo ([`securitizadora.html`](file:///c:/meu-frontend-plugg/securitizadora.html) / [`securitizadora.js`](file:///c:/meu-frontend-plugg/securitizadora.js))**:
-   - **Botão de Desvinculação nos Cards**: Cada card de conta bancária corporativa agora conta com botão dedicado `Remover` com ícone de lixeira.
-   - **Modal de Confirmação Seguro (`modal-desvincular-mc`)**: Exibe os dados da conta a ser removida e solicita confirmação explícita antes do expurgo.
-   - **Empty State Inteligente**: Quando não há contas conectadas (ou após a remoção), a interface exibe um card acolhedor e informativo com botão de ação rápida para vincular a nova conta da Securitizadora (Itaú, Santander, BB, etc.).
-   - **Extrato Resiliente**: Quando nenhuma conta está conectada, `/api/securitizadora/extrato` retorna lista vazia limpa com HTTP 200 sem gerar erros no console.
-
-4. **Homologação Automatizada**:
-   - Suíte de testes expandida para **34 testes automatizados** com adição do Teste 34 (`/api/securitizadora/desvincular-conta`).
-   - **100% de aprovação sem nenhuma falha** (`.venv\Scripts\python.exe test_backend.py`).
+3. **Homologação Automatizada e Validação de Sintaxe**:
+   - Sintaxe JavaScript verificada com `node -c gestor.js` (código limpo, zero erros).
+   - Suíte de 34 testes automatizados executada via `.venv\Scripts\python.exe test_backend.py` com **100% de sucesso**.
 
 ---
 
 ## 🎯 Próximos Passos para Finalização Total da Plataforma
 
-1. **Vincular Nova Conta Corporativa da Securitizadora**:
-   - Acessar `securitizadora.html` e clicar em `+ Vincular Novo Banco (Itaú, BB, Santander...)` para conectar a conta corrente corporativa ativa da MC Securitizadora.
-2. **Homologação Operacional de Ponta a Ponta**:
-   - Realizar 1 teste real de adesão (R$ 0,01) no Pix Automático com o banco conveniado para validar o recebimento na conta da Securitizadora.
-3. **Commit e Deploy em Produção (Render Cloud)**:
+1. **Homologação Operacional de Ponta a Ponta**:
+   - Conectar a conta bancária corporativa ativa da MC Securitizadora via widget Pluggy Connect em `securitizadora.html`.
+   - Realizar 1 teste real de adesão (R$ 0,01) no Pix Automático para validar recebimento na conta da Securitizadora.
+2. **Commit e Deploy em Produção (Render Cloud)**:
    - Realizar commit com a conta corporativa `TI Suporte MC Minhaconta <ti.suportemcminhaconta@gmail.com>`.
    - Disparar deploy nos serviços Render Cloud `motor-openfinance` e `vitrine-openfinance`.
 

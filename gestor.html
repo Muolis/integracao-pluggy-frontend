@@ -146,13 +146,17 @@
                     </button>
                     
                     <div id="submenu-securitizadora" class="hidden space-y-1 pl-4 pt-1 border-l-2 border-amber-400/40 ml-4">
-                        <a href="securitizadora.html" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer">
+                        <button type="button" onclick="navegarPara('securitizadora', 'contas')" id="subitem-sec-contas" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-building-columns text-[11px] text-amber-400 w-3.5"></i>
+                            <span>Contas Vinculadas</span>
+                        </button>
+                        <button type="button" onclick="navegarPara('securitizadora', 'extrato_detalhado')" id="subitem-sec-extrato" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-file-invoice-dollar text-[11px] text-amber-400 w-3.5"></i>
+                            <span>Extrato Detalhado</span>
+                        </button>
+                        <a href="securitizadora.html" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer" title="Abrir painel corporativo em página dedicada">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-amber-400 w-3.5"></i>
                             <span>Painel Corporativo MC</span>
-                        </a>
-                        <a href="securitizadora.html" class="w-full text-left px-3 py-2 rounded-lg text-blue-100 hover:text-white hover:bg-amber-500/20 transition flex items-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-building-circle-check text-[11px] text-amber-400 w-3.5"></i>
-                            <span>Conta Bradesco PJ</span>
                         </a>
                     </div>
                 </div>
@@ -481,12 +485,18 @@
                 <!-- ABAS PRINCIPAIS: OPEN FINANCE vs PIX AUTOMÁTICO (PAINEL PLUGGY) -->
                 <div class="flex flex-col gap-3.5 mb-6 w-full">
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                        <div class="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-fit border border-slate-200/80 gap-1">
-                            <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                        <div class="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-fit border border-slate-200/80 gap-1 overflow-x-auto custom-scrollbar">
+                            <button type="button" onclick="mudarAbaLista('extrato')" id="aba-lista-extrato" class="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition bg-[#010157] text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer">
                                 <i class="fa-solid fa-building-columns text-[#0985ff]"></i> Open Finance
                             </button>
-                            <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center justify-center gap-2 cursor-pointer">
+                            <button type="button" onclick="mudarAbaLista('pix')" id="aba-lista-pix" class="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center justify-center gap-2 cursor-pointer">
                                 <i class="fa-solid fa-bolt text-emerald-500"></i> Pix Automático
+                            </button>
+                            <button type="button" onclick="mudarAbaLista('sec_contas')" id="aba-lista-sec-contas" class="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center justify-center gap-2 cursor-pointer">
+                                <i class="fa-solid fa-landmark text-amber-500"></i> Contas Vinculadas (MC)
+                            </button>
+                            <button type="button" onclick="mudarAbaLista('sec_extrato')" id="aba-lista-sec-extrato" class="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-[#010157] flex items-center justify-center gap-2 cursor-pointer">
+                                <i class="fa-solid fa-file-invoice-dollar text-amber-500"></i> Extrato Detalhado
                             </button>
                         </div>
                         
@@ -494,6 +504,9 @@
                             <div id="badge-contador-total" class="text-xs text-slate-500 font-medium"></div>
                             <button type="button" id="btn-exportar-openfinance" onclick="exportarOpenFinanceExcel()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar dados de clientes Open Finance para Excel (.csv)">
                                 <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Excel
+                            </button>
+                            <button type="button" id="btn-exportar-sec-extrato" onclick="exportarExtratoDetalhadoExcel()" class="hidden bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Exportar extrato detalhado de contratos para Excel (.csv)">
+                                <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar Extrato Excel
                             </button>
                         </div>
                     </div>
@@ -756,11 +769,215 @@
                     </div>
                 </div>
                 
-                <!-- LISTA DE CLIENTES / CONTRATOS -->
+                <!-- LISTA DE CLIENTES / CONTRATOS (OPEN FINANCE E PIX MODOS ESPECÍFICOS) -->
                 <div id="lista-clientes" class="space-y-4 pr-1 custom-scrollbar flex-1 w-full">
                     <div class="flex flex-col items-center justify-center py-16 text-slate-400">
                         <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff] text-3xl mb-3"></i>
                         <p class="text-xs">Carregando registros de conexões...</p>
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- PAINEL DE CONTAS VINCULADAS: SECURITIZADORA MC              -->
+                <!-- ============================================================ -->
+                <div id="container-painel-sec-contas" class="hidden space-y-6 w-full">
+                    <!-- Banner de Identidade Corporativa -->
+                    <div class="bg-gradient-to-r from-[#010157] via-[#050568] to-[#0a1a7a] rounded-2xl p-5 text-white border border-blue-900 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-xl flex-shrink-0">
+                                <i class="fa-solid fa-landmark"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-base sm:text-lg font-black tracking-tight text-white">MC MINHACONTA SECURITIZADORA S/A</h3>
+                                    <span class="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Conta Corporativa PJ</span>
+                                </div>
+                                <p class="text-xs text-blue-200 mt-1 flex items-center gap-2 flex-wrap">
+                                    <span>CNPJ: <strong class="text-white font-mono">62.455.954/0001-46</strong></span>
+                                    <span class="text-blue-400">•</span>
+                                    <span>Ambiente Oficial de Liquidação & Conciliação Pix</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2.5 flex-wrap self-stretch md:self-auto">
+                            <a href="securitizadora.html" class="flex-1 md:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-[#010157] hover:bg-blue-50 transition flex items-center justify-center gap-2 shadow-sm cursor-pointer" title="Abrir Dashboard Corporativo Completo">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[#0985ff]"></i> Painel Corporativo Completo
+                            </a>
+                            <button type="button" onclick="carregarContasVinculadasSecuritizadora(true)" class="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition flex items-center justify-center gap-1.5 cursor-pointer border border-white/20" title="Atualizar dados bancários">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Resumo de Métricas Rápidas Corporativas -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Saldo em Caixa Consolidado</span>
+                            <div id="sec-saldo-consolidado" class="text-xl font-extrabold text-[#010157]">R$ 0,00</div>
+                            <span class="text-[10px] text-slate-400 mt-0.5 block">Disponível em contas correntes ativas</span>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Contas Vinculadas</span>
+                            <div id="sec-total-contas" class="text-xl font-extrabold text-emerald-600">0 Conectadas</div>
+                            <span class="text-[10px] text-slate-400 mt-0.5 block">Instituições financeiras integradas</span>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Status da Securitizadora</span>
+                            <div id="sec-status-badge-container" class="mt-1">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Aguardando Conexão
+                                </span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 mt-1 block">Pluggy Open Finance Connect</span>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Contas ou Empty State Corporativo -->
+                    <div id="sec-lista-contas-container" class="space-y-4">
+                        <!-- Renderizado dinamicamente via JS -->
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- PAINEL DE EXTRATO DETALHADO DE CLIENTES: SECURITIZADORA MC  -->
+                <!-- ============================================================ -->
+                <div id="container-painel-sec-extrato" class="hidden space-y-5 w-full">
+                    <!-- Topo Informativo & KPIs -->
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                        <div>
+                            <h3 class="text-lg sm:text-xl font-black text-[#010157] tracking-tight">Extrato Detalhado de Clientes</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Histórico consolidado de pagamentos, contratos vigentes e controle de adimplência.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 rounded-xl flex items-center gap-1.5">
+                                <i class="fa-solid fa-shield-halved text-amber-600"></i> Carteira Securitizadora MC
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 4 Cards de Métricas de Adimplência & Métodos -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Total de Contratos</span>
+                            <div id="kpi-det-total-contratos" class="text-lg sm:text-xl font-extrabold text-[#010157]">0</div>
+                            <span class="text-[10px] text-slate-400 mt-0.5 block">Operações registradas</span>
+                        </div>
+
+                        <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5">
+                            <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-check text-emerald-600"></i> Em Dia
+                            </span>
+                            <div id="kpi-det-em-dia" class="text-lg sm:text-xl font-extrabold text-emerald-700">0 (0%)</div>
+                            <span class="text-[10px] text-emerald-600/80 mt-0.5 block">Adimplência confirmada</span>
+                        </div>
+
+                        <div class="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-3.5">
+                            <span class="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                <i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Em Atraso
+                            </span>
+                            <div id="kpi-det-em-atraso" class="text-lg sm:text-xl font-extrabold text-rose-700">0 (0%)</div>
+                            <span class="text-[10px] text-rose-600/80 mt-0.5 block">Atrasos ou recusas</span>
+                        </div>
+
+                        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5">
+                            <span class="text-[11px] font-bold text-[#0985ff] uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                <i class="fa-solid fa-receipt text-[#0985ff]"></i> Volume Médio Parcela
+                            </span>
+                            <div id="kpi-det-valor-parcela" class="text-lg sm:text-xl font-extrabold text-[#010157]">R$ 0,00</div>
+                            <span class="text-[10px] text-blue-600/80 mt-0.5 block">Ticket médio mensal</span>
+                        </div>
+                    </div>
+
+                    <!-- Barra de Filtros Dedicada do Extrato Detalhado -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 sm:p-4 space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                            <!-- Busca por texto -->
+                            <div class="sm:col-span-5 relative">
+                                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    id="filtro-det-busca" 
+                                    oninput="filtrarExtratoDetalhado()" 
+                                    placeholder="Buscar por cliente, CPF/CNPJ ou contrato..." 
+                                    class="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30 focus:border-[#0985ff] transition"
+                                >
+                            </div>
+
+                            <!-- Filtro de Adimplência -->
+                            <div class="sm:col-span-3">
+                                <select 
+                                    id="filtro-det-adimplencia" 
+                                    onchange="filtrarExtratoDetalhado()" 
+                                    class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30"
+                                >
+                                    <option value="todos">Todos os Status (Adimplência)</option>
+                                    <option value="em_dia">Apenas: Em Dia</option>
+                                    <option value="em_atraso">Apenas: Em Atraso</option>
+                                </select>
+                            </div>
+
+                            <!-- Filtro de Método de Pagamento -->
+                            <div class="sm:col-span-4">
+                                <select 
+                                    id="filtro-det-metodo" 
+                                    onchange="filtrarExtratoDetalhado()" 
+                                    class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-[#0985ff]/30"
+                                >
+                                    <option value="todos">Todos os Métodos de Pagamento</option>
+                                    <option value="pix">Pix Automático</option>
+                                    <option value="boleto">Boleto Bancário</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Resumo dos Filtros & Linhas por página -->
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-slate-500 pt-2 border-t border-slate-200/60 gap-2">
+                            <div class="flex items-center gap-2">
+                                <span>Exibir</span>
+                                <select id="det-linhas-pagina" onchange="mudarLinhasPaginaExtratoDetalhado(this.value)" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-semibold">
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100" selected>100</option>
+                                </select>
+                                <span>por página</span>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <span id="det-resumo-paginacao" class="font-medium text-slate-600">Mostrando 0 de 0 contratos</span>
+                                <div class="flex items-center gap-1">
+                                    <button type="button" onclick="mudarPaginaExtratoDetalhado(-1)" id="btn-det-pag-ant" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                                        &lt;
+                                    </button>
+                                    <span id="det-indicador-pag" class="font-semibold text-slate-700 px-1">1/1</span>
+                                    <button type="button" onclick="mudarPaginaExtratoDetalhado(1)" id="btn-det-pag-prox" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                                        &gt;
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABELA DE DADOS DO EXTRATO DETALHADO -->
+                    <div class="overflow-x-auto border border-slate-200/90 rounded-2xl bg-white shadow-xs custom-scrollbar w-full">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                    <th class="py-3 px-3.5">Cliente & Documento</th>
+                                    <th class="py-3 px-3 text-center">Método</th>
+                                    <th class="py-3 px-3">Progresso das Parcelas</th>
+                                    <th class="py-3 px-3">Vigência (Início / Fim)</th>
+                                    <th class="py-3 px-3 text-right">Valor Parcela / Total</th>
+                                    <th class="py-3 px-3 text-center">Adimplência</th>
+                                    <th class="py-3 px-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-extrato-detalhado" class="divide-y divide-slate-100">
+                                <!-- Inserido dinamicamente via JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

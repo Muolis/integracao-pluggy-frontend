@@ -82,6 +82,12 @@
   - [x] Exportação respeitando fielmente os filtros da tela e ambiente ativo.
   - [x] Formato Brasil (ponto e vírgula `;`, BOM UTF-8 `\uFEFF`, decimais com vírgula).
   - [x] Colunas ricas e completas com status oficial Pluggy, IDs, diagnósticos e links.
+- [x] **Realocação da Conta Securitizadora & Submenu de Extrato Detalhado de Clientes**:
+  - [x] Expurgada a conta bancária da Securitizadora da listagem de conexões de Open Finance (travas por tipo, razão social e CNPJ).
+  - [x] Criação da aba e visualização dedicada "Contas Vinculadas (MC)" no Gestor com saldo consolidado e desvinculação com 1 clique.
+  - [x] Novo submenu "Extrato Detalhado" sob o acordeão "Securitizadora MC" no menu lateral (sidebar do gestor).
+  - [x] Tabela de extrato analítico por cliente com progresso de parcelas (`X/Y pagas`), vigência (`data_inicio` / `data_fim`), adimplência (`Em dia` / `Em atraso`) e método (`Pix Automático` / `Boleto`).
+  - [x] Filtros reativos por adimplência, método, busca de texto, paginação e exportação para Excel Brasil (.csv).
 
 #### 3.2 Ambiente Corporativo da Securitizadora ([`securitizadora.html`](file:///c:/meu-frontend-plugg/securitizadora.html) / [`securitizadora.js`](file:///c:/meu-frontend-plugg/securitizadora.js))
 - [x] Visualização de saldo consolidado em caixa e contas vinculadas da Securitizadora MC.
