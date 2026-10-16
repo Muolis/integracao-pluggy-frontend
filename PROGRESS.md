@@ -130,6 +130,13 @@
   - [x] Teste de cancelamento oficial com token HMAC (`/api/pix-cancelar/<id>`).
   - [x] Teste de ordenação cronológica determinística decrescente.
   - [x] Testes de integridade de conciliação analítica e KPIs da Pluggy.
+- [x] **Auditoria Completa de Segurança da Informação & Hardening**:
+  - [x] **Headers HTTP & CSP Estrito**: Adicionados Content-Security-Policy (whitelist de CDNs e Pluggy SDK), HSTS (Strict-Transport-Security), X-Permitted-Cross-Domain-Policies, Permissions-Policy e limite global de payload (2MB anti-DoS).
+  - [x] **Proteção Anti-Brute-Force**: Rate limiting em `/api/login` (máx. 7 falhas/minuto por IP com HTTP 429).
+  - [x] **Eliminação de Vazamento de Credenciais**: Mascaramento de chave de API em `/api/diagnostico/pix` (`curl_evidencia`).
+  - [x] **Mitigação de SSRF & Injeção de Path**: Sanitização estrita por regex `re.sub(r'[^a-zA-Z0-9_\-]', '', ...)` em parâmetros upstream de URLs da Pluggy.
+  - [x] **Mitigação de DOM-XSS**: Sanitização e validação de URLs em tags `<img>` e escaping de atributos HTML no frontend (`gestor.js`).
+  - [x] **Mitigação de Enumeração de Usuários**: Remoção de lista de logins de exemplo no formulário de login (`gestor-login.html`).
 - [x] **Geração de Laudos Técnicos em PDF**:
   - [x] Gerador de laudo executivo ReportLab [`gerar_auditoria_tecnica_pdf.py`](file:///c:/meu-frontend-plugg/gerar_auditoria_tecnica_pdf.py).
   - [x] Documentos PDF compilados e sincronizados no repositório.

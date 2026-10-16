@@ -15,6 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 app = Flask(__name__, static_folder=BASE_DIR)
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # Limite de 2MB para prevenir ataques DoS de payload
 CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
 CORS(app, origins=CORS_ORIGINS.split(',') if CORS_ORIGINS != '*' else '*')
 
@@ -26,6 +27,28 @@ def adicionar_headers_seguranca(response):
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['X-Permitted-Cross-Domain-Policies'] = 'none'
+    response.headers['Permissions-Policy'] = 'geolocation=(), camera=(), microphone=(), payment=()'
+
+    # Content-Security-Policy oficial e restritivo permitindo as CDNs homologadas
+    csp = (
+        "default-src 'self' 'unsafe-inline' https: data: blob:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.pluggy.ai https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+        "img-src 'self' data: https: blob:; "
+        "connect-src 'self' https: wss:; "
+        "frame-src 'self' https://connect.pluggy.ai https://*.pluggy.ai; "
+        "object-src 'none'; "
+        "base-uri 'self';"
+    )
+    response.headers['Content-Security-Policy'] = csp
+
+    # HSTS quando em conexão segura ou proxy Render
+    if request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+
     return response
 
 # ====================================================================
@@ -334,17 +357,45 @@ def health_check():
         'timestamp': int(time.time())
     }), 200
 
+_login_failed_attempts = {}
+
+def verificar_rate_limit_login(ip: str) -> bool:
+    """Limita tentativas de login a no máximo 7 falhas por minuto por IP"""
+    agora = time.time()
+    tentativas = [t for t in _login_failed_attempts.get(ip, []) if agora - t < 60]
+    _login_failed_attempts[ip] = tentativas
+    return len(tentativas) < 7
+
+def registrar_falha_login(ip: str):
+    agora = time.time()
+    if ip not in _login_failed_attempts:
+        _login_failed_attempts[ip] = []
+    _login_failed_attempts[ip].append(agora)
+
+def limpar_falhas_login(ip: str):
+    if ip in _login_failed_attempts:
+        del _login_failed_attempts[ip]
+
 @app.route('/api/login', methods=['POST'])
 def api_login():
+    ip_cliente = (request.headers.get('X-Forwarded-For') or request.remote_addr or '127.0.0.1').split(',')[0].strip()
+    if not verificar_rate_limit_login(ip_cliente):
+        return jsonify({
+            'erro': 'Muitas tentativas consecutivas com falha. Por segurança, aguarde 60 segundos antes de tentar novamente.',
+            'codigo': 'RATE_LIMIT_EXCEEDED'
+        }), 429
+
     dados = request.get_json(silent=True) or {}
-    usuario = (dados.get('usuario') or '').strip()
-    senha = (dados.get('senha') or '').strip()
+    usuario = (dados.get('usuario') or '').strip()[:100]
+    senha = (dados.get('senha') or '').strip()[:100]
     if not usuario or not senha:
+        registrar_falha_login(ip_cliente)
         return jsonify({'erro': 'Usuario e senha sao obrigatorios', 'codigo': 'CREDENTIALS_REQUIRED'}), 400
-    
+
     usuario_lookup = usuario.lower()
     senha_esperada = GESTOR_USERS.get(usuario_lookup)
     if senha_esperada and check_password_hash(senha_esperada, senha):
+        limpar_falhas_login(ip_cliente)
         token = gerar_token_sessao(usuario_lookup)
         nome_amigavel = 'Administrador' if usuario_lookup == 'admin' else ('Juliane MC' if usuario_lookup == 'julianemc' else usuario_lookup.capitalize())
         return jsonify({
@@ -355,6 +406,8 @@ def api_login():
                 'nome': nome_amigavel
             }
         }), 200
+
+    registrar_falha_login(ip_cliente)
     return jsonify({'erro': 'Usuario ou senha incorretos', 'codigo': 'INVALID_CREDENTIALS'}), 401
 
 @app.route('/api/validar-sessao', methods=['GET', 'POST'])
@@ -460,8 +513,10 @@ def gerar_token():
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     dados = request.get_json(silent=True) or {}
-    cliente_id = request.args.get('cliente') or dados.get('cliente') or 'Cliente'
-    item_id = request.args.get('item_id') or dados.get('item_id') or request.args.get('itemId') or dados.get('itemId')
+    raw_cliente = request.args.get('cliente') or dados.get('cliente') or 'Cliente'
+    cliente_id = re.sub(r'[\r\n\t<>]', ' ', str(raw_cliente))[:100].strip() or 'Cliente'
+    raw_item = request.args.get('item_id') or dados.get('item_id') or request.args.get('itemId') or dados.get('itemId')
+    item_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(raw_item))[:128].strip() if raw_item else None
     try:
         token_payload = {
             'options': {
@@ -499,13 +554,13 @@ def gerar_token_pix():
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
     dados = request.get_json(silent=True) or {}
     valor_pix = dados.get('valor')
-    data_inicio = str(dados.get('data_inicio', '')).strip()
-    data_fim = str(dados.get('data_fim', '')).strip()
+    data_inicio = str(dados.get('data_inicio', '')).strip()[:10]
+    data_fim = str(dados.get('data_fim', '')).strip()[:10]
     parcelas_input = dados.get('parcelas') or dados.get('quantidade_parcelas')
     validacao_inicial = dados.get('validacao_inicial', True)
     banco_selecionado = dados.get('banco')
-    cliente_nome = str(dados.get('cliente') or 'Cliente').strip()
-    tipo_doc = str(dados.get('tipo_doc') or dados.get('tipoDoc') or '').lower()
+    cliente_nome = re.sub(r'[\r\n\t<>]', ' ', str(dados.get('cliente') or 'Cliente'))[:100].strip() or 'Cliente'
+    tipo_doc = str(dados.get('tipo_doc') or dados.get('tipoDoc') or '').lower()[:10]
 
     cnpj_raw = dados.get('cnpj', '')
     cpf_raw = dados.get('cpf', '')
@@ -529,8 +584,8 @@ def gerar_token_pix():
 
     try:
         valor_float = float(valor_pix)
-        if valor_float <= 0:
-            return jsonify({'erro': 'Valor deve ser maior que zero'}), 400
+        if valor_float <= 0 or valor_float > 10000000.0:
+            return jsonify({'erro': 'Valor deve ser maior que zero e até R$ 10.000.000,00'}), 400
     except (ValueError, TypeError):
         return jsonify({'erro': 'Valor invalido'}), 400
 
@@ -1004,9 +1059,13 @@ def calcular_extrato_pix(intent_data: dict) -> dict:
 def salvar_conexao():
     """Salva a conexao garantindo compatibilidade com constraints NOT NULL no Supabase"""
     dados = request.get_json(silent=True) or {}
-    cliente = str(dados.get('cliente', '')).strip()
-    item_id = dados.get('item_id')
-    payment_intent_id = dados.get('payment_intent_id')
+    raw_cliente = str(dados.get('cliente', '')).strip()
+    cliente = re.sub(r'[\r\n\t<>]', ' ', raw_cliente)[:255].strip()
+    raw_item = dados.get('item_id')
+    raw_intent = dados.get('payment_intent_id')
+
+    item_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(raw_item))[:128].strip() if raw_item else None
+    payment_intent_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(raw_intent))[:128].strip() if raw_intent else None
 
     if not cliente or cliente in ['Atendimento', 'Cliente', 'null', 'undefined']:
         cliente = ''
@@ -1797,6 +1856,10 @@ def api_pix_intents():
 @requer_autenticacao
 def api_pix_cancelar(req_id):
     """Cancela/revoga um mandato ou agendamento de Pix na Pluggy e atualiza o sistema"""
+    req_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(req_id))[:128].strip()
+    if not req_id:
+        return jsonify({'erro': 'ID de requisição inválido'}), 400
+
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Erro na autenticação com a Pluggy'}), 500
@@ -1895,6 +1958,10 @@ def api_pix_cancelar(req_id):
 @requer_autenticacao
 def consultar_pix_detalhado(operacao_id):
     """Consulta detalhada e analítica de um contrato/operação de Pix Automático idêntica ao painel da Pluggy"""
+    operacao_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(operacao_id))[:128].strip()
+    if not operacao_id:
+        return jsonify({'erro': 'ID de operação inválido'}), 400
+
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Falha na autenticação com a Pluggy'}), 500
@@ -2478,7 +2545,7 @@ def api_diagnostico_pix():
     diagnostico['veredito'] = {
         'resultado': 'A INFRAESTRUTURA DO APP ESTÁ ÍNTEGRA E PROCESSANDO CORRETAMENTE',
         'detalhe': 'As divergências observadas decorrem de especificidades no modelo de dados da Pluggy (status duplo entre Intent e PaymentRequest e ausência de objeto customer nas listagens). O aplicativo já implementa camadas de resiliência e fallback para normalizar esses dados.',
-        'curl_evidencia': f"curl -X GET 'https://api.pluggy.ai/payments/requests?pageSize=5' -H 'X-API-KEY: {api_key}'"
+        'curl_evidencia': f"curl -X GET 'https://api.pluggy.ai/payments/requests?pageSize=5' -H 'X-API-KEY: {api_key[:6]}...{api_key[-4:]}'"
     }
 
     return jsonify(diagnostico), 200
@@ -2629,6 +2696,10 @@ def listar_conexoes():
 @requer_autenticacao
 def sincronizar_item(item_id):
     """Dispara atualizacao forçada de extrato bancário na Pluggy (PATCH /items/{id})"""
+    item_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(item_id))[:128].strip()
+    if not item_id:
+        return jsonify({'erro': 'Item ID inválido'}), 400
+
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
@@ -2665,6 +2736,10 @@ def sincronizar_item(item_id):
 @app.route('/consultar-dados/<item_id>', methods=['GET'])
 @requer_autenticacao
 def consultar_dados(item_id):
+    item_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(item_id))[:128].strip()
+    if not item_id:
+        return jsonify({'erro': 'Item ID inválido'}), 400
+
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
@@ -2728,6 +2803,10 @@ _of_cache = {}
 @app.route('/consultar-transacoes/<account_id>', methods=['GET'])
 @requer_autenticacao
 def consultar_transacoes(account_id):
+    account_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(account_id))[:128].strip()
+    if not account_id:
+        return jsonify({'erro': 'Account ID inválido'}), 400
+
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Erro na autenticacao com a Pluggy'}), 500
@@ -2790,6 +2869,9 @@ def openfinance_completo(item_id):
     - Totalizadores analíticos consolidados
     - Investimentos e Empréstimos se contratados
     """
+    item_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(item_id))[:128].strip()
+    if not item_id:
+        return jsonify({'erro': 'Item ID inválido'}), 400
     api_key = obter_api_key()
     if not api_key:
         return jsonify({'erro': 'Erro na autenticação com a Pluggy'}), 500
@@ -3386,8 +3468,10 @@ def api_securitizadora_sincronizar():
 def api_securitizadora_desvincular_conta():
     """Remove e desvincula uma conta bancária corporativa da Securitizadora"""
     dados = request.get_json(silent=True) or {}
-    item_id = dados.get('item_id') or dados.get('itemId')
-    account_id = dados.get('account_id') or dados.get('accountId')
+    raw_item = dados.get('item_id') or dados.get('itemId')
+    raw_acc = dados.get('account_id') or dados.get('accountId')
+    item_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(raw_item))[:128].strip() if raw_item else None
+    account_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(raw_acc))[:128].strip() if raw_acc else None
 
     if not item_id and not account_id:
         return jsonify({'erro': 'Informe o item_id ou account_id da conta a ser desvinculada'}), 400

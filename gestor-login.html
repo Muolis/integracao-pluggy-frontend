@@ -71,7 +71,7 @@
                         id="usuario" 
                         required 
                         autocomplete="username"
-                        placeholder="admin, julianemc ou gabriel" 
+                        placeholder="Digite seu usuário corporativo" 
                         class="w-full bg-[#050538]/90 border border-blue-500/30 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-blue-300/40 focus:outline-none focus:ring-2 focus:ring-[#0985ff]/50 focus:border-[#0985ff] transition duration-200"
                     >
                 </div>
@@ -124,17 +124,7 @@
             </button>
         </form>
 
-        <!-- Atalhos rápidos para usuários homologados -->
-        <div class="mt-6 pt-4 border-t border-blue-500/20 text-center">
-            <span class="text-[11px] text-blue-200/70 block mb-2 font-medium">Usuários Autorizados:</span>
-            <div class="flex items-center justify-center gap-2 flex-wrap">
-                <button type="button" onclick="preencherUsuario('admin')" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border border-blue-400/20 text-[11px] font-semibold transition cursor-pointer">admin</button>
-                <button type="button" onclick="preencherUsuario('julianemc')" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border border-blue-400/20 text-[11px] font-semibold transition cursor-pointer">julianemc</button>
-                <button type="button" onclick="preencherUsuario('gabriel')" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border border-blue-400/20 text-[11px] font-semibold transition cursor-pointer">gabriel</button>
-            </div>
-        </div>
-
-        <footer class="mt-6 pt-4 border-t border-blue-500/20 flex items-center justify-center gap-2 text-[11px] text-blue-300/70 uppercase tracking-widest font-semibold">
+        <footer class="mt-8 pt-4 border-t border-blue-500/20 flex items-center justify-center gap-2 text-[11px] text-blue-300/70 uppercase tracking-widest font-semibold">
             <i class="fa-solid fa-shield-halved text-[#0985ff]"></i> Autenticação Criptografada HMAC-SHA256
         </footer>
     </main>
@@ -152,13 +142,6 @@
                 iconeOlho.classList.remove("fa-eye-slash");
                 iconeOlho.classList.add("fa-eye");
             }
-        }
-
-        function preencherUsuario(nome) {
-            const inputUsuario = document.getElementById("usuario");
-            const inputSenha = document.getElementById("senha");
-            inputUsuario.value = nome;
-            inputSenha.focus();
         }
 
         async function fazerLogin(event) {

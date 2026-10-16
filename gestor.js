@@ -1210,8 +1210,8 @@ let todosOsClientes = [];
                                 ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">${cli.tipo_documento || 'DOC'}: ${cli.documento}</span>`
                                 : `<span class="text-slate-400 text-[11px] italic">Não informado</span>`;
 
-                            const logoBanco = itemRecente.banco_imagem 
-                                ? `<img src="${itemRecente.banco_imagem}" alt="Logo" class="w-5 h-5 object-contain rounded-md inline-block mr-1.5" onerror="this.style.display='none'">` 
+                            const logoBanco = (itemRecente.banco_imagem && itemRecente.banco_imagem.startsWith('http'))
+                                ? `<img src="${MC_CONFIG.escapeHtml(itemRecente.banco_imagem)}" alt="Logo" class="w-5 h-5 object-contain rounded-md inline-block mr-1.5" onerror="this.style.display='none'">` 
                                 : `<i class="fa-solid fa-building-columns text-slate-400 mr-1.5"></i>`;
 
                             // Determinação de Status Consolidado do Cliente
@@ -1564,8 +1564,8 @@ let todosOsClientes = [];
                             ? `<span class="text-slate-500 font-medium ml-1"><i class="fa-regular fa-calendar-check text-[#0985ff]"></i> 1º débito: <strong class="text-slate-700">${dataInicioRecente}</strong></span>`
                             : '';
 
-                        const logoBanco = itemRecente.banco_imagem
-                            ? `<img src="${itemRecente.banco_imagem}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
+                        const logoBanco = (itemRecente.banco_imagem && itemRecente.banco_imagem.startsWith('http'))
+                            ? `<img src="${MC_CONFIG.escapeHtml(itemRecente.banco_imagem)}" alt="Logo" class="w-6 h-6 object-contain rounded-md" onerror="this.style.display='none'">` 
                             : `<i class="fa-solid fa-building-columns text-slate-400"></i>`;
 
                         const docBadge = cli.documento 
@@ -3086,12 +3086,18 @@ let todosOsClientes = [];
                 const valorParcelaFmt = c.valorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const valorTotalFmt = c.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+                const safeRowId = MC_CONFIG.escapeHtml(rowId);
+                const safeContratoId = MC_CONFIG.escapeHtml(c.id);
+                const imgBancoHtml = (c.banco_imagem && c.banco_imagem.startsWith('http')) 
+                    ? `<img src="${MC_CONFIG.escapeHtml(c.banco_imagem)}" alt="" class="w-4 h-4 object-contain">` 
+                    : `<i class="fa-regular fa-user text-xs"></i>`;
+
                 htmlLinhas += `
                     <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
                         <td class="py-3 px-3.5">
                             <div class="flex items-center gap-2.5">
                                 <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                                    ${c.banco_imagem ? `<img src="${c.banco_imagem}" alt="" class="w-4 h-4 object-contain">` : `<i class="fa-regular fa-user text-xs"></i>`}
+                                    ${imgBancoHtml}
                                 </div>
                                 <div>
                                     <span class="font-bold text-[#010157] text-xs block leading-tight">${MC_CONFIG.escapeHtml(c.cliente)}</span>
@@ -3114,7 +3120,7 @@ let todosOsClientes = [];
                         <td class="py-3 px-3 whitespace-nowrap">
                             <span class="text-xs text-slate-700 font-medium flex items-center gap-1.5">
                                 <i class="fa-regular fa-calendar text-slate-400 text-[11px]"></i>
-                                ${c.vigenciaTexto}
+                                ${MC_CONFIG.escapeHtml(c.vigenciaTexto)}
                             </span>
                         </td>
                         <td class="py-3 px-3 text-right whitespace-nowrap">
@@ -3126,22 +3132,22 @@ let todosOsClientes = [];
                         </td>
                         <td class="py-3 px-3 text-center whitespace-nowrap">
                             <div class="flex items-center justify-center gap-1.5">
-                                <button type="button" onclick="abrirModalOperacaoPluggy('${c.id}')" class="bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Ver detalhes completos do contrato na Pluggy">
+                                <button type="button" onclick="abrirModalOperacaoPluggy('${safeContratoId}')" class="bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Ver detalhes completos do contrato na Pluggy">
                                     <i class="fa-solid fa-magnifying-glass"></i> Detalhes
                                 </button>
-                                <button type="button" onclick="toggleSubtabelaContratoDet('${rowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Ver cronograma de parcelas">
-                                    <i id="icon-chev-${rowId}" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
+                                <button type="button" onclick="toggleSubtabelaContratoDet('${safeRowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Ver cronograma de parcelas">
+                                    <i id="icon-chev-${safeRowId}" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
-                    <tr id="${rowId}" class="hidden bg-slate-50/60 border-b border-slate-200/60">
+                    <tr id="${safeRowId}" class="hidden bg-slate-50/60 border-b border-slate-200/60">
                         <td colspan="7" class="p-3 sm:p-4">
                             <div class="bg-white rounded-xl border border-slate-200 p-3.5 space-y-3">
                                 <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-100 flex-wrap gap-2">
                                     <span class="font-bold text-[#010157] flex items-center gap-1.5">
                                         <i class="fa-solid fa-list-ol text-[#0985ff]"></i>
-                                        Cronograma de Parcelas do Contrato (${c.id.slice(0, 16)}..)
+                                        Cronograma de Parcelas do Contrato (${safeContratoId.slice(0, 16)}..)
                                     </span>
                                     <span class="text-[11px] text-slate-500">
                                         Beneficiário: <strong class="text-slate-800">MC MINHACONTA SECURITIZADORA S/A</strong>
