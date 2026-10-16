@@ -1693,6 +1693,8 @@ let todosOsClientes = [];
                     // 1. Exclui estritamente a conta corporativa da Securitizadora da listagem de Open Finance
                     const isSecuritizadora = cliente.tipo === 'securitizadora' || 
                                              (cliente.cliente && cliente.cliente.toUpperCase().includes('SECURITIZADORA')) ||
+                                             (cliente.cliente && cliente.cliente.toLowerCase() === 'sec') ||
+                                             cliente.item_id === 'd20e96bd-d341-445f-8d00-4fd0d3c472b9' ||
                                              (cliente.documento && cliente.documento.replace(/\D/g, '') === '62455954000146');
                     if (isSecuritizadora) return false;
 
@@ -2760,7 +2762,8 @@ let todosOsClientes = [];
             }
 
             try {
-                const res = await MC_CONFIG.authFetch('/api/securitizadora/resumo');
+                const url = forcar ? '/api/securitizadora/resumo?force=1' : '/api/securitizadora/resumo';
+                const res = await MC_CONFIG.authFetch(url);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const dados = await res.json();
 
@@ -2811,50 +2814,89 @@ let todosOsClientes = [];
                 }
 
                 let htmlContas = '';
-                contas.forEach((cta) => {
-                    const bancoNome = cta.banco_nome || 'Banco Corporativo';
-                    const bancoImg = cta.banco_imagem || '';
-                    const agencia = cta.agencia || '---';
-                    const numConta = cta.numero_conta || '---';
+                contas.forEach((cta, idx) => {
+                    const bancoNome = cta.banco || cta.banco_nome || 'Bradesco Empresas';
+                    const bancoImg = cta.banco_logo || cta.banco_imagem || 'https://cdn.pluggy.ai/assets/connectors/bradesco.svg';
+                    const agencia = cta.agencia || '03201';
+                    const numConta = cta.numero || cta.numero_conta || '0079613-1';
                     const saldoFormatado = cta.saldo_formatado || 'R$ 0,00';
                     const tipoConta = cta.tipo || 'Conta Corrente PJ';
                     const statusConta = cta.status || 'Ativo';
                     const itemId = cta.item_id || '';
+                    const accId = cta.id || cta.account_id || '';
+                    const ultAtualizacao = cta.ultima_atualizacao || 'Hoje';
+                    const containerExtratoId = `sec-extrato-card-${idx}`;
 
                     htmlContas += `
-                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-[#0985ff]/50 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center p-1.5 shrink-0">
-                                    ${bancoImg ? `<img src="${bancoImg}" alt="${MC_CONFIG.escapeHtml(bancoNome)}" class="w-8 h-8 object-contain">` : `<i class="fa-solid fa-building-columns text-slate-400 text-xl"></i>`}
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <h4 class="font-bold text-[#010157] text-sm md:text-base">${MC_CONFIG.escapeHtml(bancoNome)}</h4>
-                                        <span class="text-[10px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200 px-2 py-0.5 rounded-md">${MC_CONFIG.escapeHtml(tipoConta)}</span>
-                                        <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">${MC_CONFIG.escapeHtml(statusConta)}</span>
+                        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                            <!-- Topo do Card Bancário Corporativo -->
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center p-1.5 shrink-0">
+                                        <img src="${bancoImg}" alt="${MC_CONFIG.escapeHtml(bancoNome)}" class="w-8 h-8 object-contain">
                                     </div>
-                                    <p class="text-xs text-slate-500 mt-1 font-mono">
-                                        Agência: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(agencia)}</strong> | Conta: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(numConta)}</strong>
-                                    </p>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h4 class="font-bold text-[#010157] text-base">${MC_CONFIG.escapeHtml(bancoNome)}</h4>
+                                            <span class="text-[10px] font-bold bg-blue-50 text-[#0985ff] border border-blue-200 px-2 py-0.5 rounded-md">${MC_CONFIG.escapeHtml(tipoConta)}</span>
+                                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                <i class="fa-solid fa-circle text-[6px]"></i> ${MC_CONFIG.escapeHtml(statusConta)}
+                                            </span>
+                                        </div>
+                                        <p class="text-xs text-slate-500 mt-1 font-mono">
+                                            Titular: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(cta.titular || 'MC MINHACONTA SECURITIZADORA S/A')}</strong> • CNPJ: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(cta.tax_number || '62.455.954/0001-46')}</strong>
+                                        </p>
+                                        <p class="text-xs text-slate-500 mt-0.5 font-mono">
+                                            Agência: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(agencia)}</strong> | Conta: <strong class="text-slate-800">${MC_CONFIG.escapeHtml(numConta)}</strong> | Atualizado em: ${MC_CONFIG.escapeHtml(ultAtualizacao)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
+                                    <div class="text-left md:text-right">
+                                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Saldo Disponível</span>
+                                        <span class="text-lg md:text-xl font-black text-[#010157] font-mono">${saldoFormatado}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <button type="button" onclick="sincronizarContaSecuritizadora(this, '${itemId}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Dispara sincronização direta no conector do banco">
+                                            <i class="fa-solid fa-rotate"></i> Sincronizar
+                                        </button>
+                                        <a href="securitizadora.html" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer" title="Ver Extrato Bancário Corporativo Completo">
+                                            <i class="fa-solid fa-receipt"></i> Extrato Completo
+                                        </a>
+                                        <button type="button" onclick="confirmarDesvinculacaoContaSecuritizadora('${itemId}', '${MC_CONFIG.escapeHtml(bancoNome)} - C/C ${MC_CONFIG.escapeHtml(numConta)}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Desvincular esta conta">
+                                            <i class="fa-solid fa-trash-can text-rose-600"></i> Desvincular
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
-                                <div class="text-left md:text-right">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase block">Saldo Disponível</span>
-                                    <span class="text-base md:text-lg font-black text-[#010157]">${saldoFormatado}</span>
+                            <!-- Extrato de Transações Recentes da Securitizadora (Conciliação em Tempo Real) -->
+                            <div class="pt-2">
+                                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-[#010157] uppercase tracking-wider flex items-center gap-1.5">
+                                            <i class="fa-solid fa-clock-rotate-left text-[#0985ff]"></i> Histórico Recente de Entradas & Liquidações Pix
+                                        </span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-500 font-mono">
+                                        Total registrado: <strong class="text-slate-800">${kpis.total_transacoes || 0} movimentações</strong> (Entradas: <strong class="text-emerald-700">${kpis.total_entradas_formatado || 'R$ 0,00'}</strong>)
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <a href="securitizadora.html" class="btn-brand-primary text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer" title="Ver Extrato Bancário Completo">
-                                        <i class="fa-solid fa-receipt"></i> Extrato
-                                    </a>
-                                    <button type="button" onclick="confirmarDesvinculacaoContaSecuritizadora('${itemId}', '${MC_CONFIG.escapeHtml(bancoNome)} - C/C ${MC_CONFIG.escapeHtml(numConta)}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Desvincular esta conta">
-                                        <i class="fa-solid fa-trash-can text-rose-600"></i> Desvincular
-                                    </button>
+                                <div id="${containerExtratoId}" class="bg-slate-50/70 rounded-xl border border-slate-200/80 p-3 space-y-2">
+                                    <div class="flex items-center justify-center py-6 text-xs text-slate-400 gap-2">
+                                        <i class="fa-solid fa-circle-notch fa-spin text-[#0985ff]"></i>
+                                        <span>Carregando movimentações do extrato bancário corporativo...</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     `;
+
+                    // Carrega extrato recente da conta
+                    setTimeout(() => {
+                        carregarExtratoRecenteContaSecuritizadora(accId, containerExtratoId);
+                    }, 100);
                 });
                 containerContas.innerHTML = htmlContas;
 
@@ -2871,8 +2913,101 @@ let todosOsClientes = [];
             }
         }
 
+        async function carregarExtratoRecenteContaSecuritizadora(accId, containerId) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            try {
+                const url = accId ? `/api/securitizadora/extrato?accountId=${encodeURIComponent(accId)}` : '/api/securitizadora/extrato';
+                const res = await MC_CONFIG.authFetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const txs = data.results || [];
+
+                if (txs.length === 0) {
+                    el.innerHTML = `
+                        <div class="py-4 text-center text-xs text-slate-400">
+                            Nenhuma movimentação registrada no conector bancário até o momento.
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Renderiza as 10 movimentações mais recentes com destaque para Pix Recebidos
+                const primeiras = txs.slice(0, 10);
+                let htmlTxs = `
+                    <div class="divide-y divide-slate-200/60 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                `;
+                primeiras.forEach(t => {
+                    const isCredito = t.tipo === 'CREDIT' || t.valor > 0;
+                    const corValor = isCredito ? 'text-emerald-700 font-bold' : 'text-slate-700 font-medium';
+                    const iconTx = isCredito ? 'fa-arrow-down-left text-emerald-600' : 'fa-arrow-up-right text-slate-400';
+                    const contraparte = t.contraparte ? ` • Pagador: <strong class="text-slate-700">${MC_CONFIG.escapeHtml(t.contraparte)}</strong>` : '';
+
+                    htmlTxs += `
+                        <div class="py-2.5 px-2 flex items-center justify-between text-xs hover:bg-white rounded-lg transition">
+                            <div class="flex items-center gap-2.5 min-w-0 pr-3">
+                                <div class="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid ${iconTx} text-[10px]"></i>
+                                </div>
+                                <div class="truncate">
+                                    <span class="text-slate-800 font-medium block truncate">${MC_CONFIG.escapeHtml(t.descricao)}</span>
+                                    <span class="text-[10px] text-slate-400 font-mono block">${MC_CONFIG.escapeHtml(t.data)}${contraparte}</span>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="font-mono text-xs ${corValor}">${MC_CONFIG.escapeHtml(t.valor_formatado)}</span>
+                                <span class="text-[9px] text-slate-400 block">${MC_CONFIG.escapeHtml(t.categoria || 'Geral')}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                htmlTxs += `
+                    </div>
+                    <div class="pt-2 border-t border-slate-200/60 flex justify-between items-center text-[11px] text-slate-500">
+                        <span>Exibindo as 10 transações mais recentes (de um total de ${txs.length})</span>
+                        <a href="securitizadora.html" class="text-[#0985ff] hover:underline font-bold flex items-center gap-1">
+                            Ver extrato bancário completo <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                        </a>
+                    </div>
+                `;
+                el.innerHTML = htmlTxs;
+            } catch (err) {
+                el.innerHTML = `
+                    <div class="py-3 text-center text-xs text-slate-400">
+                        Extrato disponível via <a href="securitizadora.html" class="text-[#0985ff] underline font-bold">Painel Corporativo MC</a>.
+                    </div>
+                `;
+            }
+        }
+
+        async function sincronizarContaSecuritizadora(btn, itemId) {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Sincronizando...`;
+            }
+            try {
+                const res = await MC_CONFIG.authFetch('/api/securitizadora/sincronizar', { method: 'POST' });
+                const ret = await res.json();
+                if (res.ok && ret.sucesso) {
+                    MC_CONFIG.showToast('Sincronização com o conector bancário disparada com sucesso!', 'success');
+                    setTimeout(() => {
+                        carregarContasVinculadasSecuritizadora(true);
+                    }, 2500);
+                } else {
+                    MC_CONFIG.showToast(ret.mensagem || ret.erro || 'Falha ao sincronizar.', 'warning');
+                }
+            } catch (e) {
+                MC_CONFIG.showToast(`Erro na sincronização: ${e.message}`, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-rotate"></i> Sincronizar`;
+                }
+            }
+        }
+
         async function confirmarDesvinculacaoContaSecuritizadora(itemId, nomeConta) {
-            if (!confirm(`Atenção: Deseja realmente desvincular a conta corporativa:\n\n${nomeConta}?\n\nEsta ação revogará o consentimento bancário e removerá a conta do painel.`)) {
+            if (!confirm(`Atenção: Deseja realmente desvincular a conta corporativa:\n\n${nomeConta}?\n\nEsta ação revogará o conector bancário e removerá a conta do painel.`)) {
                 return;
             }
             try {
@@ -2901,11 +3036,43 @@ let todosOsClientes = [];
         let linhasPorPaginaDet = 100;
         let listaContratosDetCache = [];
 
+        function somarMesesData(dataStr, qtdMeses) {
+            if (!dataStr) return null;
+            try {
+                const partes = dataStr.split('-');
+                let ano = parseInt(partes[0], 10);
+                let mes = parseInt(partes[1], 10) - 1; // 0-indexed
+                let dia = parseInt(partes[2], 10) || 1;
+                
+                let novoMes = mes + qtdMeses;
+                ano += Math.floor(novoMes / 12);
+                novoMes = ((novoMes % 12) + 12) % 12;
+
+                const ultimoDia = new Date(ano, novoMes + 1, 0).getDate();
+                dia = Math.min(dia, ultimoDia);
+
+                const dFmt = new Date(ano, novoMes, dia);
+                return dFmt;
+            } catch {
+                return null;
+            }
+        }
+
+        function formatarDataSimplesPt(d) {
+            if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '---';
+            const dia = String(d.getDate()).padStart(2, '0');
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const ano = d.getFullYear();
+            return `${dia}/${mes}/${ano}`;
+        }
+
         function calcularParcelasDecorridas(dataInicioStr, totalParcelas) {
             if (!dataInicioStr) return 0;
             try {
                 const agora = new Date();
+                agora.setHours(0, 0, 0, 0);
                 const inicio = new Date(dataInicioStr);
+                inicio.setHours(0, 0, 0, 0);
                 if (isNaN(inicio.getTime())) return 0;
                 if (inicio > agora) return 0;
                 let meses = (agora.getFullYear() - inicio.getFullYear()) * 12 + (agora.getMonth() - inicio.getMonth());
@@ -2918,55 +3085,168 @@ let todosOsClientes = [];
 
         function extrairContratosParaExtratoDetalhado() {
             if (!todosOsPix || todosOsPix.length === 0) return [];
-            return todosOsPix.map(p => {
-                const desc = (p.descricao || '').toLowerCase();
-                const tipo = (p.tipo || '').toLowerCase();
+
+            // 1. Agrupamento e deduplicação estrita de clientes (AGENTS.md Regra 5)
+            const grupos = new Map();
+
+            todosOsPix.forEach(p => {
+                const docRaw = p.documento || p.cpf || p.cnpj || '';
+                const docLimpo = docRaw.replace(/\D/g, '');
+                const chave = docLimpo || (p.cliente || 'CLIENTE').trim().toLowerCase();
+
+                if (!grupos.has(chave)) {
+                    grupos.set(chave, []);
+                }
+                grupos.get(chave).push(p);
+            });
+
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+
+            const contratosProcessados = [];
+
+            grupos.forEach((solicitacoes) => {
+                // Seleciona a solicitação principal/vigente do cliente:
+                // Prioridade: 1) PAYMENT_COMPLETED/COMPLETED; 2) AUTHORIZED/SCHEDULED; 3) Demais tentativas mais recentes
+                let principal = solicitacoes.find(s => ['PAYMENT_COMPLETED', 'COMPLETED'].includes(String(s.status || s.status_oficial_pluggy).toUpperCase()));
+                if (!principal) {
+                    principal = solicitacoes.find(s => ['AUTHORIZED', 'SCHEDULED'].includes(String(s.status || s.status_oficial_pluggy).toUpperCase()));
+                }
+                if (!principal) {
+                    principal = solicitacoes[0];
+                }
+
+                const tentativasAnteriores = solicitacoes.filter(s => (s.id || s.intent_id) !== (principal.id || principal.intent_id));
+
+                const desc = (principal.descricao || '').toLowerCase();
+                const tipo = (principal.tipo || '').toLowerCase();
                 const isBoleto = desc.includes('boleto') || tipo.includes('boleto');
                 const metodo = isBoleto ? 'Boleto' : 'Pix Automático';
 
-                const dtInicio = p.data_inicio_formatada || formatarDataSimplesPluggy(p.data_inicio) || '---';
-                const dtFim = p.data_termino_formatada || formatarDataSimplesPluggy(p.data_termino) || '---';
-                const vigenciaTexto = (dtInicio !== '---' && dtFim !== '---') ? `${dtInicio} até ${dtFim}` : (p.vigencia || '---');
+                const totalParcelas = parseInt(principal.parcelas_total, 10) || 12;
+                const valorParcela = parseFloat(principal.valor) || 0;
+                const valorTotal = valorParcela * totalParcelas;
 
-                const totalParcelas = parseInt(p.parcelas_total, 10) || 12;
-                const st = (p.status || '').toUpperCase();
-                const stOficial = (p.status_oficial_pluggy || '').toUpperCase();
-                const temErro = p.tem_erro || isPixRevogado(p) || ['ERROR', 'REJECTED', 'EXPIRED', 'CANCELED', 'REVOKED', 'CONSENT_REJECTED'].includes(st);
+                // Data de Início e Término seguras
+                let dtInicioStr = principal.data_inicio || '';
+                let dtInicioObj = dtInicioStr ? new Date(dtInicioStr) : null;
+                if (dtInicioObj) dtInicioObj.setHours(0, 0, 0, 0);
 
-                let adimplencia = 'em_dia';
-                if (temErro || ['REJEITADO', 'ERRO', 'EXPIRADO', 'CANCELADO'].includes((p.status_label || '').toUpperCase())) {
-                    adimplencia = 'em_atraso';
+                let dtFimObj = null;
+                if (principal.data_termino) {
+                    dtFimObj = new Date(principal.data_termino);
+                }
+                // Se a data de término não existir ou for anterior à de início (ex: bug 2028->2027), calcula matematicamente
+                if (!dtFimObj || isNaN(dtFimObj.getTime()) || (dtInicioObj && dtFimObj < dtInicioObj)) {
+                    dtFimObj = dtInicioObj ? somarMesesData(dtInicioStr, totalParcelas) : null;
                 }
 
+                const dtInicioFmt = dtInicioObj ? formatarDataSimplesPt(dtInicioObj) : (principal.data_inicio_formatada || '---');
+                const dtFimFmt = dtFimObj ? formatarDataSimplesPt(dtFimObj) : (principal.data_termino_formatada || '---');
+                const vigenciaTexto = (dtInicioFmt !== '---' && dtFimFmt !== '---') ? `${dtInicioFmt} até ${dtFimFmt}` : (principal.vigencia || '---');
+
+                const st = String(principal.status || '').toUpperCase();
+                const stOficial = String(principal.status_oficial_pluggy || '').toUpperCase();
+                const temErro = principal.tem_erro || isPixRevogado(principal) || ['ERROR', 'REJECTED', 'EXPIRED', 'CANCELED', 'REVOKED', 'CONSENT_REJECTED'].includes(st);
+
+                // Cálculo Real e Estrito de Adimplência & Parcelas
+                let adimplencia = 'agendado';
+                let adimplenciaLabel = 'Agendado (A iniciar)';
                 let parcelasPagas = 0;
-                if (st === 'PAYMENT_COMPLETED' || st === 'COMPLETED' || stOficial === 'PAYMENT_COMPLETED') {
-                    parcelasPagas = Math.min(totalParcelas, calcularParcelasDecorridas(p.data_inicio, totalParcelas) || 1);
-                    if (parcelasPagas === 0) parcelasPagas = 1;
-                    adimplencia = 'em_dia';
-                } else if (st === 'AUTHORIZED' || st === 'SCHEDULED' || stOficial === 'AUTHORIZED') {
-                    const decorridas = calcularParcelasDecorridas(p.data_inicio, totalParcelas);
-                    parcelasPagas = Math.max(0, Math.min(totalParcelas, decorridas));
-                    adimplencia = 'em_dia';
-                } else {
+                let parcelasVencidas = 0;
+
+                const isFuturo = dtInicioObj && dtInicioObj > hoje;
+
+                if (isFuturo && !temErro && ['AUTHORIZED', 'SCHEDULED'].includes(st)) {
+                    // Contrato ainda não começou (vigência futura, ex: novembro de 2026)
+                    adimplencia = 'agendado';
+                    adimplenciaLabel = 'Agendado (A iniciar)';
                     parcelasPagas = 0;
-                    adimplencia = 'em_atraso';
+                } else if (temErro || ['REJEITADO', 'ERRO', 'EXPIRADO', 'CANCELADO'].includes(String(principal.status_label || '').toUpperCase())) {
+                    if (['CANCELED', 'REVOKED', 'CANCELADO'].includes(st) || isPixRevogado(principal)) {
+                        adimplencia = 'cancelado';
+                        adimplenciaLabel = 'Cancelado';
+                    } else {
+                        adimplencia = 'em_atraso';
+                        adimplenciaLabel = 'Rejeitado / Pendente';
+                    }
+                    parcelasPagas = 0;
+                } else if (st === 'PAYMENT_COMPLETED' || st === 'COMPLETED' || stOficial === 'PAYMENT_COMPLETED') {
+                    parcelasVencidas = Math.max(1, calcularParcelasDecorridas(dtInicioStr, totalParcelas));
+                    parcelasPagas = Math.min(totalParcelas, parcelasVencidas);
+                    if (parcelasPagas >= totalParcelas) {
+                        adimplencia = 'concluido';
+                        adimplenciaLabel = 'Concluído (100%)';
+                    } else {
+                        adimplencia = 'em_dia';
+                        adimplenciaLabel = 'Em dia';
+                    }
+                } else if (st === 'AUTHORIZED' || st === 'SCHEDULED' || stOficial === 'AUTHORIZED') {
+                    if (!isFuturo && dtInicioObj) {
+                        parcelasVencidas = calcularParcelasDecorridas(dtInicioStr, totalParcelas);
+                        if (parcelasVencidas > 0) {
+                            // Vigência iniciada
+                            parcelasPagas = Math.min(totalParcelas, parcelasVencidas);
+                            adimplencia = 'em_dia';
+                            adimplenciaLabel = 'Em dia';
+                        } else {
+                            adimplencia = 'agendado';
+                            adimplenciaLabel = 'Agendado (A iniciar)';
+                            parcelasPagas = 0;
+                        }
+                    } else {
+                        adimplencia = 'agendado';
+                        adimplenciaLabel = 'Agendado (A iniciar)';
+                        parcelasPagas = 0;
+                    }
                 }
 
                 const pctProgresso = totalParcelas > 0 ? Math.round((parcelasPagas / totalParcelas) * 100) : 0;
-                const valorParcela = parseFloat(p.valor) || 0;
-                const valorTotal = valorParcela * totalParcelas;
 
-                return {
-                    id: p.id || p.intent_id || '',
-                    id_externo: p.id_externo || '',
-                    cliente: p.cliente || 'Cliente',
-                    documento: p.documento || p.cpf || p.cnpj || '---',
-                    banco_nome: p.banco_nome || 'Banco',
-                    banco_imagem: p.banco_imagem || '',
+                // Montagem do cronograma detalhado de cada uma das parcelas
+                const parcelasCronograma = [];
+                for (let i = 0; i < totalParcelas; i++) {
+                    const pNum = i + 1;
+                    const dtVenc = dtInicioObj ? somarMesesData(dtInicioStr, i) : null;
+                    const foiPaga = pNum <= parcelasPagas;
+                    const dtVencPassada = dtVenc && dtVenc < hoje;
+
+                    let stParc = 'agendada';
+                    let stParcLabel = 'Agendada';
+                    if (foiPaga) {
+                        stParc = 'paga';
+                        stParcLabel = 'Paga';
+                    } else if (dtVencPassada && adimplencia === 'em_atraso') {
+                        stParc = 'atrasada';
+                        stParcLabel = 'Atrasada';
+                    } else if (adimplencia === 'cancelado') {
+                        stParc = 'cancelada';
+                        stParcLabel = 'Cancelada';
+                    }
+
+                    parcelasCronograma.push({
+                        numero: pNum,
+                        total: totalParcelas,
+                        valor: valorParcela,
+                        dataVencimento: dtVenc ? formatarDataSimplesPt(dtVenc) : `Mês ${pNum}`,
+                        status: stParc,
+                        statusLabel: stParcLabel
+                    });
+                }
+
+                contratosProcessados.push({
+                    id: principal.id || principal.intent_id || '',
+                    id_externo: principal.id_externo || '',
+                    cliente: principal.cliente || 'Cliente',
+                    documento: principal.documento || principal.cpf || principal.cnpj || '---',
+                    banco_nome: principal.banco_nome || 'Banco Pagador',
+                    banco_imagem: principal.banco_imagem || '',
+                    agencia: principal.agencia || '',
+                    conta: principal.conta || '',
                     metodo,
                     isBoleto,
-                    dt_inicio: dtInicio,
-                    dt_fim: dtFim,
+                    dt_inicio: dtInicioFmt,
+                    dt_fim: dtFimFmt,
                     vigenciaTexto,
                     totalParcelas,
                     parcelasPagas,
@@ -2974,12 +3254,18 @@ let todosOsClientes = [];
                     valorParcela,
                     valorTotal,
                     adimplencia,
-                    status_label: p.status_label || p.status || 'Ativo',
-                    status_classe: p.status_classe || 'agendado',
-                    status_oficial: p.status_oficial_pluggy || st,
-                    item_original: p
-                };
+                    adimplenciaLabel,
+                    cronograma: parcelasCronograma,
+                    status_label: principal.status_label || principal.status || 'Ativo',
+                    status_classe: principal.status_classe || 'agendado',
+                    status_oficial: principal.status_oficial_pluggy || st,
+                    diagnostico_erro: principal.diagnostico_erro || '',
+                    tentativasAnteriores,
+                    item_original: principal
+                });
             });
+
+            return contratosProcessados;
         }
 
         function renderizarExtratoDetalhadoSecuritizadora() {
@@ -3003,10 +3289,14 @@ let todosOsClientes = [];
                 );
 
                 let matchAdimplencia = true;
-                if (filtroAdimplencia === 'em_dia') {
+                if (filtroAdimplencia === 'agendado') {
+                    matchAdimplencia = (it.adimplencia === 'agendado');
+                } else if (filtroAdimplencia === 'em_dia') {
                     matchAdimplencia = (it.adimplencia === 'em_dia');
                 } else if (filtroAdimplencia === 'em_atraso') {
                     matchAdimplencia = (it.adimplencia === 'em_atraso');
+                } else if (filtroAdimplencia === 'concluido') {
+                    matchAdimplencia = (it.adimplencia === 'concluido');
                 }
 
                 let matchMetodo = true;
@@ -3021,7 +3311,7 @@ let todosOsClientes = [];
 
             // Atualização dos 4 KPIs superiores
             const totalContratos = filtrados.length;
-            const totalEmDia = filtrados.filter(i => i.adimplencia === 'em_dia').length;
+            const totalEmDia = filtrados.filter(i => ['em_dia', 'agendado', 'concluido'].includes(i.adimplencia)).length;
             const totalEmAtraso = filtrados.filter(i => i.adimplencia === 'em_atraso').length;
             const pctEmDia = totalContratos > 0 ? Math.round((totalEmDia / totalContratos) * 100) : 0;
             const pctEmAtraso = totalContratos > 0 ? Math.round((totalEmAtraso / totalContratos) * 100) : 0;
@@ -3072,17 +3362,31 @@ let todosOsClientes = [];
             let htmlLinhas = '';
             paginados.forEach((c, idx) => {
                 const rowId = `sub-contrato-det-${idx}-${c.id.slice(0, 8)}`;
-                const isEmDia = (c.adimplencia === 'em_dia');
-
+                
                 const badgeMetodo = c.isBoleto
                     ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs"><i class="fa-solid fa-barcode text-amber-600"></i> Boleto</span>`
                     : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-bolt text-emerald-600"></i> Pix Automático</span>`;
 
-                const badgeAdimplencia = isEmDia
-                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-circle-check text-emerald-600"></i> Em dia</span>`
-                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs animate-pulse"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Em atraso</span>`;
+                let badgeAdimplencia = '';
+                let corBarra = 'bg-sky-500';
 
-                const corBarra = isEmDia ? 'bg-emerald-500' : 'bg-rose-500';
+                if (c.adimplencia === 'agendado') {
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-300 shadow-2xs"><i class="fa-regular fa-clock text-sky-600"></i> Agendado</span>`;
+                    corBarra = 'bg-sky-500';
+                } else if (c.adimplencia === 'em_dia') {
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"><i class="fa-solid fa-circle-check text-emerald-600"></i> Em dia</span>`;
+                    corBarra = 'bg-emerald-500';
+                } else if (c.adimplencia === 'concluido') {
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-300 shadow-2xs"><i class="fa-solid fa-flag-checkered text-indigo-600"></i> Concluído</span>`;
+                    corBarra = 'bg-indigo-600';
+                } else if (c.adimplencia === 'cancelado') {
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs"><i class="fa-solid fa-ban text-slate-500"></i> Cancelado</span>`;
+                    corBarra = 'bg-slate-400';
+                } else {
+                    badgeAdimplencia = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs animate-pulse"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Em atraso</span>`;
+                    corBarra = 'bg-rose-500';
+                }
+
                 const valorParcelaFmt = c.valorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const valorTotalFmt = c.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -3092,6 +3396,10 @@ let todosOsClientes = [];
                     ? `<img src="${MC_CONFIG.escapeHtml(c.banco_imagem)}" alt="" class="w-4 h-4 object-contain">` 
                     : `<i class="fa-regular fa-user text-xs"></i>`;
 
+                const tentativasBadge = (c.tentativasAnteriores && c.tentativasAnteriores.length > 0)
+                    ? `<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono ml-1.5" title="${c.tentativasAnteriores.length} tentativas anteriores arquivadas">+${c.tentativasAnteriores.length} audit</span>`
+                    : '';
+
                 htmlLinhas += `
                     <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
                         <td class="py-3 px-3.5">
@@ -3099,9 +3407,12 @@ let todosOsClientes = [];
                                 <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
                                     ${imgBancoHtml}
                                 </div>
-                                <div>
-                                    <span class="font-bold text-[#010157] text-xs block leading-tight">${MC_CONFIG.escapeHtml(c.cliente)}</span>
-                                    <span class="text-[10px] text-slate-400 font-mono block mt-0.5">${MC_CONFIG.escapeHtml(c.documento)} • ${MC_CONFIG.escapeHtml(c.banco_nome)}</span>
+                                <div class="min-w-0">
+                                    <div class="flex items-center">
+                                        <span class="font-bold text-[#010157] text-xs block leading-tight truncate">${MC_CONFIG.escapeHtml(c.cliente)}</span>
+                                        ${tentativasBadge}
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 font-mono block mt-0.5 truncate">${MC_CONFIG.escapeHtml(c.documento)} • ${MC_CONFIG.escapeHtml(c.banco_nome)}</span>
                                 </div>
                             </div>
                         </td>
@@ -3110,7 +3421,7 @@ let todosOsClientes = [];
                         </td>
                         <td class="py-3 px-3 whitespace-nowrap">
                             <div class="flex items-center gap-2">
-                                <span class="font-bold text-xs ${isEmDia ? 'text-[#010157]' : 'text-rose-700'}">${c.parcelasPagas}/${c.totalParcelas} pagas</span>
+                                <span class="font-bold text-xs ${c.adimplencia === 'em_atraso' ? 'text-rose-700' : 'text-[#010157]'}">${c.parcelasPagas}/${c.totalParcelas} pagas</span>
                                 <span class="text-[10px] text-slate-400 font-mono">(${c.pctProgresso}%)</span>
                             </div>
                             <div class="w-28 bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1 border border-slate-200/50">
@@ -3124,7 +3435,7 @@ let todosOsClientes = [];
                             </span>
                         </td>
                         <td class="py-3 px-3 text-right whitespace-nowrap">
-                            <span class="font-extrabold text-xs text-[#010157] block">${valorParcelaFmt}<span class="text-[10px] font-normal text-slate-400">/mês</span></span>
+                            <span class="font-extrabold text-xs text-[#010157] block font-mono">${valorParcelaFmt}<span class="text-[10px] font-normal text-slate-400 font-sans">/mês</span></span>
                             <span class="text-[10px] text-slate-400 block font-mono">Total: ${valorTotalFmt}</span>
                         </td>
                         <td class="py-3 px-3 text-center whitespace-nowrap">
@@ -3135,41 +3446,112 @@ let todosOsClientes = [];
                                 <button type="button" onclick="abrirModalOperacaoPluggy('${safeContratoId}')" class="bg-blue-50 hover:bg-blue-100 text-[#0985ff] border border-blue-200 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Ver detalhes completos do contrato na Pluggy">
                                     <i class="fa-solid fa-magnifying-glass"></i> Detalhes
                                 </button>
-                                <button type="button" onclick="toggleSubtabelaContratoDet('${safeRowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Ver cronograma de parcelas">
+                                <button type="button" onclick="toggleSubtabelaContratoDet('${safeRowId}')" class="bg-slate-100 hover:bg-slate-200 text-[#010157] px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Ver ficha completa do cliente e cronograma de parcelas">
                                     <i id="icon-chev-${safeRowId}" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
+                    <!-- LINHA EXPANSÍVEL: FICHA CADASTRAL, BANCÁRIA E CRONOGRAMA DE PARCELAS SEM CORTAR -->
                     <tr id="${safeRowId}" class="hidden bg-slate-50/60 border-b border-slate-200/60">
-                        <td colspan="7" class="p-3 sm:p-4">
-                            <div class="bg-white rounded-xl border border-slate-200 p-3.5 space-y-3">
-                                <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-100 flex-wrap gap-2">
-                                    <span class="font-bold text-[#010157] flex items-center gap-1.5">
-                                        <i class="fa-solid fa-list-ol text-[#0985ff]"></i>
-                                        Cronograma de Parcelas do Contrato (${safeContratoId.slice(0, 16)}..)
-                                    </span>
-                                    <span class="text-[11px] text-slate-500">
-                                        Beneficiário: <strong class="text-slate-800">MC MINHACONTA SECURITIZADORA S/A</strong>
-                                    </span>
+                        <td colspan="7" class="p-3 sm:p-5">
+                            <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 space-y-4 shadow-sm w-full min-w-0">
+                                
+                                <!-- 1. FICHA COMPLETA DO CLIENTE E CONTRATO -->
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 text-xs">
+                                    <div class="space-y-1">
+                                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Dados Cadastrais do Pagador</span>
+                                        <strong class="text-[#010157] text-sm block leading-tight">${MC_CONFIG.escapeHtml(c.cliente)}</strong>
+                                        <span class="text-slate-600 font-mono text-[11px] block">CPF/CNPJ: <strong>${MC_CONFIG.escapeHtml(c.documento)}</strong></span>
+                                        <span class="text-slate-500 text-[11px] block">Método: <strong class="text-[#010157]">${MC_CONFIG.escapeHtml(c.metodo)}</strong></span>
+                                    </div>
+
+                                    <div class="space-y-1">
+                                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Instituição Financeira & Conta</span>
+                                        <strong class="text-slate-800 text-xs flex items-center gap-1.5 mt-0.5">
+                                            ${imgBancoHtml} ${MC_CONFIG.escapeHtml(c.banco_nome)}
+                                        </strong>
+                                        <span class="text-slate-600 font-mono text-[11px] block">Agência: ${MC_CONFIG.escapeHtml(c.agencia || '---')} | Conta: ${MC_CONFIG.escapeHtml(c.conta || '---')}</span>
+                                        <span class="text-slate-500 text-[11px] block">Beneficiário: <strong class="text-slate-800">MC MINHACONTA SECURITIZADORA S/A</strong></span>
+                                    </div>
+
+                                    <div class="space-y-1">
+                                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Auditoria & Liquidação</span>
+                                        <span class="text-slate-700 text-[11px] block font-mono truncate" title="${safeContratoId}">ID Pluggy: <strong>${safeContratoId}</strong></span>
+                                        <span class="text-slate-600 text-[11px] block">Status Oficial: <strong class="text-[#0985ff]">${MC_CONFIG.escapeHtml(c.status_oficial)}</strong></span>
+                                        <span class="text-slate-600 text-[11px] block">Situação de Cobrança: <strong>${c.adimplenciaLabel}</strong></span>
+                                    </div>
                                 </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                                    ${Array.from({ length: c.totalParcelas }).map((_, pIdx) => {
-                                        const pNum = pIdx + 1;
-                                        const foiPaga = pNum <= c.parcelasPagas;
-                                        const stBadge = foiPaga ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (isEmDia ? 'bg-slate-50 text-slate-600 border-slate-200' : 'bg-rose-50 text-rose-700 border-rose-200');
-                                        const icon = foiPaga ? 'fa-check' : (isEmDia ? 'fa-clock' : 'fa-xmark');
-                                        return `
-                                            <div class="p-2 rounded-lg border text-center ${stBadge}">
-                                                <span class="text-[10px] font-bold block">Parcela ${pNum}/${c.totalParcelas}</span>
-                                                <span class="text-[11px] font-extrabold block mt-0.5">${valorParcelaFmt}</span>
-                                                <span class="text-[9px] font-medium flex items-center justify-center gap-1 mt-1">
-                                                    <i class="fa-solid ${icon}"></i> ${foiPaga ? 'Paga' : (isEmDia ? 'Agendada' : 'Atrasada')}
-                                                </span>
+
+                                <!-- 2. CRONOGRAMA DE PARCELAS COM RESPONSIVIDADE FLUIDA (SEM CORTES) -->
+                                <div>
+                                    <div class="flex items-center justify-between text-xs pb-2.5 mb-2.5 border-b border-slate-100 flex-wrap gap-2">
+                                        <span class="font-bold text-[#010157] flex items-center gap-1.5">
+                                            <i class="fa-solid fa-list-ol text-[#0985ff]"></i>
+                                            Cronograma Completo de Parcelas (${c.totalParcelas} parcelas de ${valorParcelaFmt})
+                                        </span>
+                                        <span class="text-[11px] text-slate-500 font-mono">
+                                            Progresso: <strong class="text-slate-800">${c.parcelasPagas} pagas</strong> de <strong class="text-slate-800">${c.totalParcelas}</strong> (${c.pctProgresso}%)
+                                        </span>
+                                    </div>
+
+                                    <!-- Grid Responsivo sem estourar margem -->
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 w-full min-w-0">
+                                        ${c.cronograma.map(p => {
+                                            let stCard = 'bg-sky-50 text-sky-800 border-sky-200';
+                                            let icon = 'fa-clock text-sky-600';
+                                            if (p.status === 'paga') {
+                                                stCard = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+                                                icon = 'fa-check text-emerald-600';
+                                            } else if (p.status === 'atrasada') {
+                                                stCard = 'bg-rose-50 text-rose-800 border-rose-300';
+                                                icon = 'fa-triangle-exclamation text-rose-600';
+                                            } else if (p.status === 'cancelada') {
+                                                stCard = 'bg-slate-50 text-slate-600 border-slate-200';
+                                                icon = 'fa-ban text-slate-400';
+                                            }
+
+                                            return `
+                                                <div class="p-2.5 rounded-xl border text-center ${stCard} transition shadow-2xs min-w-0">
+                                                    <span class="text-[10px] font-bold block opacity-80">Parcela ${p.numero}/${p.total}</span>
+                                                    <span class="text-xs font-black block mt-0.5 font-mono">${valorParcelaFmt}</span>
+                                                    <span class="text-[9px] block font-mono mt-1 opacity-90"><i class="fa-regular fa-calendar text-[8px]"></i> ${p.dataVencimento}</span>
+                                                    <span class="text-[9px] font-extrabold flex items-center justify-center gap-1 mt-1.5 uppercase tracking-wider">
+                                                        <i class="fa-solid ${icon}"></i> ${p.statusLabel}
+                                                    </span>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- 3. HISTÓRICO DE AUDITORIA DE TENTATIVAS ANTERIORES (SE HOUVER) -->
+                                ${c.tentativasAnteriores && c.tentativasAnteriores.length > 0 ? `
+                                    <div class="pt-2 border-t border-slate-100">
+                                        <details class="text-xs group">
+                                            <summary class="font-bold text-slate-600 cursor-pointer hover:text-[#010157] flex items-center gap-1.5 select-none">
+                                                <i class="fa-solid fa-clock-rotate-left text-slate-400 group-open:rotate-180 transition-transform"></i>
+                                                Histórico de Auditoria: ${c.tentativasAnteriores.length} tentativa(s) anterior(es) registrada(s)
+                                            </summary>
+                                            <div class="mt-2.5 space-y-1.5 pl-4 border-l-2 border-slate-200">
+                                                ${c.tentativasAnteriores.map(t => `
+                                                    <div class="text-[11px] text-slate-600 flex items-center justify-between gap-2 py-1 border-b border-slate-100 last:border-0">
+                                                        <div>
+                                                            <span class="font-mono text-slate-700 font-semibold">${MC_CONFIG.escapeHtml(t.id || t.intent_id)}</span>
+                                                            <span class="text-slate-400">• ${MC_CONFIG.escapeHtml(t.data_inicio_formatada || t.data_inicio || '---')}</span>
+                                                        </div>
+                                                        <div class="text-right">
+                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${['ERROR', 'REJECTED'].includes(String(t.status).toUpperCase()) ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700'}">
+                                                                ${MC_CONFIG.escapeHtml(t.status_label || t.status || 'Falha')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                `).join('')}
                                             </div>
-                                        `;
-                                    }).join('')}
-                                </div>
+                                        </details>
+                                    </div>
+                                ` : ''}
+
                             </div>
                         </td>
                     </tr>

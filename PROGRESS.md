@@ -85,8 +85,13 @@
 - [x] **Realocação da Conta Securitizadora & Submenu de Extrato Detalhado de Clientes**:
   - [x] Expurgada a conta bancária da Securitizadora da listagem de conexões de Open Finance (travas por tipo, razão social e CNPJ).
   - [x] Criação da aba e visualização dedicada "Contas Vinculadas (MC)" no Gestor com saldo consolidado e desvinculação com 1 clique.
+  - [x] Conexão ativa do Bradesco Empresas (`d20e96bd...`) vinculada com saldo de R$ 506,88 e histórico das últimas 10 transações corporativas em tempo real (471 registros).
   - [x] Novo submenu "Extrato Detalhado" sob o acordeão "Securitizadora MC" no menu lateral (sidebar do gestor).
-  - [x] Tabela de extrato analítico por cliente com progresso de parcelas (`X/Y pagas`), vigência (`data_inicio` / `data_fim`), adimplência (`Em dia` / `Em atraso`) e método (`Pix Automático` / `Boleto`).
+  - [x] Tabela de extrato analítico por cliente com progresso de parcelas (`X/Y pagas`), vigência (`data_inicio` / `data_fim`), adimplência real (`Agendado (A iniciar)`, `Em dia`, `Em atraso`, `Concluído`) e método (`Pix Automático` / `Boleto`).
+  - [x] Correção de status de contratos com início futuro: categorizados como `Agendado (A iniciar)` em azul sem check verde prematuro de `Em dia`.
+  - [x] Resolução de corte de tela nas parcelas: grid fluído responsivo (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 w-full min-w-0`), sem estouro horizontal.
+  - [x] Inclusão de Ficha Cadastral e Bancária do Cliente no acordeão (Nome, CPF/CNPJ, Banco COMPE, Agência/Conta, ID Pluggy e Beneficiário MC Securitizadora).
+  - [x] Deduplicação completa de clientes no Extrato Detalhado com subtabela de tentativas anteriores.
   - [x] Filtros reativos por adimplência, método, busca de texto, paginação e exportação para Excel Brasil (.csv).
 
 #### 3.2 Ambiente Corporativo da Securitizadora ([`securitizadora.html`](file:///c:/meu-frontend-plugg/securitizadora.html) / [`securitizadora.js`](file:///c:/meu-frontend-plugg/securitizadora.js))

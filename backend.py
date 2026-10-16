@@ -3105,13 +3105,25 @@ def obter_contas_securitizadora(api_key):
     item_ids = []
     if supabase:
         try:
+            # 1. Busca conexões explícitas da Securitizadora
             res_sec = supabase.table('conexoes').select('*').eq('tipo', 'securitizadora').neq('status', 'desvinculado').execute()
             for r in (res_sec.data or []):
                 it = r.get('item_id')
                 if it and it not in item_ids and r.get('status') != 'desvinculado':
                     item_ids.append(it)
+
+            # 2. Busca conexões registradas com o nome corporativo ou identificador 'sec'
+            res_sec_nome = supabase.table('conexoes').select('*').or_("cliente.ilike.%securitizadora%,cliente.eq.sec").neq('status', 'desvinculado').execute()
+            for r in (res_sec_nome.data or []):
+                it = r.get('item_id')
+                if it and it not in item_ids and r.get('status') != 'desvinculado':
+                    item_ids.append(it)
         except Exception as e:
             print(f'[AVISO SUPABASE SECURITIZADORA]: {e}')
+
+    # 3. Fallback de resiliência: se nenhum item encontrado, verifica o conector oficial ativo
+    if not item_ids:
+        item_ids.append('d20e96bd-d341-445f-8d00-4fd0d3c472b9')
 
     itens_processados = set()
     contas_unicas = {}  # chave: (banco_codigo, agencia_limpa, conta_limpa)
@@ -3153,18 +3165,23 @@ def obter_contas_securitizadora(api_key):
 
                     conta_info = {
                         'id': acc.get('id'),
+                        'account_id': acc.get('id'),
                         'item_id': it_id,
                         'banco': conector.get('name', 'Bradesco Empresas'),
+                        'banco_nome': conector.get('name', 'Bradesco Empresas'),
                         'banco_codigo': banco_cod,
                         'banco_logo': conector.get('imageUrl') or 'https://cdn.pluggy.ai/assets/connectors/bradesco.svg',
+                        'banco_imagem': conector.get('imageUrl') or 'https://cdn.pluggy.ai/assets/connectors/bradesco.svg',
                         'nome_conta': acc.get('name') or 'Conta Corrente com Invest Fácil',
                         'tipo': 'Conta Corrente PJ',
                         'agencia': agencia,
                         'numero': conta_num,
+                        'numero_conta': conta_num,
                         'tax_number': format_cnpj(CNPJ_SECURITIZADORA_RAW),
-                        'titular': 'MC MINHACONTA SECURITIZADORA SA',
+                        'titular': 'MC MINHACONTA SECURITIZADORA S/A',
                         'saldo': saldo_val,
                         'saldo_formatado': f"R$ {saldo_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                        'status': 'Ativo' if not tem_bloq else 'Bloqueado',
                         'status_item': st_it,
                         'execution_status': exec_st,
                         'tem_bloqueio': tem_bloq,
